@@ -2,6 +2,7 @@
 venv/
 env/
 ENV/
+.cache/
 .qdrant/
 .env
 .env.*

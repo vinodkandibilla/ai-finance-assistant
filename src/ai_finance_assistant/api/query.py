@@ -5,11 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field, field_validator
 
-from ai_finance_assistant.agents.financial_qa_ingest import get_finance_qa_retriever
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.graph.builder import FinanceAssistantGraph, build_graph
 from ai_finance_assistant.graph.classifier import IntentClassifier, create_intent_classifier
 from ai_finance_assistant.graph.state import FinanceIntent
+from ai_finance_assistant.providers.market_data import get_stock_price
+from ai_finance_assistant.rag.finance_education import get_finance_retriever
+from ai_finance_assistant.rag.tax_education import get_tax_retriever
 
 router = APIRouter(tags=["assistant"])
 
@@ -38,14 +40,23 @@ def get_query_graph() -> FinanceAssistantGraph:
         )
     classifier: IntentClassifier = create_intent_classifier(settings)
     retriever = None
+    tax_retriever = None
     llm = None
     if settings.openai_api_key is not None:
         llm = ChatOpenAI(
             model=settings.openai_model,
             api_key=settings.openai_api_key.get_secret_value(),
         )
-        retriever = get_finance_qa_retriever()
-    return build_graph(classifier, retriever=retriever, llm=llm)
+        retriever = get_finance_retriever()
+        qdrant_client = getattr(retriever.vector_store, "client", None)
+        tax_retriever = get_tax_retriever(qdrant_client)
+    return build_graph(
+        classifier,
+        retriever=retriever,
+        tax_retriever=tax_retriever,
+        llm=llm,
+        market_quote_tool=get_stock_price,
+    )
 
 
 @router.post("/query", response_model=QueryResponse)

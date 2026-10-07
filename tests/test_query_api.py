@@ -9,7 +9,7 @@ from ai_finance_assistant.graph.builder import (
     CLARIFY_RESPONSE,
     FINANCE_QA_RESPONSE,
     GOALS_RESPONSE,
-    MARKET_ANALYSIS_RESPONSE,
+    MARKET_QUOTE_UNAVAILABLE_RESPONSE,
     NEWS_RESPONSE,
     PORTFOLIO_ANALYSIS_RESPONSE,
     TAX_RESPONSE,
@@ -72,7 +72,7 @@ def test_query_endpoint_routes_market_intent() -> None:
     response = client.post("/query", json={"query": "What is the current price of AAPL?"})
 
     assert response.status_code == 200
-    assert response.json() == {"intent": "market", "answer": MARKET_ANALYSIS_RESPONSE}
+    assert response.json() == {"intent": "market", "answer": MARKET_QUOTE_UNAVAILABLE_RESPONSE}
 
 
 def test_query_graph_requires_openai_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -139,7 +139,7 @@ def test_query_graph_does_not_cache_when_retriever_creation_fails(
         calls += 1
         raise RuntimeError("retriever initialization failed")
 
-    monkeypatch.setattr(query_api, "get_finance_qa_retriever", fail_to_create_retriever)
+    monkeypatch.setattr(query_api, "get_finance_retriever", fail_to_create_retriever)
     get_query_graph.cache_clear()
 
     try:
@@ -265,7 +265,8 @@ def test_build_hybrid_vector_store_rebuilds_empty_collection(monkeypatch: pytest
 
     from langchain_core.documents import Document
 
-    from ai_finance_assistant.agents import financial_qa_ingest as ingest
+    from ai_finance_assistant.rag import finance_education as ingest
+    from ai_finance_assistant.rag import hybrid
 
     class FakeSettings:
         openai_api_key = SimpleNamespace(get_secret_value=lambda: "test-key")
@@ -310,19 +311,19 @@ def test_build_hybrid_vector_store_rebuilds_empty_collection(monkeypatch: pytest
         called["from_existing_collection"] = True
         return FakeVectorStore()
 
-    monkeypatch.setattr(ingest, "get_settings", lambda: FakeSettings())
-    monkeypatch.setattr(ingest, "OpenAIEmbeddings", FakeEmbeddings)
-    monkeypatch.setattr(ingest, "FastEmbedSparse", FakeSparseEmbeddings)
-    monkeypatch.setattr(ingest, "QdrantClient", FakeClient)
-    monkeypatch.setattr(ingest.QdrantVectorStore, "from_documents", staticmethod(fake_from_documents))
+    monkeypatch.setattr(hybrid, "get_settings", lambda: FakeSettings())
+    monkeypatch.setattr(hybrid, "OpenAIEmbeddings", FakeEmbeddings)
+    monkeypatch.setattr(hybrid, "FastEmbedSparse", FakeSparseEmbeddings)
+    monkeypatch.setattr(hybrid, "QdrantClient", FakeClient)
+    monkeypatch.setattr(hybrid.QdrantVectorStore, "from_documents", staticmethod(fake_from_documents))
     monkeypatch.setattr(
-        ingest.QdrantVectorStore,
+        hybrid.QdrantVectorStore,
         "from_existing_collection",
         staticmethod(fake_from_existing_collection),
     )
 
     docs = [Document(page_content="Emergency fund basics", metadata={"page_number": 1})]
-    store = ingest.build_hybrid_vector_store(docs)
+    store = ingest.build_finance_hybrid_vector_store(docs)
 
     assert isinstance(store, FakeVectorStore)
     assert called["from_documents"] is True
@@ -334,7 +335,8 @@ def test_build_hybrid_vector_store_closes_inspection_client_before_reuse(
 ) -> None:
     from types import SimpleNamespace
 
-    from ai_finance_assistant.agents import financial_qa_ingest as ingest
+    from ai_finance_assistant.rag import finance_education as ingest
+    from ai_finance_assistant.rag import hybrid
 
     class FakeSettings:
         openai_api_key = SimpleNamespace(get_secret_value=lambda: "test-key")
@@ -370,16 +372,16 @@ def test_build_hybrid_vector_store_closes_inspection_client_before_reuse(
         assert not FakeClient.is_open
         return FakeVectorStore()
 
-    monkeypatch.setattr(ingest, "get_settings", lambda: FakeSettings())
-    monkeypatch.setattr(ingest, "OpenAIEmbeddings", FakeEmbeddings)
-    monkeypatch.setattr(ingest, "FastEmbedSparse", FakeSparseEmbeddings)
-    monkeypatch.setattr(ingest, "QdrantClient", FakeClient)
+    monkeypatch.setattr(hybrid, "get_settings", lambda: FakeSettings())
+    monkeypatch.setattr(hybrid, "OpenAIEmbeddings", FakeEmbeddings)
+    monkeypatch.setattr(hybrid, "FastEmbedSparse", FakeSparseEmbeddings)
+    monkeypatch.setattr(hybrid, "QdrantClient", FakeClient)
     monkeypatch.setattr(
-        ingest.QdrantVectorStore,
+        hybrid.QdrantVectorStore,
         "from_existing_collection",
         staticmethod(fake_from_existing_collection),
     )
 
-    store = ingest.build_hybrid_vector_store()
+    store = ingest.build_finance_hybrid_vector_store()
 
     assert isinstance(store, FakeVectorStore)
