@@ -6,14 +6,12 @@ from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from ai_finance_assistant.agents.finance_qa import FinanceQaAgent
+from ai_finance_assistant.agents.finance_qa.schemas import FinanceAgentResult
 from ai_finance_assistant.graph.classifier import IntentClassifier
 from ai_finance_assistant.graph.state import FinanceAssistantState
 from ai_finance_assistant.providers.market_data import extract_supported_symbol
 from ai_finance_assistant.rag.models import RetrievedDocument
-
-
-class FinanceRetriever(Protocol):
-    async def search(self, query: str, *, limit: int = 5) -> list[RetrievedDocument]: ...
 
 
 class TaxRetriever(Protocol):
@@ -38,11 +36,6 @@ type FinanceAssistantGraph = CompiledStateGraph[
     FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState
 ]
 
-FINANCE_QA_RESPONSE = (
-    "A standard response - An ETF is a popular type of investment fund that holds a collection of assets "
-    "(like stocks, bonds, or commodities) and trades on a regular stock exchange "
-    "just like an individual stock."
-)
 PORTFOLIO_ANALYSIS_RESPONSE = (
     "Your portfolio is risk free and balanced. (Placeholder only; no holdings were analyzed.)"
 )
@@ -83,12 +76,6 @@ def _is_generic_query(intent: str | None, query: str | None) -> bool:
         return False
 
     generic_by_intent: dict[str, tuple[str, ...]] = {
-        "finance_qa": (
-            "what is finance",
-            "finance basics",
-            "investment basics",
-            "financial concepts",
-        ),
         "market": (
             "what is the stock price",
             "what is the price of the stock",
@@ -155,8 +142,6 @@ def _route_intent(
 ]:
     intent = state.get("intent")
     if intent == "finance_qa":
-        if _is_generic_query(intent, state.get("query")):
-            return "clarify_node"
         return "finance_qa_node"
     if intent == "portfolio":
         if _is_generic_query(intent, state.get("query")):
@@ -183,103 +168,12 @@ def _route_intent(
     return "unsupported_node"
 
 
-def _join_context(documents: list[RetrievedDocument]) -> str:
-    context_blocks: list[str] = []
-    for document in documents:
-        if not document.content or not document.content.strip():
-            continue
-        metadata = document.metadata or {}
-        chapter = metadata.get("chapter")
-        section = metadata.get("section")
-        page_number = metadata.get("page_number")
-
-        citation = []
-        if chapter is not None:
-            citation.append(f"Chapter {chapter}")
-        if section is not None:
-            citation.append(f"Section {section}")
-        if page_number is not None:
-            citation.append(f"Page {page_number}")
-
-        citation_text = ", ".join(citation)
-        block = f"[Source: {document.source}]"
-        if citation_text:
-            block += f"\nCitation: {citation_text}"
-        block += f"\n{document.content.strip()}"
-        context_blocks.append(block)
-
-    return "\n\n".join(context_blocks)
-
-
-async def _answer_finance_qa_with_context(
-    query: str,
-    *,
-    retriever: FinanceRetriever | None,
-    llm: FinanceLLM | None,
-) -> str:
-    if not retriever or not llm:
-        return FINANCE_QA_RESPONSE
-
-    try:
-        matches = await retriever.search(query, limit=3)
-    except Exception:
-        return FINANCE_QA_RESPONSE
-
-    if not matches:
-        return FINANCE_QA_RESPONSE
-
-    context = _join_context(matches)
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "You are a careful financial assistant. Use only the retrieved context to answer "
-                "the user's question. If the context does not contain enough information, say so "
-                "briefly and avoid inventing facts. Cite the relevant chapter, section, and page number "
-                "when available. If you reference a fact from the retrieved context, include the citation in the answer.",
-            ),
-            (
-                "human",
-                "Question: {question}\n\nRetrieved context:\n{context}\n\nAnswer clearly and concisely. "
-                "If available, include a citation in the form 'Chapter X, Section Y, Page Z.'",
-            ),
-        ]
-    )
-
-    async def _call_llm(messages: object) -> object:
-        return await llm.ainvoke(messages)
-
-    qa_chain = (
-        {
-            "context": RunnableLambda(lambda _: context),
-            "question": RunnablePassthrough(),
-        }
-        | prompt
-        | RunnableLambda(_call_llm)
-        | StrOutputParser()
-    )
-
-    try:
-        answer = await qa_chain.ainvoke(query)
-    except Exception:
-        return FINANCE_QA_RESPONSE
-
-    return (answer or FINANCE_QA_RESPONSE).strip() or FINANCE_QA_RESPONSE
-
-
-async def finance_qa_node(
-    state: FinanceAssistantState,
-    *,
-    retriever: FinanceRetriever | None = None,
-    llm: FinanceLLM | None = None,
-) -> FinanceAssistantState:
-    query = state.get("query") or ""
-    answer = await _answer_finance_qa_with_context(query, retriever=retriever, llm=llm)
-    return {"answer": answer}
-
-
 def portfolio_analysis_node(_: FinanceAssistantState) -> FinanceAssistantState:
     return {"answer": PORTFOLIO_ANALYSIS_RESPONSE}
+
+
+def finance_qa_node(_: FinanceAssistantState) -> FinanceAssistantState:
+    return {"answer": ""}
 
 
 async def market_analysis_node(
@@ -333,7 +227,10 @@ async def tax_education_node_with_context(
     if not query or retriever is None or llm is None:
         return {"answer": TAX_RESPONSE}
 
-    from ai_finance_assistant.rag.tax_education import build_tax_metadata_filter, extract_tax_metadata
+    from ai_finance_assistant.rag.tax_education import (
+        build_tax_metadata_filter,
+        extract_tax_metadata,
+    )
 
     metadata = extract_tax_metadata(query)
     metadata_filter = build_tax_metadata_filter(metadata)
@@ -359,9 +256,10 @@ async def tax_education_node_with_context(
         [
             (
                 "system",
-                "You are a careful tax education assistant. Answer only from the retrieved IRS tax corpus. "
-                "Do not provide personalized legal or tax advice, and do not invent amounts or rules. "
-                "If the context is insufficient, state what is missing. Cite the source title for factual claims.",
+                "You are a careful tax education assistant. Answer only from the retrieved "
+                "IRS tax corpus. Do not provide personalized legal or tax advice, and do not "
+                "invent amounts or rules. If the context is insufficient, state what is "
+                "missing. Cite the source title for factual claims.",
             ),
             (
                 "human",
@@ -401,18 +299,14 @@ def unsupported_node(_: FinanceAssistantState) -> FinanceAssistantState:
 def build_graph(
     classifier: IntentClassifier,
     *,
-    retriever: FinanceRetriever | None = None,
     tax_retriever: TaxRetriever | None = None,
     llm: FinanceLLM | None = None,
     market_quote_tool: MarketQuoteTool | None = None,
+    finance_agent: FinanceQaAgent | None = None,
+    checkpointer: object | None = None,
 ) -> FinanceAssistantGraph:
     async def classify_node(state: FinanceAssistantState) -> FinanceAssistantState:
         return await _classify_intent(state, classifier=classifier)
-
-    async def finance_qa_node_with_context(
-        state: FinanceAssistantState,
-    ) -> FinanceAssistantState:
-        return await finance_qa_node(state, retriever=retriever, llm=llm)
 
     async def market_analysis_node_with_quote(
         state: FinanceAssistantState,
@@ -424,11 +318,17 @@ def build_graph(
     ) -> FinanceAssistantState:
         return await tax_education_node_with_context(state, retriever=tax_retriever, llm=llm)
 
+    def empty_finance_qa_node(_: FinanceAssistantState) -> FinanceAssistantState:
+        return {"answer": "", "status": "not_implemented", "citations": []}
+
     workflow: StateGraph[
         FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState
     ] = StateGraph(FinanceAssistantState)
     workflow.add_node("intent_router", classify_node)
-    workflow.add_node("finance_qa_node", finance_qa_node_with_context)
+    workflow.add_node(
+        "finance_qa_node",
+        finance_agent.graph if finance_agent is not None else RunnableLambda(empty_finance_qa_node),
+    )
     workflow.add_node("portfolio_analysis_node", RunnableLambda(portfolio_analysis_node))
     workflow.add_node("market_analysis_node", market_analysis_node_with_quote)
     workflow.add_node("goals_node", RunnableLambda(goals_node))
@@ -446,4 +346,4 @@ def build_graph(
     workflow.add_edge("tax_education_node", END)
     workflow.add_edge("clarify_node", END)
     workflow.add_edge("unsupported_node", END)
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)

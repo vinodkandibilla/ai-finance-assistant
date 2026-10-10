@@ -31,7 +31,8 @@ def build_hybrid_vector_store(
     api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else None
     if not api_key:
         raise RuntimeError(
-            f"Set OPENAI_API_KEY in .env or the environment before ingesting {source_name} into Qdrant."
+            f"Set OPENAI_API_KEY in .env or the environment before ingesting "
+            f"{source_name} into Qdrant."
         )
 
     dense_embeddings = OpenAIEmbeddings(
@@ -51,7 +52,8 @@ def build_hybrid_vector_store(
                 logger.info("Loading Qdrant collection '%s' from local disk.", collection_name)
             else:
                 logger.warning(
-                    "Qdrant collection '%s' exists but contains no vectors; rebuilding it to generate embeddings.",
+                    "Qdrant collection '%s' exists but contains no vectors; "
+                    "rebuilding it to generate embeddings.",
                     collection_name,
                 )
                 inspection_client.delete_collection(collection_name)
@@ -81,12 +83,14 @@ def build_hybrid_vector_store(
     if documents is None:
         if require_documents:
             raise RuntimeError(
-                f"Qdrant collection '{collection_name}' does not exist and no {source_name} were provided to build it."
+                f"Qdrant collection '{collection_name}' does not exist and no "
+                f"{source_name} were provided to build it."
             )
         documents = []
 
     logger.info(
-        "Qdrant collection '%s' not found or empty at '%s'; building embeddings and creating it from scratch.",
+        "Qdrant collection '%s' not found or empty at '%s'; "
+        "building embeddings and creating it from scratch.",
         collection_name,
         str(local_path),
     )
@@ -101,7 +105,10 @@ def build_hybrid_vector_store(
         )
     else:
         if not documents:
-            raise RuntimeError(f"No {source_name} were provided to build Qdrant collection '{collection_name}'.")
+            raise RuntimeError(
+                f"No {source_name} were provided to build Qdrant collection "
+                f"'{collection_name}'."
+            )
         dense_vectors = dense_embeddings.embed_documents([documents[0].page_content])
         client.create_collection(
             collection_name=collection_name,

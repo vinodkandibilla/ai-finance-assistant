@@ -1,6 +1,5 @@
 from ai_finance_assistant.graph.builder import (
     CLARIFY_RESPONSE,
-    FINANCE_QA_RESPONSE,
     GOALS_RESPONSE,
     MARKET_QUOTE_UNAVAILABLE_RESPONSE,
     NEWS_RESPONSE,
@@ -20,15 +19,16 @@ class FakeClassifier:
         return self.intent
 
 
-class FakeRetriever:
-    def __init__(self, documents: list[RetrievedDocument]) -> None:
-        self.documents = documents
+async def test_graph_routes_financial_education_to_empty_finance_qa_node() -> None:
+    result = await build_graph(FakeClassifier("finance_qa")).ainvoke(
+        {"query": "Explain how an ETF works."}
+    )
 
-    async def search(self, query: str, *, limit: int = 5) -> list[RetrievedDocument]:
-        return self.documents
+    assert result["intent"] == "finance_qa"
+    assert result["answer"] == ""
 
 
-class FakeFinanceLLM:
+class FakeTaxAnswerLLM:
     def __init__(self, answer: str) -> None:
         self.answer = answer
 
@@ -44,57 +44,6 @@ class FakeMarketQuoteTool:
     async def ainvoke(self, input: dict[str, str]) -> str:
         self.symbols.append(input["symbol"])
         return self.price
-
-
-async def test_graph_routes_finance_qa_intent_to_qa_node() -> None:
-    result = await build_graph(FakeClassifier("finance_qa")).ainvoke({"query": "What is an ETF?"})
-
-    assert result["intent"] == "finance_qa"
-    assert result["answer"] == FINANCE_QA_RESPONSE
-
-
-async def test_graph_uses_retrieved_context_for_finance_qa() -> None:
-    retriever = FakeRetriever(
-        [
-            RetrievedDocument(
-                content="An ETF is a basket of securities that trades on an exchange.",
-                source="handbook.pdf",
-                metadata={"chapter": "4", "section": "2", "page_number": "25"},
-                score=0.92,
-            )
-        ]
-    )
-    llm = FakeFinanceLLM("ETF means an exchange-traded fund that holds a basket of assets.")
-
-    result = await build_graph(FakeClassifier("finance_qa"), retriever=retriever, llm=llm).ainvoke(
-        {"query": "What is an ETF?"}
-    )
-
-    assert result["intent"] == "finance_qa"
-    assert result["answer"] == "ETF means an exchange-traded fund that holds a basket of assets."
-
-
-async def test_graph_includes_citation_metadata_in_finance_answer() -> None:
-    retriever = FakeRetriever(
-        [
-            RetrievedDocument(
-                content="An ETF is a basket of securities that trades on an exchange.",
-                source="handbook.pdf",
-                metadata={"chapter": "4", "section": "2", "page_number": "25"},
-                score=0.92,
-            )
-        ]
-    )
-    llm = FakeFinanceLLM("ETF is a basket of securities. Citation: Chapter 4, Section 2, Page 25.")
-
-    result = await build_graph(FakeClassifier("finance_qa"), retriever=retriever, llm=llm).ainvoke(
-        {"query": "What is an ETF?"}
-    )
-
-    assert result["intent"] == "finance_qa"
-    assert "Chapter 4" in result["answer"]
-    assert "Section 2" in result["answer"]
-    assert "Page 25" in result["answer"]
 
 
 async def test_graph_routes_other_intent_to_unsupported_node() -> None:
@@ -163,7 +112,10 @@ async def test_graph_routes_news_intent_to_news_synthesizer_node() -> None:
 
 async def test_graph_routes_tax_intent_to_tax_education_node() -> None:
     result = await build_graph(FakeClassifier("tax")).ainvoke(
-        {"query": "What is the standard deduction for Married Filing Jointly with two qualifying children for the year 2026?"}
+        {
+            "query": "What is the standard deduction for Married Filing Jointly "
+            "with two qualifying children for the year 2026?"
+        }
     )
 
     assert result["intent"] == "tax"
@@ -176,7 +128,10 @@ async def test_graph_uses_tax_hybrid_retrieval_with_extracted_metadata() -> None
 
         async def search(self, query: str, *, limit: int = 5, metadata_filter=None):
             self.metadata_filter = metadata_filter
-            assert query == "What is the standard deduction for Married Filing Jointly in tax year 2026?"
+            assert query == (
+                "What is the standard deduction for Married Filing Jointly "
+                "in tax year 2026?"
+            )
             assert limit == 3
             return [
                 RetrievedDocument(
@@ -188,13 +143,17 @@ async def test_graph_uses_tax_hybrid_retrieval_with_extracted_metadata() -> None
             ]
 
     tax_retriever = FakeTaxRetriever()
-    llm = FakeFinanceLLM("The deduction depends on filing status. Source: Standard vs. Itemized Deductions.")
+    llm = FakeTaxAnswerLLM(
+        "The deduction depends on filing status. Source: Standard vs. Itemized Deductions."
+    )
 
     result = await build_graph(
         FakeClassifier("tax"),
         tax_retriever=tax_retriever,
         llm=llm,
-    ).ainvoke({"query": "What is the standard deduction for Married Filing Jointly in tax year 2026?"})
+    ).ainvoke(
+        {"query": "What is the standard deduction for Married Filing Jointly in tax year 2026?"}
+    )
 
     assert result["intent"] == "tax"
     assert result["answer"] == llm.answer
@@ -206,7 +165,7 @@ async def test_graph_uses_tax_hybrid_retrieval_with_extracted_metadata() -> None
     }
 
 
-async def test_tax_retries_hybrid_search_without_filter_when_filtered_search_has_no_results() -> None:
+async def test_tax_retries_hybrid_search_without_filter_when_no_filtered_results() -> None:
     class FilterFallbackRetriever:
         filters = []
 
@@ -224,7 +183,7 @@ async def test_tax_retries_hybrid_search_without_filter_when_filtered_search_has
             ]
 
     tax_retriever = FilterFallbackRetriever()
-    llm = FakeFinanceLLM("The corpus says it depends on filing status.")
+    llm = FakeTaxAnswerLLM("The corpus says it depends on filing status.")
     query = "What is the standard deduction limit for year 2026"
 
     result = await build_graph(

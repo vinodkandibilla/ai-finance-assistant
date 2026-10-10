@@ -11,14 +11,20 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
+    finance_query_analysis_model: str = "gpt-4o-mini"
+    finance_evaluator_model: str = "gpt-4o-mini"
+    finance_reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    finance_collection: str = "finance_education_dense"
+    finance_checkpoint_path: str = ".cache/finance_agent_checkpoints.sqlite"
     alpha_vantage_api_key: SecretStr | None = None
     alpha_vantage_base_url: str = "https://www.alphavantage.co/query"
     alpha_vantage_timeout_seconds: float = 3.0
     quote_cache_ttl_seconds: int = 24 * 60 * 60
     intent_router_system_prompt: str = Field(
         default=(
-            "Classify the user's request by intent. Return finance_qa for questions about "
-            "financial concepts or products; return portfolio for requests to analyze "
+            "Classify the user's request by intent. Return finance_qa for financial education "
+            "questions about financial concepts, products, investing, or options education; "
+            "return portfolio for requests to analyze "
             "portfolio holdings, allocation, concentration, or performance; return market "
             "for current stock quotes on MAG7 tickers (AAPL, MSFT, AMZN, GOOG, GOOGL, META, "
             "NVDA, TSLA); return clarify for historical prices, volume, comparisons, or "
