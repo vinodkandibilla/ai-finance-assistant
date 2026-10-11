@@ -10,7 +10,6 @@ from langgraph.types import interrupt
 
 from ai_finance_assistant.agents.finance_qa.evaluator import FinanceContextEvaluator
 from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
-from ai_finance_assistant.agents.finance_qa.rrf import reciprocal_rank_fusion
 from ai_finance_assistant.agents.finance_qa.reranker import FinanceCrossEncoderReranker
 from ai_finance_assistant.agents.finance_qa.retrieval import FinanceHybridRetriever
 from ai_finance_assistant.agents.finance_qa.schemas import (
@@ -43,10 +42,6 @@ class FinanceAgentState(TypedDict, total=False):
     search_query: str
     analysis: dict[str, object]
     metadata_filters: dict[str, str]
-    dense_sub_queries: list[str]
-    sparse_keywords: list[str]
-    ranked_lists: list[list[dict[str, object]]]
-    sparse_ranked_list: list[dict[str, object]]
     candidates: list[dict[str, object]]
     reranked_documents: list[dict[str, object]]
     evaluation: dict[str, object]
@@ -146,35 +141,16 @@ class FinanceQaAgent:
                 keywords = list(state.get("sparse_keywords") or [])
             metadata = self._metadata_extractor.extract(search_query)
             metadata_filter = self._metadata_extractor.build_qdrant_filter(metadata)
-            ranked_lists, sparse_list, errors = await self._retriever.retrieve(
+            candidates, errors = await self._retriever.retrieve(
                 dense_queries,
                 keywords,
                 metadata_filter=metadata_filter,
             )
-            if errors and not ranked_lists and not sparse_list:
-                errors.append("both dense and sparse retrieval returned no usable channel")
             return {
                 "metadata_filters": metadata,
-                "ranked_lists": [[doc.model_dump() for doc in values] for values in ranked_lists],
-                "sparse_ranked_list": [doc.model_dump() for doc in sparse_list],
+                "candidates": [doc.model_dump() for doc in candidates],
                 "errors": list(state.get("errors", [])) + errors,
             }
-
-        def fuse_node(state: FinanceAgentState) -> dict[str, object]:
-            ranked_lists = [
-                [FinanceDocument.model_validate(value) for value in values]
-                for values in state.get("ranked_lists", [])
-            ]
-            sparse = [
-                FinanceDocument.model_validate(value)
-                for value in state.get("sparse_ranked_list", [])
-            ]
-            fused = reciprocal_rank_fusion(
-                [*ranked_lists, sparse],
-                k=self._settings.rrf_k,
-                limit=self._settings.rrf_candidates,
-            )
-            return {"candidates": [document.model_dump() for document in fused]}
 
         async def rerank_node(state: FinanceAgentState) -> dict[str, object]:
             candidates = [
@@ -308,7 +284,6 @@ class FinanceQaAgent:
         workflow.add_node("analyze", analyze_node)
         workflow.add_node("clarify", clarify_node)
         workflow.add_node("retrieve", retrieve_node)
-        workflow.add_node("fuse", fuse_node)
         workflow.add_node("rerank", rerank_node)
         workflow.add_node("evaluate", evaluate_node)
         workflow.add_node("reformulate", reformulate_node)
@@ -317,8 +292,7 @@ class FinanceQaAgent:
         workflow.add_edge(START, "analyze")
         workflow.add_conditional_edges("analyze", _route_analysis)
         workflow.add_conditional_edges("clarify", _route_after_clarification)
-        workflow.add_edge("retrieve", "fuse")
-        workflow.add_edge("fuse", "rerank")
+        workflow.add_edge("retrieve", "rerank")
         workflow.add_edge("rerank", "evaluate")
         workflow.add_conditional_edges("evaluate", self._route_evaluation)
         workflow.add_edge("reformulate", "retrieve")
@@ -373,13 +347,15 @@ def _citations(documents: list[FinanceDocument]) -> list[str]:
     citations = []
     for document in documents:
         page = document.metadata.get("page_number", "unknown")
-        citations.append(f"Financial Education Handbook, page {page} ({document.doc_id})")
+        citation = f"Financial Education Handbook, page {page}"
+        if citation not in citations:
+            citations.append(citation)
     return citations
 
 
 def _format_context(documents: list[FinanceDocument]) -> str:
     return "\n\n".join(
-        f"[Source: {document.source}; page {document.metadata.get('page_number', 'unknown')}; "
-        f"doc_id: {document.doc_id}]\n{document.content}"
+        f"[Source: Financial Education Handbook; "
+        f"page {document.metadata.get('page_number', 'unknown')}]\n{document.content}"
         for document in documents
     )

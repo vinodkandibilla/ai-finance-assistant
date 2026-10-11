@@ -11,7 +11,6 @@ from ai_finance_assistant.api.query import router as query_router
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.core.logging import configure_logging
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     checkpoint_path = Path(get_settings().finance_checkpoint_path)

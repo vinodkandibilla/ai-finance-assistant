@@ -1,6 +1,6 @@
 # AI Finance Assistant
 
-**Investment education with an agentic LangGraph RAG workflow, alongside US tax education and market quotes—served through one FastAPI API.**
+**A finance education API with evidence-based answers, Qdrant hybrid retrieval, and LangGraph orchestration.**
 
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
@@ -10,7 +10,7 @@
 
 Ask an investing question in plain English. Finance QA searches a financial handbook, checks whether the evidence covers the whole question, and makes at most one targeted retrieval retry before returning a cited answer or an explicit evidence limitation.
 
-[Quick start](#quick-start) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Configuration](#configuration) · [Development](#development)
+[Quick start](#quick-start) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Configuration](#configuration) · [Storage and operations](#index-lifecycle-and-operations) · [Development](#development)
 
 ## Capabilities
 
@@ -25,6 +25,18 @@ Ask an investing question in plain English. Finance QA searches a financial hand
 | Portfolio, goals, news | Holdings analysis, savings projections, news summaries | Fixed demonstration responses; these integrations and calculations are not implemented. |
 
 The project is in active development. Finance QA is implemented, but the complete application is not production-ready. The operational limitations below describe the current code, including differences from the [Finance Agentic RAG coding prompt](resources/prompts/Finance_Agentic_RAG_Coding_Agent_Prompt.md).
+
+## Documentation guide
+
+| Goal | Reference |
+| --- | --- |
+| Run locally and send a first request | [Quick start](#quick-start) |
+| Integrate a client or resume clarification | [API](#api) |
+| Understand routing and evidence retrieval | [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) |
+| Set models, providers, and retrieval limits | [Configuration](#configuration) |
+| Understand embedding reuse and collection migration | [Index lifecycle and operations](#index-lifecycle-and-operations) |
+| Locate implementation and run checks | [Repository guide](#repository-guide) · [Development](#development) |
+| Assess deployment readiness | [Current limitations and next steps](#current-limitations-and-next-steps) |
 
 ## Quick start
 
@@ -57,7 +69,7 @@ OPENAI_MODEL=gpt-4o-mini
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 ALPHA_VANTAGE_API_KEY=your-alpha-vantage-api-key
 QDRANT_MODE=local
-FINANCE_COLLECTION=finance_education_dense
+FINANCE_COLLECTION=finance_education_hybrid
 FINANCE_QUERY_ANALYSIS_MODEL=gpt-4o-mini
 FINANCE_CHECKPOINT_PATH=.cache/finance_agent_checkpoints.sqlite
 ```
@@ -67,12 +79,12 @@ Use the default router prompt in `core/config.py`. The current `.env.example` co
 ### Run
 
 ```bash
-uvicorn ai_finance_assistant.main:app --reload
+.venv/bin/python -m uvicorn ai_finance_assistant.main:app --reload
 ```
 
 Open [Swagger UI](http://127.0.0.1:8000/docs) or [service health](http://127.0.0.1:8000/health).
 
-The first query constructs the cached parent graph and initializes both retrieval domains. New collections require embedding calls; Finance QA builds an in-memory BM25 index. The cross-encoder loads when reranking is first needed. Health checks do not initialize these dependencies or verify provider availability.
+Server startup opens the SQLite checkpoint connection through FastAPI’s async lifespan and closes it on shutdown. The first query constructs the cached parent graph and initializes both retrieval domains. New collections require embedding calls; Finance QA stores dense and FastEmbed BM25 sparse vectors together in Qdrant. The cross-encoder loads when reranking is first needed. Health checks do not initialize these dependencies or verify provider availability.
 
 ## API
 
@@ -91,13 +103,13 @@ curl -X POST http://127.0.0.1:8000/query \
   -d '{"query":"Explain NAV versus market price for an ETF."}'
 ```
 
-Illustrative successful response; generated text and source identifiers vary:
+Illustrative response shape; answer wording and selected pages vary with retrieval:
 
 ```json
 {
   "intent": "finance_qa",
   "answer": "An explanation grounded in the retrieved handbook passages, with page citations.",
-  "citations": ["Financial Education Handbook, page 12 (<document-id>)"]
+  "citations": ["Financial Education Handbook, page 12"]
 }
 ```
 
@@ -106,7 +118,7 @@ Illustrative successful response; generated text and source identifiers vary:
 | Field | Meaning |
 | --- | --- |
 | `status` | Exposes `clarification`, `handoff`, `insufficient`, or `error` when applicable. Successful `answered` status is omitted by the API. |
-| `citations` | Strings identifying selected handbook pages and document IDs. These describe selected context; they are not a verified mapping from claims to sources. |
+| `citations` | Strings identifying the handbook title and selected pages; internal chunk/document IDs are omitted and duplicate page references are combined. These describe selected context; they are not a verified mapping from claims to sources. |
 | `thread_id` | Checkpoint identifier returned when a clarification is pending. |
 | `clarification_question` | The information needed before retrieval can proceed. |
 | `handoff_intents` | Destination intents detected by Finance QA; the parent currently returns them without dispatching another handler. |
@@ -132,6 +144,22 @@ curl -X POST http://127.0.0.1:8000/query/resume \
 ```
 
 The finance clarification node reclassifies the reply using the shared intent classifier. A finance reply is combined with the original question for search and reanalysis; a different intent produces a handoff. The parent graph's router node is not re-entered. Generic top-level clarification responses do not create this resumable workflow.
+
+### Result handling
+
+Treat `intent` as the routing result. For Finance QA, branch on `status` when present:
+
+| Status | Client behavior |
+| --- | --- |
+| Omitted on success | Display the answer and optional citations. |
+| `clarification` | Display `clarification_question`; retain `thread_id` for `/query/resume`. |
+| `handoff` | Use `handoff_intents` to indicate the requested destination; automatic dispatch is not implemented. |
+| `insufficient` | Display the evidence limitation. Citations may still list retrieved context. |
+| `error` | Display the controlled failure message; detailed internal errors are not exposed in the response. |
+
+Citations contain **document title and page only**, with repeated page references combined. They list the selected evidence context, so the array can contain more pages than the answer explicitly cites. Claim-level citation validation and extraction of only answer-used pages are not implemented.
+
+### Validation and failures
 
 New query inputs and resume replies are trimmed and constrained to 1–4,000 characters. Invalid input returns HTTP `422`; an absent OpenAI key produces HTTP `503` during graph construction. Other initialization and unhandled execution failures can become server errors. Unknown or expired thread IDs do not have a dedicated HTTP error contract yet.
 
@@ -159,7 +187,7 @@ flowchart TD
     Checkpoint --> Finance
 ```
 
-The parent embeds `FinanceQaAgent.graph` as `finance_qa_node` and compiles with a SQLite checkpointer. Parent state includes the query, intent, answer, and Finance QA retrieval/evaluation/result fields. Each new request receives a UUID thread ID; only pending clarifications expose that ID through the API.
+The parent embeds `FinanceQaAgent.graph` as `finance_qa_node` and compiles with `AsyncSqliteSaver` backed by `aiosqlite`. The application lifespan owns the checkpoint connection. Parent state includes the query, intent, answer, and Finance QA retrieval/evaluation/result fields. Each new request receives a UUID thread ID; only pending clarifications expose that ID through the API.
 
 The finance child performs iterative evidence retrieval. Other domain handlers remain separate routes; there is no implemented mixed-intent execution plan or persistent user financial profile.
 
@@ -187,8 +215,8 @@ flowchart TD
     Clarify --> Reply[Resume and classify reply]
     Reply -->|Finance| Analyze
     Reply -->|Other intent| Handoff
-    Analyze -->|Searchable| Retrieve[Extract supported metadata; concurrent dense and BM25 search]
-    Retrieve --> Fuse[Reciprocal Rank Fusion]
+    Analyze -->|Searchable| Retrieve[Extract metadata; dense and BM25 Qdrant prefetch]
+    Retrieve --> Fuse[Qdrant RRF fusion inside retrieval]
     Fuse --> Rerank[Cross-encoder reranking]
     Rerank --> Evaluate[Evaluate evidence coverage; retain best context]
     Evaluate -->|Sufficient| Generate[Grounded answer with citations]
@@ -199,14 +227,14 @@ flowchart TD
 
 1. **Analyze:** one structured LLM call identifies intent, completeness, complexity, lexical terms, and up to three dense subqueries. Analysis failure falls back to the original query and deterministic keywords, after the deterministic scope checks.
 2. **Extract metadata:** optional hard filters use only explicit values supported by loaded corpus metadata. The current PDF adapter supplies provenance fields rather than topic/ticker taxonomy, so optional financial filters are normally absent.
-3. **Retrieve concurrently:** each dense subquery searches Qdrant; one `rank_bm25` search uses combined keywords over the PDF chunks. Dense searches have bounded concurrency and per-search timeouts; BM25 runs in a worker thread.
-4. **Fuse:** each ranked list contributes `1 / (60 + rank)`, starting at rank 1. Repeated document IDs contribute across lists; fused output is deduplicated. Raw vector and BM25 scores are not combined.
+3. **Prepare retrieval:** dense query embeddings are generated concurrently for the decomposed queries. FastEmbed `Qdrant/bm25` generates a sparse vector for combined keywords in a worker thread. One Qdrant request submits separate dense and sparse prefetches with their own top-K limits and metadata filters. A semaphore bounds retrieval operations; the configured timeout covers embedding preparation and the Qdrant call.
+4. **Fuse in Qdrant:** `query_points()` uses `RrfQuery(rrf=Rrf(k=FINANCE_RRF_K))` to fuse the prefetch results and return at most `FINANCE_RRF_CANDIDATES` points. Fusion uses ranked positions rather than combining raw dense and BM25 scores. There is no separate Python fusion node in the active child graph.
 5. **Rerank:** `cross-encoder/ms-marco-MiniLM-L-6-v2` scores the original question against up to 20 candidates and retains five by default. Model loading and scoring run in a worker thread.
-6. **Evaluate:** a separate structured LLM call judges whether the selected passages cover the complete question, returning a sufficiency flag, heuristic score, missing concepts, suggested queries, and reason. The score is not a probability or calibrated threshold.
+6. **Evaluate:** a narrow deterministic check accepts a matching handbook glossary definition for a simple “What is X?” question. Other questions use a separate structured LLM call that judges evidence at the requested level of detail. Comparisons require coverage of each part. Evaluation returns a sufficiency flag, heuristic score, missing concepts, suggested queries, and reason; the score is not a calibrated probability.
 7. **Retry once:** insufficient coverage can trigger one reformulation and a second retrieval/evaluation attempt. Sufficient evidence beats insufficient evidence; otherwise the current context replaces the prior one only when its score improves by more than the default `0.08` tolerance.
 8. **Generate:** sufficient evidence produces an answer from the original question and selected passages. Without sufficient evidence, the agent returns an explicit limitation rather than generating a partial educational answer.
 
-BM25 tokenization case-folds text and preserves internal hyphens, periods, and slashes, including terms such as `Nasdaq-100`. Both channels begin from the same extracted chunks when a collection is first built. If a retrieval channel fails, surviving results remain usable and a warning is logged. Empty evidence, evaluator failure, and generation failure have controlled results; reranker exceptions are not currently caught by the child graph.
+BM25 tokenization and term weights are supplied by FastEmbed `Qdrant/bm25`, with Qdrant IDF weighting enabled. The previous custom Python tokenizer is no longer used. Both channels begin from the same extracted chunks when a collection is first built. If embedding preparation or the fused Qdrant request raises an exception, retrieval returns a controlled hybrid error; independent channel-failure recovery is not currently implemented. Empty evidence, evaluator failure, and generation failure have controlled results; reranker exceptions are not currently caught by the child graph.
 
 ## Other agents and retrieval
 
@@ -239,10 +267,10 @@ Application settings load from `.env` and environment variables through [`core/c
 | `FINANCE_QUERY_ANALYSIS_MODEL` | `gpt-4o-mini` | Finance LLM used for analysis, evaluation, and generation in the API wiring. |
 | `FINANCE_EVALUATOR_MODEL` | `gpt-4o-mini` | Defined setting; a separate evaluator model is not currently wired. |
 | `FINANCE_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Local cross-encoder. |
-| `FINANCE_COLLECTION` | `finance_education_dense` | Finance dense collection. |
+| `FINANCE_COLLECTION` | `finance_education_hybrid` | Finance dense + sparse collection. |
 | `FINANCE_CHECKPOINT_PATH` | `.cache/finance_agent_checkpoints.sqlite` | SQLite checkpoint storage; relative paths resolve from the working directory. |
-| `QDRANT_MODE` | `local` | Finance client uses embedded storage or `server`. |
-| `QDRANT_URL` | `http://localhost:6333` | Finance server-mode endpoint. |
+| `QDRANT_MODE` | `local` | Shared API Qdrant client uses embedded storage or `server`. |
+| `QDRANT_URL` | `http://localhost:6333` | Shared server-mode endpoint. |
 | `QDRANT_API_KEY` | Unset | Optional Qdrant server credential. |
 | `ALPHA_VANTAGE_API_KEY` | Unset | Required for uncached quotes. |
 | `ALPHA_VANTAGE_TIMEOUT_SECONDS` | `3.0` | Quote request timeout. |
@@ -259,7 +287,7 @@ Finance retrieval settings come from [`FinanceAgentSettings`](src/ai_finance_ass
 | `FINANCE_RERANK_TOP_N` | `5` |
 | `FINANCE_MAX_RETRIEVAL_RETRIES` | `1`, constrained to `0` or `1` |
 | `FINANCE_MAX_PARALLEL_SEARCHES` | `4` |
-| `FINANCE_RETRIEVAL_TIMEOUT_SECONDS` | `15.0`, per dense search |
+| `FINANCE_RETRIEVAL_TIMEOUT_SECONDS` | `15.0`, per hybrid retrieval operation |
 | `FINANCE_CHUNK_SIZE` | `800` |
 | `FINANCE_CHUNK_OVERLAP` | `120` |
 | `FINANCE_SUFFICIENCY_TIE_TOLERANCE` | `0.08` |
@@ -269,18 +297,59 @@ Example:
 ```bash
 export FINANCE_DENSE_TOP_K=5
 export FINANCE_MAX_RETRIEVAL_RETRIES=1
-uvicorn ai_finance_assistant.main:app --reload
+.venv/bin/python -m uvicorn ai_finance_assistant.main:app --reload
 ```
 
-`QDRANT_COLLECTION` is a generic setting and does not select either active domain collection. The shared tax helper currently uses local storage independently of Finance QA's local/server choice.
+`QDRANT_COLLECTION` is a generic setting and does not select either active domain collection. The API passes the same configured Qdrant client to both domains. Standalone tax helpers without an injected client use local storage.
 
 ## Index lifecycle and operations
 
-Use one application process with embedded Qdrant. Local persistence uses `.qdrant/` under the source tree's resolved base; current helpers resolve this beneath `src/`. The application has no ingestion/rebuild CLI.
+Use one application process with embedded Qdrant. Local persistence uses `.qdrant/` in the repository root. The application has no ingestion/rebuild CLI.
 
-Finance creates its dense collection when absent and otherwise reuses it. BM25 rebuilds from the PDF chunks on graph initialization. There is no fingerprint or version check ensuring a reused dense index matches the newly built sparse index. PDF, chunking, source-path, or embedding changes require a coordinated refresh: stop the application, rebuild the finance dense collection from the same chunks, and restart so BM25 is rebuilt. Do not assume an existing collection refreshes automatically.
+Finance creates both dense and BM25 sparse vectors from the same PDF chunks in one collection and reuses that collection on restart. The new default is `finance_education_hybrid`; the old dense-only collection is preserved. If `.env` overrides `FINANCE_COLLECTION` with an old dense-only name, change it to a new collection name. An existing collection without the required sparse-vector configuration is rejected. Initial indexing requires new OpenAI embedding calls.
 
-Tax reuses nonempty collections and ingests missing/empty ones. Source and embedding changes also require a deliberate rebuild.
+There is no source fingerprint or version check. For PDF, chunking, source-path, or embedding changes, stop the application and select a new `FINANCE_COLLECTION` so both vector types are rebuilt together. Do not assume an existing collection refreshes automatically.
+
+### Active collections
+
+| Collection | Runtime purpose | Vectors |
+| --- | --- | --- |
+| `finance_education_hybrid` | Default Finance QA collection; configurable with `FINANCE_COLLECTION` | OpenAI dense + FastEmbed BM25 sparse with Qdrant IDF |
+| `tax_education_hybrid` | Tax education collection | OpenAI dense + FastEmbed BM25 sparse |
+
+`finance_education_dense` is a legacy finance index. `finance_knowledge` is the unused default of the generic `QDRANT_COLLECTION` setting. Other historical/test collections are not selected by the current default API wiring. Before deleting a collection, confirm environment overrides and stop every process holding the local storage lock. No automated collection cleanup runs.
+
+### Embeddings and restart behavior
+
+| Event | Finance QA | Tax education |
+| --- | --- | --- |
+| Collection missing | Indexes available PDF chunks with both vector types | Indexes the available tax corpus |
+| Collection populated | Reuses stored vectors | Reuses stored vectors |
+| Collection exists but is empty | Skips ingestion when the required vector schema exists; retrieval finds no evidence | Rebuilds the empty collection and generates embeddings |
+| Server restart | Recreates clients/models and reuses persisted document vectors | Reuses persisted document vectors |
+| Source file changes | No automatic refresh | No automatic refresh |
+| Each retrieval query | Generates query embeddings and searches stored document vectors | Generates query embeddings and searches stored document vectors |
+
+Qdrant persistence is the document-vector reuse mechanism. There is no separate content-aware document embedding cache or query embedding cache. A Finance QA retry incurs another retrieval operation and further query-embedding calls. Missing source chunks or empty finance embedding output are logged and may lead to an insufficient-evidence result.
+
+To refresh Finance QA after changing sources or embedding settings, stop the API, select a new `FINANCE_COLLECTION`, and restart. The first query indexes both vector types together. Tax’s collection name is fixed in code; rebuild it deliberately with the application stopped. Back up needed data before a manual rebuild.
+
+### Runtime data and deployment
+
+| Artifact | Purpose |
+| --- | --- |
+| `.qdrant/` | Embedded collection metadata and persisted vectors |
+| `.cache/finance_agent_checkpoints.sqlite` | Async workflow checkpoints, including clarification state |
+| `.cache/market_quotes.json` | Persistent market quote cache |
+| `.env` | Local credentials and application configuration |
+
+For a stable local run, omit `--reload` and use one worker:
+
+```bash
+.venv/bin/python -m uvicorn ai_finance_assistant.main:app --host 127.0.0.1 --port 8000
+```
+
+Server-mode Qdrant is configurable, but multiworker operation, checkpoint coordination, and quote-cache writes have not been validated as a deployment setup. `/health` is a lightweight liveness endpoint, not a readiness check for retrieval, SQLite, or providers.
 
 | Symptom | Check |
 | --- | --- |
@@ -293,7 +362,7 @@ Tax reuses nonempty collections and ingests missing/empty ones. Source and embed
 | Quote remains unchanged | Check the 24-hour cache TTL. |
 | Finance returns `insufficient` | Inspect corpus exclusions and evidence coverage; a matching passage may not cover the full question. |
 
-OpenAI receives queries and retrieved context, and receives corpus chunks during dense indexing. BM25 and cross-encoder scoring run locally. Alpha Vantage receives requested symbols on cache misses. Checkpoints persist workflow state, including user query and retrieved content; retention and cleanup are not implemented. Keep credentials in the ignored `.env` or environment and exclude private financial records from the corpus.
+OpenAI receives queries and retrieved context, and receives corpus chunks during dense indexing. FastEmbed computes BM25 sparse vectors locally; Qdrant ranks sparse matches. Cross-encoder scoring runs locally. Alpha Vantage receives requested symbols on cache misses. Checkpoints persist workflow state, including user query and retrieved content; retention and cleanup are not implemented. Keep credentials in the ignored `.env` or environment and exclude private financial records from the corpus.
 
 ## Repository guide
 
@@ -313,19 +382,19 @@ src/ai_finance_assistant/
 │   ├── corpus_index.py             # PDF scope filtering and chunk ingestion
 │   ├── metadata_extractor.py       # Corpus-supported deterministic filters
 │   ├── query_analyzer.py           # Structured decomposition and fallback
-│   ├── retrieval.py                # Concurrent Qdrant dense and local BM25 search
-│   ├── rrf.py                      # Reciprocal Rank Fusion
+│   ├── retrieval.py                # Dense/BM25 prefetch and Qdrant RRF fusion
 │   ├── reranker.py                 # Cross-encoder scoring
-│   ├── evaluator.py                # Structured evidence sufficiency checks
+│   ├── evaluator.py                # Glossary definition and structured sufficiency checks
 │   └── graph.py                    # Child graph, clarification, retry, generation
 ├── providers/market_data.py         # Quote provider and persistent cache
 └── rag/
-    ├── qdrant.py                   # Finance local/server client factory
+    ├── qdrant.py                   # Shared local/server client factory
     ├── hybrid.py                   # Tax hybrid collection setup
     ├── tax_education.py            # Tax source ingestion and metadata filters
     ├── finance-qa/                 # Handbook PDF and companion DOCX
     └── tax-education/              # Tax JSONL and companion PDF
 tests/test_finance_qa.py             # Mocked finance workflow and retrieval tests
+tests/test_async_checkpoints.py      # SQLite async interrupt/resume persistence tests
 ```
 
 ## Development
@@ -341,15 +410,17 @@ mypy src
 pytest --cov=ai_finance_assistant --cov-report=term-missing
 ```
 
-Finance tests cover RRF duplicate accumulation, corpus scope exclusions, supported metadata filters, handoffs, clarification/resume behavior, retrieval-channel failures, best-context selection, and bounded retries. They use mocked dependencies and do not establish live startup correctness, model download availability, factual answer accuracy, or retrieval quality. Coverage has a configured 80% minimum.
+Finance tests cover Qdrant fusion request construction, collection reuse, sparse configuration, corpus scope exclusions, supported metadata filters, handoffs, question propagation, clarification/resume behavior, fused retrieval failure, best-context selection, glossary sufficiency, public citation formatting, and bounded retries. Async checkpoint tests cover persistence across connection restarts. They use mocked dependencies and do not establish live startup correctness, model download availability, factual answer accuracy, or retrieval quality. Coverage has a configured 80% minimum.
 
 ## Current limitations and next steps
 
-- Verify live graph initialization and SQLite async checkpoint compatibility end to end.
-- Add coordinated dense/BM25 corpus versioning, source fingerprints, and explicit index rebuild commands.
+- Validate the full provider-backed startup and answer workflow; mocked tests and async checkpoint persistence tests do not establish live model or retrieval quality.
+- Add coordinated dense/BM25 corpus versioning, source fingerprints, empty finance collection recovery, and explicit index rebuild commands.
 - Dispatch handoffs and mixed intents through the parent router; clarify resume semantics and unknown-thread errors.
 - Strengthen scope handling on analysis failure and validate coverage against representative investment questions.
-- Add reranker recovery, end-to-end timeouts, and consistent API error mapping.
+- Add reranker recovery, independent retrieval-channel degradation, end-to-end timeouts, and consistent API error mapping.
+- Preserve and validate decomposed/reformulated queries through child state, including retry concept coverage; add broader integration evaluations.
+- Expose citations tied to answer claims instead of listing every selected context page.
 - Wire independent evaluator-model selection and add per-stage latency, token/cost tracking, retrieval metrics, and an offline evaluation harness. No comparative retrieval benchmark is currently provided.
 - Replace portfolio, goals, and news demonstrations with real implementations; replace the fixed tax fallback with explicit unavailability.
 - Add authentication, rate limiting, checkpoint retention, deployment configuration, and multiworker storage support. Validate bundled data packaging before distributing installed artifacts.

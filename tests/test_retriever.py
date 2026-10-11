@@ -24,3 +24,13 @@ async def test_qdrant_retriever_maps_documents_and_scores() -> None:
     assert results[0].content == "Monthly budget"
     assert results[0].source == "guide.pdf"
     assert results[0].score == 0.9
+
+
+async def test_qdrant_retriever_returns_empty_chunks_when_search_fails() -> None:
+    class UnavailableVectorStore:
+        async def asimilarity_search_with_score(self, query: str, *, k: int = 4):
+            raise RuntimeError("collection is not initialized")
+
+    retriever = QdrantRetriever(UnavailableVectorStore())
+
+    assert await retriever.search("budget") == []

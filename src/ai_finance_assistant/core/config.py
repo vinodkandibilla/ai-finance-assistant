@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     finance_query_analysis_model: str = "gpt-4o-mini"
     finance_evaluator_model: str = "gpt-4o-mini"
     finance_reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-    finance_collection: str = "finance_education_dense"
+    finance_collection: str = "finance_education_hybrid"
     finance_checkpoint_path: str = ".cache/finance_agent_checkpoints.sqlite"
     alpha_vantage_api_key: SecretStr | None = None
     alpha_vantage_base_url: str = "https://www.alphavantage.co/query"
@@ -45,7 +45,6 @@ class Settings(BaseSettings):
     qdrant_mode: Literal["local", "server"] = "local"
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: SecretStr | None = None
-    qdrant_collection: str = "finance_knowledge"
 
     @field_validator("qdrant_mode", mode="before")
     @classmethod

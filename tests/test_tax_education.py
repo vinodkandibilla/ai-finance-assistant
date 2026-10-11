@@ -107,6 +107,9 @@ def test_build_tax_hybrid_vector_store_reuses_existing_collection(monkeypatch) -
             pass
 
     class FakeVectorStore:
+        def __init__(self, **kwargs) -> None:
+            self.kwargs = kwargs
+
         @classmethod
         def from_existing_collection(cls, **kwargs):
             return cls()

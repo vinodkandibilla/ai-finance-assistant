@@ -1,9 +1,12 @@
+import logging
 from typing import Protocol
 
 from langchain_core.documents import Document
 from qdrant_client.models import Filter
 
 from ai_finance_assistant.rag.models import RetrievedDocument
+
+logger = logging.getLogger(__name__)
 
 
 class VectorSearchBackend(Protocol):
@@ -40,14 +43,18 @@ class QdrantRetriever:
         limit: int = 5,
         metadata_filter: Filter | dict | None = None,
     ) -> list[RetrievedDocument]:
-        if metadata_filter is None:
-            matches = await self._vector_store.asimilarity_search_with_score(query, k=limit)
-        else:
-            matches = await self._vector_store.asimilarity_search_with_score(
-                query,
-                k=limit,
-                filter=metadata_filter,
-            )
+        try:
+            if metadata_filter is None:
+                matches = await self._vector_store.asimilarity_search_with_score(query, k=limit)
+            else:
+                matches = await self._vector_store.asimilarity_search_with_score(
+                    query,
+                    k=limit,
+                    filter=metadata_filter,
+                )
+        except Exception:
+            logger.exception("RAG retrieval failed; returning no chunks.")
+            return []
         return [
             RetrievedDocument(
                 content=document.page_content,

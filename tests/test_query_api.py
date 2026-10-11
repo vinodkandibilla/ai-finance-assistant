@@ -218,7 +218,7 @@ def test_query_endpoint_routes_generic_news_query_to_clarify() -> None:
     assert response.json() == {"intent": "news", "answer": CLARIFY_RESPONSE}
 
 
-def test_query_endpoint_routes_generic_tax_query_to_clarify() -> None:
+def test_query_endpoint_routes_generic_tax_query_to_tax_node() -> None:
     app = create_app()
     app.dependency_overrides[get_query_graph] = lambda: build_graph(FakeClassifier("tax"))
     client = TestClient(app)
@@ -229,4 +229,4 @@ def test_query_endpoint_routes_generic_tax_query_to_clarify() -> None:
     )
 
     assert response.status_code == 200
-    assert response.json() == {"intent": "tax", "answer": CLARIFY_RESPONSE}
+    assert response.json() == {"intent": "tax", "answer": TAX_RESPONSE}

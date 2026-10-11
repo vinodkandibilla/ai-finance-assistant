@@ -28,6 +28,27 @@ async def test_graph_routes_financial_education_to_empty_finance_qa_node() -> No
     assert result["answer"] == ""
 
 
+async def test_graph_routes_roth_ira_finance_classification_to_tax_rag() -> None:
+    class RecordingTaxRetriever:
+        queries: list[str] = []
+
+        async def search(self, query: str, *, limit: int = 5, metadata_filter=None):
+            self.queries.append(query)
+            return []
+
+    retriever = RecordingTaxRetriever()
+    result = await build_graph(
+        FakeClassifier("finance_qa"),
+        tax_retriever=retriever,
+        llm=FakeTaxAnswerLLM("Roth IRA tax information from the corpus."),
+    ).ainvoke({"query": "What is ROTH IRA?"})
+
+    assert result["intent"] == "finance_qa"
+    assert retriever.queries
+    assert all(query == "What is ROTH IRA?" for query in retriever.queries)
+    assert result["answer"] == TAX_RESPONSE
+
+
 class FakeTaxAnswerLLM:
     def __init__(self, answer: str) -> None:
         self.answer = answer
@@ -225,13 +246,24 @@ async def test_graph_routes_generic_news_query_to_clarify_node() -> None:
     assert result["answer"] == CLARIFY_RESPONSE
 
 
-async def test_graph_routes_generic_tax_query_to_clarify_node() -> None:
-    result = await build_graph(FakeClassifier("tax")).ainvoke(
-        {"query": "tax details"}
-    )
+async def test_graph_routes_generic_tax_query_to_tax_rag() -> None:
+    class RecordingTaxRetriever:
+        queries: list[str] = []
+
+        async def search(self, query: str, *, limit: int = 5, metadata_filter=None):
+            self.queries.append(query)
+            return []
+
+    retriever = RecordingTaxRetriever()
+    result = await build_graph(
+        FakeClassifier("tax"),
+        tax_retriever=retriever,
+        llm=FakeTaxAnswerLLM("Tax details from the corpus."),
+    ).ainvoke({"query": "tax details"})
 
     assert result["intent"] == "tax"
-    assert result["answer"] == CLARIFY_RESPONSE
+    assert retriever.queries == ["tax details"]
+    assert result["answer"] == TAX_RESPONSE
 
 
 async def test_graph_routes_generic_or_incomplete_query_to_clarify_node() -> None:

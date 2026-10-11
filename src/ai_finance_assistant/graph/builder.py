@@ -1,3 +1,4 @@
+import re
 from typing import Literal, Protocol
 
 from langchain_core.output_parsers import StrOutputParser
@@ -56,6 +57,12 @@ TAX_RESPONSE = (
 CLARIFY_RESPONSE = (
     "I need a few more details to answer accurately. Please share the specific ticker, "
     "date range, filing status, account type, or topic you want covered."
+)
+TAX_RELATED_QUERY = re.compile(
+    r"\b(?:tax|taxation|irs|deduction|filing status|tax credit|roth|traditional|sep|simple)\s+ira\b"
+    r"|\b(?:tax|taxation|irs|deduction|filing status|tax credit|retirement)\b"
+    r"|\b401\s*\(?k\)?\b",
+    re.IGNORECASE,
 )
 
 
@@ -141,6 +148,8 @@ def _route_intent(
     "unsupported_node",
 ]:
     intent = state.get("intent")
+    if TAX_RELATED_QUERY.search(state.get("query") or ""):
+        return "tax_education_node"
     if intent == "finance_qa":
         return "finance_qa_node"
     if intent == "portfolio":
@@ -160,8 +169,6 @@ def _route_intent(
             return "clarify_node"
         return "news_synthesizer_node"
     if intent == "tax":
-        if _is_generic_query(intent, state.get("query")):
-            return "clarify_node"
         return "tax_education_node"
     if intent == "clarify":
         return "clarify_node"

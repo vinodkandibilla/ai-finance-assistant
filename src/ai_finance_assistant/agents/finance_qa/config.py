@@ -27,7 +27,7 @@ class FinanceAgentSettings(BaseSettings):
     query_analysis_model: str = "gpt-4o-mini"
     evaluator_model: str = "gpt-4o-mini"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-    finance_collection: str = "finance_education_dense"
+    finance_collection: str = "finance_education_hybrid"
     chunk_size: int = Field(default=800, ge=100)
     chunk_overlap: int = Field(default=120, ge=0)
     sufficiency_tie_tolerance: float = Field(default=0.08, ge=0, le=1)

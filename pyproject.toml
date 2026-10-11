@@ -22,7 +22,6 @@ dependencies = [
     "pydantic-settings>=2.5,<3",
     "pypdf>=5,<7",
     "qdrant-client>=1.15.1,<2",
-    "rank-bm25>=0.2,<1",
     "sentence-transformers>=3,<6",
     "structlog>=24.4,<26",
     "tenacity>=9,<10",

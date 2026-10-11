@@ -12,7 +12,6 @@ from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
 from ai_finance_assistant.agents.finance_qa.corpus_index import load_finance_corpus
 from ai_finance_assistant.agents.finance_qa.graph import FinanceQaAgent, _should_replace_best
 from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
-from ai_finance_assistant.agents.finance_qa.rrf import reciprocal_rank_fusion
 from ai_finance_assistant.agents.finance_qa.schemas import (
     ContextEvaluation,
     FinanceDocument,
@@ -23,26 +22,6 @@ from ai_finance_assistant.agents.finance_qa.retrieval import FinanceHybridRetrie
 
 def make_doc(doc_id: str, content: str) -> FinanceDocument:
     return FinanceDocument(doc_id=doc_id, content=content, source="handbook.pdf")
-
-
-def test_rrf_uses_one_based_ranks_accumulates_duplicates_and_deduplicates_output() -> None:
-    first = [make_doc("a", "A"), make_doc("b", "B")]
-    second = [make_doc("a", "A"), make_doc("c", "C")]
-    third = [make_doc("a", "A")]
-    sparse = [make_doc("a", "A"), make_doc("b", "B")]
-
-    fused = reciprocal_rank_fusion([first, second, third, sparse], k=60, limit=20)
-
-    assert len(fused) == 3
-    assert fused[0].doc_id == "a"
-    assert fused[0].score == pytest.approx(4 / 61)
-    assert fused[0].rank == 1
-    assert fused[0].provenance == [
-        "ranked_list_1:rank_1",
-        "ranked_list_2:rank_1",
-        "ranked_list_3:rank_1",
-        "ranked_list_4:rank_1",
-    ]
 
 
 def test_metadata_filter_only_uses_corpus_supported_values() -> None:
@@ -140,7 +119,7 @@ class FakeRetriever:
     async def retrieve(self, dense_queries: list[str], sparse_keywords: list[str], *, metadata_filter=None):
         self.calls.append((dense_queries, sparse_keywords))
         lists = self.lists.pop(0)
-        return [lists], self.sparse, []
+        return [*lists, *self.sparse], []
 
 
 class FakeReranker:
@@ -207,54 +186,80 @@ def test_best_context_selection_prefers_sufficient_coverage_and_avoids_small_sco
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("failed_channel", ["dense", "sparse"])
-async def test_hybrid_retrieval_returns_surviving_channel(failed_channel: str) -> None:
+async def test_hybrid_retrieval_returns_qdrant_fused_results(monkeypatch) -> None:
+    from types import SimpleNamespace
+
     settings = FinanceAgentSettings()
     retriever = object.__new__(FinanceHybridRetriever)
     retriever._settings = settings
     retriever._semaphore = __import__("asyncio").Semaphore(settings.max_parallel_searches)
-    doc = make_doc("one", "Delta describes price sensitivity")
+    retriever._index_ready = True
+    retriever._collection_name = settings.finance_collection
+    retriever._qdrant_client = SimpleNamespace(
+        query_points=lambda **kwargs: SimpleNamespace(
+            points=[
+                SimpleNamespace(
+                    id="qdrant-id",
+                    score=0.75,
+                    payload={
+                        "page_content": "Delta describes price sensitivity",
+                        "metadata": {
+                            "doc_id": "delta",
+                            "source": "handbook.pdf",
+                        },
+                    },
+                )
+            ]
+        )
+    )
+    async def embed_query(query: str) -> list[float]:
+        return [1.0, 0.0]
 
-    async def dense_ok(query: str, metadata_filter: object | None):
-        if failed_channel == "dense":
-            raise RuntimeError("dense down")
-        return [doc]
+    retriever._embeddings = SimpleNamespace(aembed_query=embed_query)
 
-    def sparse_ok(keywords: list[str], metadata_filter: object | None):
-        if failed_channel == "sparse":
-            raise RuntimeError("sparse down")
-        return [doc]
+    class SparseVectorStub:
+        indices = [1]
+        values = [1.0]
 
-    retriever._dense_search = dense_ok
-    retriever._sparse_search = sparse_ok
-    dense, sparse, errors = await retriever.retrieve(["Delta"], ["Delta"])
+    class SparseEmbeddingsStub:
+        def embed_query(self, query: str) -> SparseVectorStub:
+            return SparseVectorStub()
 
-    assert errors
-    if failed_channel == "dense":
-        assert dense == [] and sparse == [doc]
-    else:
-        assert dense == [[doc]] and sparse == []
+    retriever._sparse_embeddings = SparseEmbeddingsStub()
+
+    fused, errors = await retriever.retrieve(["Delta"], ["Delta"])
+
+    assert errors == []
+    assert len(fused) == 1
+    assert fused[0].doc_id == "delta"
+    assert fused[0].content == "Delta describes price sensitivity"
+    assert fused[0].score == 0.75
+    assert fused[0].rank == 1
 
 
 @pytest.mark.asyncio
-async def test_hybrid_retrieval_reports_both_channels_failed() -> None:
+async def test_hybrid_retrieval_reports_qdrant_fusion_failure() -> None:
     settings = FinanceAgentSettings()
     retriever = object.__new__(FinanceHybridRetriever)
     retriever._settings = settings
     retriever._semaphore = __import__("asyncio").Semaphore(settings.max_parallel_searches)
+    retriever._index_ready = True
+    retriever._collection_name = settings.finance_collection
+    retriever._qdrant_client = __import__("types").SimpleNamespace(
+        query_points=lambda **kwargs: (_ for _ in ()).throw(RuntimeError("Qdrant unavailable"))
+    )
+    async def embed_query(query: str) -> list[float]:
+        return [1.0, 0.0]
 
-    async def dense_fail(query: str, metadata_filter: object | None):
-        raise RuntimeError("dense down")
+    retriever._embeddings = __import__("types").SimpleNamespace(aembed_query=embed_query)
+    retriever._sparse_embeddings = __import__("types").SimpleNamespace(
+        embed_query=lambda query: __import__("types").SimpleNamespace(indices=[1], values=[1.0])
+    )
 
-    def sparse_fail(keywords: list[str], metadata_filter: object | None):
-        raise RuntimeError("sparse down")
+    candidates, errors = await retriever.retrieve(["Delta"], ["Delta"])
 
-    retriever._dense_search = dense_fail
-    retriever._sparse_search = sparse_fail
-    dense, sparse, errors = await retriever.retrieve(["Delta"], ["Delta"])
-
-    assert dense == [] and sparse == []
-    assert len(errors) == 2
+    assert candidates == []
+    assert errors == ["hybrid retrieval failed: RuntimeError"]
 
 
 @pytest.mark.asyncio
@@ -295,7 +300,8 @@ async def test_agent_retries_once_and_keeps_better_first_context() -> None:
     assert "Delta describes" in result["final_result"]["answer"] or result["final_result"]["citations"]
     assert llm.answer_calls == 0
 
-def test_finance_index_creation_reuses_client_and_supports_search(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_finance_index_creation_reuses_client_and_supports_search(monkeypatch) -> None:
     from langchain_core.embeddings import Embeddings
     from qdrant_client import QdrantClient
 
@@ -309,6 +315,19 @@ def test_finance_index_creation_reuses_client_and_supports_search(monkeypatch) -
     monkeypatch.setattr(
         "ai_finance_assistant.agents.finance_qa.retrieval.OpenAIEmbeddings",
         lambda **kwargs: LocalEmbeddings(),
+    )
+    from langchain_qdrant.sparse_embeddings import SparseEmbeddings, SparseVector
+
+    class LocalSparseEmbeddings(SparseEmbeddings):
+        def embed_documents(self, texts: list[str]) -> list[SparseVector]:
+            return [self.embed_query(text) for text in texts]
+
+        def embed_query(self, text: str) -> SparseVector:
+            return SparseVector(indices=[1], values=[1.0])
+
+    monkeypatch.setattr(
+        "ai_finance_assistant.agents.finance_qa.retrieval.FastEmbedSparse",
+        lambda **kwargs: LocalSparseEmbeddings(),
     )
     documents = [
         Document(
@@ -327,8 +346,18 @@ def test_finance_index_creation_reuses_client_and_supports_search(monkeypatch) -
             settings=settings,
         )
         assert client.count(settings.finance_collection).count == 1
-        matches = retriever._dense_store.similarity_search("ETF NAV", k=1)
-        assert matches[0].metadata["doc_id"] == "etf-nav"
+        matches, errors = await retriever.retrieve(["ETF NAV"], ["ETF", "NAV"])
+        assert errors == []
+        assert matches[0].doc_id == "etf-nav"
+        assert matches[0].rank == 1
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+        excluded = Filter(must=[FieldCondition(
+            key="metadata.page_number", match=MatchValue(value=2)
+        )])
+        filtered_matches, errors = await retriever.retrieve(["ETF NAV"], ["ETF"], metadata_filter=excluded)
+        assert errors == []
+        assert filtered_matches == []
         FinanceHybridRetriever.create(
             documents,
             qdrant_client=client,
@@ -337,6 +366,48 @@ def test_finance_index_creation_reuses_client_and_supports_search(monkeypatch) -
             settings=settings,
         )
         assert client.count(settings.finance_collection).count == 1
+        client.create_collection(
+            collection_name="legacy-dense", vectors_config={"": {"size": 3, "distance": "Cosine"}}
+        )
+        with pytest.raises(ValueError, match="must have sparse vectors configured"):
+            FinanceHybridRetriever.create(
+                documents,
+                qdrant_client=client,
+                api_key="test-key",
+                embedding_model="test-model",
+                settings=FinanceAgentSettings(finance_collection="legacy-dense"),
+            )
+        assert client.collection_exists("legacy-dense")
+        assert client.count("legacy-dense").count == 0
+    finally:
+        client.close()
+
+
+@pytest.mark.asyncio
+async def test_finance_retriever_returns_empty_results_when_no_documents(monkeypatch) -> None:
+    from qdrant_client import QdrantClient
+
+    monkeypatch.setattr(
+        "ai_finance_assistant.agents.finance_qa.retrieval.OpenAIEmbeddings",
+        lambda **kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "ai_finance_assistant.agents.finance_qa.retrieval.FastEmbedSparse",
+        lambda **kwargs: object(),
+    )
+    settings = FinanceAgentSettings()
+    client = QdrantClient(location=":memory:")
+    try:
+        retriever = FinanceHybridRetriever.create(
+            [],
+            qdrant_client=client,
+            api_key="test-key",
+            embedding_model="test-model",
+            settings=settings,
+        )
+
+        assert not client.collection_exists(settings.finance_collection)
+        assert await retriever.retrieve(["ETF"], ["ETF"]) == ([], [])
     finally:
         client.close()
 
@@ -425,3 +496,25 @@ async def test_etf_glossary_supports_definition_but_not_comparison() -> None:
     assert not llm.evaluations
     empty = await evaluator.evaluate("What is ETF?", [])
     assert not empty.sufficient
+
+
+def test_public_citations_and_generation_context_omit_internal_ids() -> None:
+    from ai_finance_assistant.agents.finance_qa.graph import _citations, _format_context
+
+    documents = [
+        FinanceDocument(doc_id="internal-chunk-a", content="ETF evidence.",
+                        source="/private/handbook.pdf", metadata={"page_number": 50}),
+        FinanceDocument(doc_id="internal-chunk-b", content="More ETF evidence.",
+                        source="/private/handbook.pdf", metadata={"page_number": 50}),
+        FinanceDocument(doc_id="internal-chunk-c", content="Risk evidence.",
+                        source="/private/handbook.pdf", metadata={"page_number": 35}),
+    ]
+    assert _citations(documents) == [
+        "Financial Education Handbook, page 50",
+        "Financial Education Handbook, page 35",
+    ]
+    context = _format_context(documents)
+    assert "page 50" in context and "ETF evidence." in context
+    assert "internal-chunk" not in context
+    assert "/private/handbook.pdf" not in context
+    assert documents[0].doc_id == "internal-chunk-a"
