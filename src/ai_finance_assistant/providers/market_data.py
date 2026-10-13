@@ -14,6 +14,7 @@ from langchain_core.tools import tool
 from ai_finance_assistant.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
+MARKET_QUOTES_DISABLED_RESPONSE = "Market quotes are disabled."
 
 # Compatibility defaults for legacy module-level access; runtime reads come from Settings.
 ALPHA_VANTAGE_GLOBAL_QUOTE_URL = get_settings().alpha_vantage_base_url
@@ -72,9 +73,7 @@ class DiskCache:
             return {}
 
         return {
-            str(symbol): values
-            for symbol, values in payload.items()
-            if isinstance(values, dict)
+            str(symbol): values for symbol, values in payload.items() if isinstance(values, dict)
         }
 
     def _write(self, data: dict[str, dict[str, float | str]]) -> None:
@@ -109,7 +108,13 @@ class DiskCache:
 
 @tool
 async def get_stock_price(symbol: str) -> str:
-    """Get the latest Alpha Vantage quote price for a supported MAG7 stock symbol."""
+    """Get a MAG7 quote through the persistent disk cache, fetching Alpha Vantage on a miss.
+
+    MARKET_QUOTES_ENABLED=false disables all quote access, including cached quotes.
+    Cache TTL defaults to 24 hours; this returns latest available, not guaranteed real-time data.
+    """
+    if not get_settings().market_quotes_enabled:
+        return MARKET_QUOTES_DISABLED_RESPONSE
     normalized_symbol = symbol.strip().upper()
     if normalized_symbol not in SUPPORTED_SYMBOLS:
         unsupported_symbol = normalized_symbol or "No symbol"

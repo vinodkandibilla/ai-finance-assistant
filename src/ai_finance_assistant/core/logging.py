@@ -5,7 +5,7 @@ import structlog
 
 def configure_logging(log_level: str) -> None:
     logging.basicConfig(
-        format="%(message)s",
+        format="%(levelname)s: %(message)s",
         level=log_level.upper(),
     )
     structlog.configure(
