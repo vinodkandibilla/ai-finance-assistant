@@ -7,7 +7,6 @@ from ai_finance_assistant.api.query import get_query_graph
 from ai_finance_assistant.core.config import Settings
 from ai_finance_assistant.graph.builder import (
     CLARIFY_RESPONSE,
-    GOALS_RESPONSE,
     MARKET_QUOTE_UNAVAILABLE_RESPONSE,
     NEWS_RESPONSE,
     PORTFOLIO_ANALYSIS_RESPONSE,
@@ -141,7 +140,7 @@ def test_settings_read_router_prompt_from_environment(monkeypatch: pytest.Monkey
     assert settings.intent_router_system_prompt == "Use the configured test prompt."
 
 
-def test_query_endpoint_returns_fixed_goals_response() -> None:
+def test_query_endpoint_returns_unconfigured_goals_error() -> None:
     app = create_app()
     app.dependency_overrides[get_query_graph] = lambda: build_graph(FakeClassifier("goals"))
     client = TestClient(app)
@@ -156,7 +155,8 @@ def test_query_endpoint_returns_fixed_goals_response() -> None:
         "classified_intent": "goals",
         "executed_handler": "goals_node",
         "intent": "goals",
-        "answer": GOALS_RESPONSE,
+        "answer": "Goal planning agent is not configured.",
+        "status": "error",
     }
 
 
