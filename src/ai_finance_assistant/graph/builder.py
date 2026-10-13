@@ -6,6 +6,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from ai_finance_assistant.agents.common.clarification import build_clarification_graph
 from ai_finance_assistant.agents.finance_qa import FinanceQaAgent
+from ai_finance_assistant.agents.goal_planning import GoalPlanningAgent
 from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgent
 from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
@@ -22,7 +23,6 @@ PORTFOLIO_ANALYSIS_RESPONSE = (
 MARKET_QUOTE_UNAVAILABLE_RESPONSE = (
     "I couldn't retrieve a current quote. Check the ticker and try again later."
 )
-GOALS_RESPONSE = "You will need to contribute $555 per month to achieve your goal in 5 months."
 NEWS_RESPONSE = (
     "**Model Releases:** Google unveiled its next-generation frontier model, "
     "**Gemini 4 Argon**, featuring advanced reasoning and a 1-million-token output "
@@ -135,10 +135,6 @@ def finance_qa_node(_: FinanceAssistantState) -> FinanceAssistantState:
     return {"answer": ""}
 
 
-def goals_node(_: FinanceAssistantState) -> FinanceAssistantState:
-    return {"answer": GOALS_RESPONSE}
-
-
 def news_synthesizer_node(_: FinanceAssistantState) -> FinanceAssistantState:
     return {"answer": NEWS_RESPONSE}
 
@@ -157,6 +153,7 @@ def build_graph(
     market_agent: MarketAnalysisAgent | None = None,
     finance_agent: FinanceQaAgent | None = None,
     tax_agent: TaxEducationAgent | None = None,
+    goal_agent: GoalPlanningAgent | None = None,
     checkpointer: object | None = None,
 ) -> FinanceAssistantGraph:
     async def classify_node(state: FinanceAssistantState) -> FinanceAssistantState:
@@ -177,6 +174,9 @@ def build_graph(
     def empty_finance_qa_node(_: FinanceAssistantState) -> FinanceAssistantState:
         return {"answer": "", "status": "not_implemented", "citations": []}
 
+    def unavailable_goal_node(_: FinanceAssistantState) -> FinanceAssistantState:
+        return {"answer": "Goal planning agent is not configured.", "status": "error"}
+
     workflow: StateGraph[
         FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState
     ] = StateGraph(FinanceAssistantState)
@@ -191,7 +191,8 @@ def build_graph(
     )
     workflow.add_node("market_analysis_node", build_clarification_graph(market_analysis_handler))
     workflow.add_node(
-        "goals_node", RunnableLambda(lambda state: {**goals_node(state), "status": "answered"})
+        "goals_node",
+        goal_agent.graph if goal_agent is not None else RunnableLambda(unavailable_goal_node),
     )
     workflow.add_node(
         "news_synthesizer_node",

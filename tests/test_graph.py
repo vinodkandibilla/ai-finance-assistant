@@ -2,7 +2,6 @@ import pytest
 
 from ai_finance_assistant.graph.builder import (
     CLARIFY_RESPONSE,
-    GOALS_RESPONSE,
     MARKET_QUOTE_UNAVAILABLE_RESPONSE,
     NEWS_RESPONSE,
     PORTFOLIO_ANALYSIS_RESPONSE,
@@ -79,7 +78,8 @@ async def test_graph_routes_goals_intent_to_computational_node() -> None:
     )
 
     assert result["intent"] == "goals"
-    assert result["answer"] == GOALS_RESPONSE
+    assert result["answer"] == "Goal planning agent is not configured."
+    assert result["status"] == "error"
 
 
 async def test_graph_routes_news_intent_to_news_synthesizer_node() -> None:

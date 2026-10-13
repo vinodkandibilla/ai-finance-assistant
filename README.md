@@ -8,9 +8,9 @@
 ![Qdrant](https://img.shields.io/badge/Vector_database-Qdrant-DC244C)
 ![Status](https://img.shields.io/badge/Status-active_development-blue)
 
-Ask an investing or US tax question in plain English. Separate tool-calling agents choose searches, assess retrieved evidence, request essential clarification, and return cited answers or evidence limitations. A shared runtime handles execution limits and API integration; domain RAG tools handle embeddings, Qdrant fusion, reranking, and citation packaging in one invocation.
+Ask an investing, US tax, or savings-goal question in plain English. Separate tool-calling agents choose searches, assess retrieved evidence, request essential clarification, and return cited answers or evidence limitations. A shared runtime handles execution limits and API integration; domain RAG tools handle embeddings, Qdrant fusion, reranking, and citation packaging in one invocation.
 
-[Quick start](#quick-start) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Tax](#tax-education) · [Example queries](#example-queries) · [Configuration](#configuration) · [Storage and operations](#index-lifecycle-and-operations) · [Development](#development)
+[Quick start](#quick-start) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Tax](#tax-education) · [Goal planning](#goal-planning-agent) · [Example queries](#example-queries) · [Configuration](#configuration) · [Storage and operations](#index-lifecycle-and-operations) · [Development](#development)
 
 ## Capabilities
 
@@ -22,9 +22,10 @@ Ask an investing or US tax question in plain English. Separate tool-calling agen
 | Finance clarification | “Which is better?” | Interrupts retrieval for essential missing details; supports a checkpointed reply through `/query/resume`. |
 | US tax education | “Explain capital gains for tax year 2026.” | Autonomous tax agent with original-question metadata constraints and a hybrid RAG tool. |
 | Market quotes | “What is Apple's latest available stock price?” | Twelve Data MCP quotes with price, volume, and daily changes. |
-| Portfolio, goals, news | Holdings analysis, savings projections, news summaries | Fixed demonstration responses; these integrations and calculations are not implemented. |
+| Goal planning | “Can I reach $100,000 in five years saving $1,000 monthly?” | Tool-calling Goal Planning Agent with deterministic projections, clarification, and a three-iteration limit. |
+| Portfolio, news | Holdings analysis, news summaries | Fixed demonstration responses; these integrations are not implemented. |
 
-The project is in active development. Finance and tax agents are implemented, but the complete application is not production-ready. The operational limitations below describe the current code, including differences from the [Finance Agentic RAG coding prompt](resources/prompts/Finance_Agentic_RAG_Coding_Agent_Prompt.md).
+The project is in active development. Finance, tax, market, and goal-planning agents are implemented, but the complete application is not production-ready. The operational limitations below describe the current code, including differences from the [Finance Agentic RAG coding prompt](resources/prompts/Finance_Agentic_RAG_Coding_Agent_Prompt.md).
 
 ## Documentation guide
 
@@ -92,7 +93,7 @@ Server startup opens the SQLite checkpoint connection through FastAPI’s async 
 | --- | --- |
 | `GET /health` | Returns service status and version. |
 | `POST /query` | Classifies and processes a new question. |
-| `POST /query/resume` | Supplies a reply to a checkpointed finance or tax clarification. |
+| `POST /query/resume` | Supplies a reply to a checkpointed finance, tax, market, or goal clarification. |
 | `GET /docs` | Interactive request and response documentation. |
 
 ### Ask a question
@@ -212,6 +213,9 @@ flowchart TD
     Request[POST /query] --> Router[Validate and classify new question]
     Router --> Finance[FinanceQaAgent]
     Router --> Tax[TaxEducationAgent]
+    Router --> Goals[GoalPlanningAgent]
+    Goals --> GoalTools[Four deterministic goal calculators]
+    GoalTools --> Goals
     Router --> Other[Market tool or demonstration handlers]
     Finance --> Runtime[Shared autonomous runtime]
     Tax --> Runtime
@@ -361,6 +365,76 @@ Simple interest uses **`I = P * r * t`**, **`A = P + I`**. Interest accrues on t
 ```
 
 The finance agent uses RAG for the conceptual explanation and the simple calculator for the amounts: **USD 3,000.00 interest** and **USD 13,000.00 final balance**. `calculation.calculation_type` identifies `simple` versus `compound`; simple results do not include `periods_per_year` or a compounding frequency. After a third insufficient reply, the answer is **"Insufficient details to calculate simple interest"** with the unresolved inputs. A new calculation starts through `/query`.
+
+## Goal planning agent
+
+### Scope and agent loop
+
+The router sends savings-planning requests to `GoalPlanningAgent`; the agent's LLM
+selects `calculate_required_contribution`, `calculate_future_value`,
+`calculate_time_to_goal`, or `check_goal_feasibility`. Python performs all calculations.
+The agent asks for missing required inputs through checkpointed clarification and
+retains the original goal when `/query/resume` supplies a reply. Its LLM checks result
+coverage and alignment without independently recalculating the math.
+
+At most three model decision turns are allowed, including clarification, across the
+whole request. The final assessment can explain the third turn's result but cannot
+call another tool or begin a fourth turn. Incomplete results return a limitation and
+suggest a new request with the needed details. Active execution also has a 60-second limit.
+
+### Calculator inputs and assumptions
+
+Tools assume end-of-month contributions and monthly compounding. Annual return uses
+percentage units (`7` means 7%); omitted return and current savings default to zero.
+Horizons use positive whole months expressed in years, up to 100 years. Negative returns
+are unsupported. Projections exclude taxes, fees, inflation, and withdrawals.
+Completed calculations use the existing `calculation` or `calculations` response fields.
+
+
+| Tool | Required inputs | Main result |
+| --- | --- | --- |
+| `calculate_required_contribution` | Target amount, horizon in years | Required monthly contribution, rounded up to cents. |
+| `calculate_future_value` | Monthly contribution, horizon in years | Projected balance, rounded to cents. |
+| `calculate_time_to_goal` | Target amount, monthly contribution | Whole months to reach the goal and approximate years; reports unreachable goals. |
+| `check_goal_feasibility` | Target amount, monthly contribution, horizon in years | Projected balance, feasibility, shortfall, and surplus. |
+
+All four accept optional `current_savings` and `expected_annual_return`. Amounts must
+be finite and nonnegative. The LLM interprets the conversation and chooses tools;
+Python validates inputs and computes projections. No goal-specific RAG corpus or
+live market-return lookup is used. These projections do not cover tax-advantaged
+account rules, portfolio allocation, or trade execution.
+
+### Clarification and completion
+
+Ask missing required details together using `ask_goal_clarification`. For example,
+“I want to save $50,000 for my daughter's college” needs a deadline. The agent can ask
+“When would you like to reach the $50,000 goal?” and continue with “In 3 years.”
+Optional inputs have documented defaults, but the LLM may ask about current savings
+or expected returns when they matter to the user's intent. Reply with actual values
+or explicitly accept zero savings and zero return; do not send the reply as a new `/query`.
+
+```json
+{
+  "thread_id": "<thread_id from the clarification response>",
+  "reply": "In 3 years. Assume no current savings and a 0% return."
+}
+```
+
+The original target and purpose remain in the same checkpointed conversation.
+A successful projection with those inputs requires **$1,388.89 per month**.
+The final response explains authoritative tool results and relevant assumptions.
+If coverage or alignment is incomplete and a next action is available, the agent can
+clarify or choose another tool within the remaining decision budget. A failed tool
+result cannot support an answered projection. Validation errors can be repaired;
+timeouts and execution failures return safe errors. Scope changes terminate with
+`out_of_scope` rather than automatically invoking another agent.
+
+Implementation: [`agent.py`](src/ai_finance_assistant/agents/goal_planning/agent.py)
+contains the prompt, tool loop, coverage check, checkpointed clarification, and hard
+stop. [`tools.py`](src/ai_finance_assistant/agents/goal_planning/tools.py) contains the
+four deterministic calculators. Tests cover calculator outputs, model-selected tool
+execution, clarification/resume, coverage checks, and the three-turn boundary using
+scripted models; they do not establish live LLM selection accuracy.
 
 ## Other agents and retrieval
 
@@ -516,6 +590,32 @@ For paused examples, send the reply to `POST /query/resume`:
 ```
 
 Resume retains the original query and accumulated details and continues inside the market agent without rerunning the router. A further missing detail can pause the same thread again.
+
+### Twelve goal-planning queries
+
+These representative queries cover all four calculators, existing savings, assumed
+returns, feasibility, follow-up actions, and missing inputs. Tool choices below are
+intended behavior; the goal agent's LLM selects the tools, and the router selects
+only the `goals` domain. Expected returns are user-supplied hypothetical assumptions.
+
+| # | User query | Intended tool or behavior |
+| --- | --- | --- |
+| 1 | I want $100,000 in 5 years. How much should I invest monthly? | `calculate_required_contribution`; omitted savings and return default to zero. |
+| 2 | If I invest $500 monthly for 10 years at 7%, how much will I have? | `calculate_future_value` with a 7% assumed annual return. |
+| 3 | If I invest $1,000 monthly, how long until I reach $100,000? | `calculate_time_to_goal`; returns a whole-month timeline. |
+| 4 | Can I reach $100,000 in 5 years investing $1,000 monthly? | `check_goal_feasibility`; explains whether the plan reaches the target and any shortfall. |
+| 5 | I have $20,000 saved and want $100,000 in 5 years at a 5% annual return. How much should I save monthly? | `calculate_required_contribution`, including existing savings and assumed growth. |
+| 6 | I have $10,000 now. If I add $500 monthly for 10 years at 7%, what will my balance be? | `calculate_future_value`, including the initial balance and monthly deposits. |
+| 7 | I have $15,000 saved and can add $750 monthly at a 4% annual return. How long until I reach $60,000? | `calculate_time_to_goal`, including existing savings and assumed growth. |
+| 8 | I have $5,000 and can save $400 monthly. Can I reach a $20,000 emergency fund in 3 years with no interest? | `check_goal_feasibility` with an explicit zero return. |
+| 9 | I need $30,000 for a house down payment in 2 years, have $6,000 saved, and expect no interest. What monthly amount is required? | `calculate_required_contribution` for the remaining target. |
+| 10 | I want to save $50,000 for my daughter's college. | Clarify the deadline, then continue the same goal through `/query/resume`. |
+| 11 | I want to reach $100,000. How long will it take? | Clarify the monthly contribution needed for a timeline projection. |
+| 12 | Can I reach $100,000 in 5 years with $1,000 monthly, and if not, how much should I contribute? Assume no savings and no return. | `check_goal_feasibility`, then `calculate_required_contribution` if needed, within three decision turns. |
+
+For the simple zero-return cases, query 1 requires **$1,666.67 monthly**, query 3 takes
+**100 months**, and query 4 projects **$60,000**, leaving a **$40,000 shortfall**.
+These are deterministic results for the stated defaults, not guaranteed investment outcomes.
 
 ### Five finance queries
 
@@ -706,6 +806,8 @@ OpenAI receives queries and retrieved context, and receives corpus chunks during
 | [`rag/retriever.py`](src/ai_finance_assistant/rag/retriever.py) | Shared dense/BM25 prefetch and Qdrant RRF search. |
 | [`rag/qdrant.py`](src/ai_finance_assistant/rag/qdrant.py) | Shared embedded/server Qdrant client. |
 | [`agents/market_analysis/agent.py`](src/ai_finance_assistant/agents/market_analysis/agent.py) | Twelve Data MCP market agent. |
+| [`agents/goal_planning/agent.py`](src/ai_finance_assistant/agents/goal_planning/agent.py) | Goal tool selection, clarification, sufficiency checks, and three-turn hard stop. |
+| [`agents/goal_planning/tools.py`](src/ai_finance_assistant/agents/goal_planning/tools.py) | Four deterministic savings-goal calculators. |
 
 Finance/tax evaluator modules and the finance query analyzer remain for legacy/shared helper paths and tests. They are not separate decision nodes in either active autonomous agent. Direct tax retriever calls without a prepared plan can still invoke its analyzer fallback; the tax RAG tool supplies its plan explicitly.
 
@@ -733,7 +835,7 @@ Most tests use mocked models and embeddings; passing tests does not establish fa
 - Evaluate model-driven search, clarification, and scope decisions across representative questions. Search budgets constrain calls but do not guarantee an optimal plan.
 - Validate claims and inline citations, beyond retrieved-source membership and evidence presence.
 - Active finance/tax execution deadlines are implemented. Full request deadlines covering initialization/checkpoint persistence, stage latency/token metrics, and consistent initialization/API error mapping remain deferred. Independent dense/sparse failure recovery is not implemented; some backend errors appear as empty retrieval.
-- Replace demo portfolio, goals, and news handlers with real integrations; support explicit mixed-intent aggregation if needed.
+- Replace demo portfolio and news handlers with real integrations; support explicit mixed-intent aggregation if needed.
 - Migrate to LangChain 1.x `create_agent` after a dependency compatibility review; remove legacy settings/components after remaining consumers are migrated.
 - Add authentication, rate limiting, checkpoint cleanup, and validated multiworker storage behavior before production deployment. Test data packaging before distributing installed artifacts.
 
