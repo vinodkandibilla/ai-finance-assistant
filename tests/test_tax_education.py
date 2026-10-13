@@ -4,10 +4,13 @@ import json
 from types import SimpleNamespace
 
 from ai_finance_assistant.rag.tax_education import (
+    TaxHybridRetriever,
     build_tax_metadata_filter,
     extract_tax_metadata,
     load_tax_documents,
 )
+from ai_finance_assistant.rag.models import RetrievedDocument
+from ai_finance_assistant.agents.finance_qa.schemas import QueryAnalysis
 
 
 def test_load_tax_documents_creates_langchain_documents(tmp_path) -> None:
@@ -53,6 +56,21 @@ def test_extract_tax_metadata_returns_only_detected_values() -> None:
     assert "forms" not in metadata
 
 
+def test_extract_tax_metadata_routes_mfj_tax_bracket_query_to_bracket_topic() -> None:
+    metadata = extract_tax_metadata(
+        "What is the tax bracket for married filing jointly for an income of $150,000"
+    )
+
+    assert metadata["filing_status"] == ["married_filing_jointly"]
+    assert metadata["topic"] == "tax_brackets"
+    metadata_filter = build_tax_metadata_filter(metadata)
+    assert metadata_filter is not None
+    topic_condition = next(
+        condition for condition in metadata_filter.must if condition.key == "metadata.topic"
+    )
+    assert topic_condition.match.value == "tax_brackets"
+
+
 def test_extract_tax_metadata_for_standard_deduction_limit_query() -> None:
     metadata = extract_tax_metadata("What is the standard deduction limit for year 2026")
 
@@ -87,7 +105,58 @@ def test_build_tax_metadata_filter_maps_detected_fields_to_payload() -> None:
     filing_status_condition = next(
         condition for condition in metadata_filter.must if condition.key == "metadata.filing_status"
     )
-    assert filing_status_condition.match.any == ["married_filing_jointly", "all"]
+    assert filing_status_condition.match.any == ["married_filing_jointly", "mfj", "all"]
+
+
+def test_build_tax_metadata_filter_preserves_single_filing_status() -> None:
+    metadata_filter = build_tax_metadata_filter({"filing_status": ["single"]})
+
+    assert metadata_filter is not None
+    filing_status_condition = metadata_filter.must[0]
+    assert filing_status_condition.match.any == ["single", "all"]
+
+
+async def test_tax_retriever_uses_query_decomposition_and_shared_result_model() -> None:
+    class FakeAnalyzer:
+        async def analyze(self, query: str) -> QueryAnalysis:
+            assert query == "What tax bracket applies to MFJ income of $150,000?"
+            return QueryAnalysis(
+                needs_clarification=False,
+                detected_intents=["tax"],
+                dense_sub_queries=["2026 married filing jointly tax brackets", "22% bracket threshold MFJ"],
+                sparse_keywords=["MFJ", "2026", "tax bracket", "150000"],
+            )
+
+    class FakeRetriever:
+        calls = []
+
+        async def search(self, query: str, **kwargs):
+            self.calls.append((query, kwargs))
+            return [RetrievedDocument(content="Tax bracket passage", source="irs.jsonl")]
+
+    shared = FakeRetriever()
+    tax_retriever = TaxHybridRetriever(shared, FakeAnalyzer())
+    metadata_filter = build_tax_metadata_filter(
+        {"filing_status": ["married_filing_jointly"], "topic": "tax_brackets"}
+    )
+
+    results = await tax_retriever.search(
+        "What tax bracket applies to MFJ income of $150,000?",
+        limit=3,
+        metadata_filter=metadata_filter,
+    )
+
+    assert len(results) == 1
+    assert isinstance(results[0], RetrievedDocument)
+    query, options = shared.calls[0]
+    assert query == "What tax bracket applies to MFJ income of $150,000?"
+    assert options["dense_queries"] == [
+        "2026 married filing jointly tax brackets",
+        "22% bracket threshold MFJ",
+    ]
+    assert options["sparse_query"] == "MFJ 2026 tax bracket 150000"
+    assert options["metadata_filter"] == metadata_filter
+    assert options["limit"] == 3
 
 
 def test_build_tax_hybrid_vector_store_reuses_existing_collection(monkeypatch) -> None:

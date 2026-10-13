@@ -12,11 +12,13 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
 from qdrant_client.models import FieldCondition, Filter, MatchAny, MatchValue
 
+from ai_finance_assistant.agents.tax_education.query_analyzer import TaxQueryAnalyzer
 from ai_finance_assistant.rag.hybrid import (
     build_hybrid_vector_store as _build_hybrid_vector_store,
     get_hybrid_retriever,
 )
-from ai_finance_assistant.rag.retriever import QdrantRetriever
+from ai_finance_assistant.rag.models import RetrievedDocument
+from ai_finance_assistant.rag.retriever import QdrantHybridRetriever
 
 TAX_CORPUS_PATH = Path(__file__).resolve().parent / "tax-education" / "irs_tax_2026_rag_corpus_expanded.jsonl"
 TAX_METADATA_FIELDS = (
@@ -70,7 +72,17 @@ TAX_VALUE_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "US_federal": ("federal", "irs", "united states", "u.s."),
     },
 }
+TAX_METADATA_VALUE_ALIASES = {
+    "filing_status": {
+        "married_filing_jointly": "mfj",
+        "married_filing_separately": "mfs",
+        "head_of_household": "hoh",
+        "qualifying_surviving_spouse": "qss",
+        "single": "single",
+    }
+}
 TAX_TOPIC_ALIASES = {
+    "tax_brackets": ("tax bracket", "tax brackets", "marginal tax rate", "income tax rate"),
     "standard_vs_itemized": ("standard deduction", "itemized deduction", "itemized deductions"),
     "capital_gains": ("capital gain", "capital gains", "holding period"),
     "education_tax": ("education credit", "education credits", "college tax", "529 plan"),
@@ -80,6 +92,46 @@ TAX_TOPIC_ALIASES = {
     "foreign_income": ("foreign income", "foreign tax credit"),
     "filing_status": ("filing status", "married filing", "head of household"),
 }
+
+
+class TaxHybridRetriever:
+    def __init__(
+        self,
+        retriever: QdrantHybridRetriever,
+        analyzer: TaxQueryAnalyzer | None = None,
+    ) -> None:
+        self._retriever = retriever
+        self._analyzer = analyzer
+
+    async def search(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        metadata_filter: Filter | dict | None = None,
+        dense_queries: list[str] | None = None,
+        sparse_query: str | None = None,
+    ) -> list[RetrievedDocument]:
+        if dense_queries is not None or sparse_query is not None:
+            return await self._retriever.search(
+                query, limit=limit, metadata_filter=metadata_filter,
+                dense_queries=dense_queries if dense_queries is not None else [query],
+                sparse_query=query if sparse_query is None else sparse_query,
+            )
+        if self._analyzer is None:
+            return await self._retriever.search(
+                query,
+                limit=limit,
+                metadata_filter=metadata_filter,
+            )
+        analysis = await self._analyzer.analyze(query)
+        return await self._retriever.search(
+            query,
+            limit=limit,
+            dense_queries=analysis.dense_sub_queries or [query],
+            sparse_query=" ".join(analysis.sparse_keywords),
+            metadata_filter=metadata_filter,
+        )
 
 
 def _normalize_query(value: str) -> str:
@@ -118,14 +170,30 @@ def extract_tax_metadata(query: str) -> dict[str, Any]:
 
     docs = load_tax_documents()
     for field in ("topic", "subtopic"):
-        values = {str(document.metadata[field]) for document in docs if document.metadata.get(field)}
+        # An incidental phrase (e.g. "filing status" in a bracket question)
+        # must not select a subtopic belonging to a different topic.
+        candidates = [
+            document
+            for document in docs
+            if field != "subtopic"
+            or not extracted.get("topic")
+            or document.metadata.get("topic") == extracted["topic"]
+        ]
+        values = {
+            str(document.metadata[field])
+            for document in candidates
+            if document.metadata.get(field)
+        }
         matches = [value for value in values if _query_contains(query, value.replace("_", " "))]
         if field == "topic":
-            matches.extend(
+            explicit_topic_matches = [
                 topic
                 for topic, aliases in TAX_TOPIC_ALIASES.items()
                 if any(_query_contains(query, alias) for alias in aliases)
-            )
+            ]
+            if explicit_topic_matches:
+                extracted[field] = explicit_topic_matches[0]
+                continue
         if matches:
             extracted[field] = max(matches, key=len)
 
@@ -144,7 +212,12 @@ def build_tax_metadata_filter(metadata: dict[str, Any]) -> Filter | None:
         if value is None or value == [] or value == "":
             continue
         if field in TAX_LIST_METADATA_FIELDS and isinstance(value, list):
-            value = [*value, "all"]
+            aliases = TAX_METADATA_VALUE_ALIASES.get(field, {})
+            value = list(dict.fromkeys([
+                *value,
+                *(aliases[item] for item in value if item in aliases),
+                "all",
+            ]))
         match = MatchAny(any=value) if isinstance(value, list) else MatchValue(value=value)
         conditions.append(FieldCondition(key=f"metadata.{field}", match=match))
     return Filter(must=conditions) if conditions else None
@@ -209,22 +282,33 @@ def build_tax_hybrid_vector_store(
 
 
 @lru_cache
-def _get_tax_retriever_without_shared_client() -> QdrantRetriever:
-    return get_hybrid_retriever(
+def _get_tax_retriever_without_shared_client(llm: object | None = None) -> TaxHybridRetriever:
+    retriever = get_hybrid_retriever(
         TAX_COLLECTION_NAME,
         LOCAL_QDRANT_PATH,
         lambda: chunk_tax_documents(load_tax_documents()),
         source_name="the tax corpus",
     )
+    return TaxHybridRetriever(
+        retriever,
+        TaxQueryAnalyzer(llm) if llm is not None else None,
+    )
 
 
-def get_tax_retriever(client: QdrantClient | None = None) -> QdrantRetriever:
+def get_tax_retriever(
+    client: QdrantClient | None = None,
+    llm: object | None = None,
+) -> TaxHybridRetriever:
     if client is None:
-        return _get_tax_retriever_without_shared_client()
-    return get_hybrid_retriever(
+        return _get_tax_retriever_without_shared_client(llm)
+    retriever = get_hybrid_retriever(
         TAX_COLLECTION_NAME,
         LOCAL_QDRANT_PATH,
         lambda: chunk_tax_documents(load_tax_documents()),
         client=client,
         source_name="the tax corpus",
+    )
+    return TaxHybridRetriever(
+        retriever,
+        TaxQueryAnalyzer(llm) if llm is not None else None,
     )

@@ -18,7 +18,6 @@ class FinanceContextEvaluator:
         if not documents:
             return ContextEvaluation(
                 sufficient=False,
-                sufficiency_score=0,
                 missing_concepts=["supporting handbook evidence"],
                 suggested_queries=[query],
                 reason="No in-scope handbook passages were retrieved.",
@@ -45,7 +44,6 @@ class FinanceContextEvaluator:
                     if len(explanation.split()) >= 6 and explanation.endswith("."):
                         return ContextEvaluation(
                             sufficient=True,
-                            sufficiency_score=1.0,
                             reason="A handbook glossary entry supports the requested definition.",
                         )
         context = "\n\n".join(
@@ -62,8 +60,8 @@ class FinanceContextEvaluator:
                     "Require examples, trading mechanics, risks, or comparisons only when asked. "
                     "For comparisons and multipart questions, require evidence for each part. "
                     "Ignore unrelated passages when relevant evidence is present. "
-                    "Judge coverage, not just relevance. Do not answer. Return an explicitly "
-                    "heuristic score from 0 to 1, missing concepts, and focused search queries."
+                    "Judge coverage, not just relevance. Do not answer. Return sufficient, "
+                    "missing concepts, a reason, and focused search queries."
                 )
             ),
             HumanMessage(content=f"Question: {query}\n\nPassages:\n{context}"),
@@ -79,7 +77,6 @@ class FinanceContextEvaluator:
             logger.exception("Finance evidence evaluation failed.")
             return ContextEvaluation(
                 sufficient=False,
-                sufficiency_score=0,
                 missing_concepts=["evidence evaluation"],
                 suggested_queries=[],
                 reason=f"Evidence evaluation failed: {type(error).__name__}.",

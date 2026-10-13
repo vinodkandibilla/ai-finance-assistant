@@ -12,9 +12,23 @@ FinanceIntent = Literal[
 ]
 
 
+ExecutedHandler = Literal[
+    "finance_qa_node",
+    "tax_education_node",
+    "market_analysis_node",
+    "portfolio_analysis_node",
+    "goals_node",
+    "news_synthesizer_node",
+    "clarify_node",
+    "unsupported_node",
+]
+
+
 class FinanceAssistantState(TypedDict, total=False):
     query: str
     intent: FinanceIntent
+    classified_intent: FinanceIntent
+    executed_handler: ExecutedHandler
     answer: str
     user_query: str
     search_query: str
@@ -31,8 +45,9 @@ class FinanceAssistantState(TypedDict, total=False):
     best_evaluation: dict[str, object]
     retry_count: int
     errors: list[str]
-    handoff_intents: list[str]
     clarification_question: str
+    calculations: list[dict]
+    calculation: dict
     final_result: dict[str, object]
     citations: list[str]
     status: str

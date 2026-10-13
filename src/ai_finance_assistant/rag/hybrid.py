@@ -12,7 +12,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, SparseVectorParams, VectorParams
 
 from ai_finance_assistant.core.config import get_settings
-from ai_finance_assistant.rag.retriever import QdrantRetriever
+from ai_finance_assistant.rag.retriever import QdrantHybridRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +49,18 @@ def build_hybrid_vector_store(
         embedding=dense_embeddings,
         retrieval_mode=RetrievalMode.HYBRID,
         sparse_embedding=sparse_embeddings,
+        validate_collection_config=active_client.collection_exists(collection_name),
     )
     if active_client.collection_exists(collection_name):
-        logger.info("Loading Qdrant collection '%s' from local disk.", collection_name)
-        return vector_store
+        point_count = active_client.count(collection_name=collection_name).count
+        if point_count:
+            logger.info("Loading Qdrant collection '%s' with %s points.", collection_name, point_count)
+            return vector_store
+        logger.warning(
+            "Qdrant collection '%s' exists but is empty; indexing %s.",
+            collection_name,
+            source_name,
+        )
 
     if callable(documents):
         documents = documents()
@@ -69,19 +77,21 @@ def build_hybrid_vector_store(
         logger.error("Dense embeddings are empty; skipping indexing into '%s'.", collection_name)
         return vector_store
 
-    logger.info("Creating hybrid Qdrant collection '%s' and indexing %s documents.", collection_name, len(documents))
-    active_client.create_collection(
-        collection_name=collection_name,
-        vectors_config={
-            QdrantVectorStore.VECTOR_NAME: VectorParams(
-                size=len(dense_vectors[0]),
-                distance=Distance.COSINE,
-            )
-        },
-        sparse_vectors_config={
-            QdrantVectorStore.SPARSE_VECTOR_NAME: SparseVectorParams()
-        },
-    )
+    if not active_client.collection_exists(collection_name):
+        logger.info("Creating hybrid Qdrant collection '%s'.", collection_name)
+        active_client.create_collection(
+            collection_name=collection_name,
+            vectors_config={
+                QdrantVectorStore.VECTOR_NAME: VectorParams(
+                    size=len(dense_vectors[0]),
+                    distance=Distance.COSINE,
+                )
+            },
+            sparse_vectors_config={
+                QdrantVectorStore.SPARSE_VECTOR_NAME: SparseVectorParams()
+            },
+        )
+    logger.info("Indexing %s documents into Qdrant collection '%s'.", len(documents), collection_name)
     vector_store.add_documents(documents)
     return vector_store
 
@@ -94,7 +104,7 @@ def get_hybrid_retriever(
     client: QdrantClient | None = None,
     embedding_model: str | None = None,
     source_name: str = "documents",
-) -> QdrantRetriever:
+) -> QdrantHybridRetriever:
     vector_store = build_hybrid_vector_store(
         collection_name,
         local_path,
@@ -103,4 +113,4 @@ def get_hybrid_retriever(
         embedding_model=embedding_model,
         source_name=source_name,
     )
-    return QdrantRetriever(vector_store)
+    return QdrantHybridRetriever(vector_store)

@@ -3,7 +3,6 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 FINANCE_PDF_PATH = (
     PROJECT_ROOT
@@ -16,6 +15,9 @@ FINANCE_PDF_PATH = (
 
 
 class FinanceAgentSettings(BaseSettings):
+    agent_timeout_seconds: float = Field(default=60.0, gt=0, allow_inf_nan=False)
+    agent_max_searches: int = Field(default=4, ge=1, le=20)
+    agent_recursion_limit: int = Field(default=30, ge=6, le=100)
     dense_top_k: int = Field(default=10, ge=1, le=100)
     sparse_top_k: int = Field(default=10, ge=1, le=100)
     rrf_k: int = Field(default=60, ge=1)
@@ -30,6 +32,5 @@ class FinanceAgentSettings(BaseSettings):
     finance_collection: str = "finance_education_hybrid"
     chunk_size: int = Field(default=800, ge=100)
     chunk_overlap: int = Field(default=120, ge=0)
-    sufficiency_tie_tolerance: float = Field(default=0.08, ge=0, le=1)
 
     model_config = SettingsConfigDict(env_prefix="FINANCE_", extra="ignore")

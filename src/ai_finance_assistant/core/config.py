@@ -10,35 +10,45 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4o-mini"
+    router_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
     openai_embedding_model: str = "text-embedding-3-small"
     finance_query_analysis_model: str = "gpt-4o-mini"
     finance_evaluator_model: str = "gpt-4o-mini"
     finance_reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     finance_collection: str = "finance_education_hybrid"
     finance_checkpoint_path: str = ".cache/finance_agent_checkpoints.sqlite"
+    market_quotes_enabled: bool = True
     alpha_vantage_api_key: SecretStr | None = None
     alpha_vantage_base_url: str = "https://www.alphavantage.co/query"
     alpha_vantage_timeout_seconds: float = 3.0
     quote_cache_ttl_seconds: int = 24 * 60 * 60
     intent_router_system_prompt: str = Field(
         default=(
-            "Classify the user's request by intent. Return finance_qa for financial education "
-            "questions about financial concepts, products, investing, or options education; "
-            "return portfolio for requests to analyze "
-            "portfolio holdings, allocation, concentration, or performance; return market "
-            "for current stock quotes on MAG7 tickers (AAPL, MSFT, AMZN, GOOG, GOOGL, META, "
-            "NVDA, TSLA); return clarify for historical prices, volume, comparisons, or "
-            "unsupported tickers; return goals "
-            "for savings targets, future-value projections, required contributions, "
-            "timelines, or financial-planning calculations; return news for current AI, "
-            "tech, market, or industry news summaries, headline roundups, and brief "
-            "breaking-news updates; return tax for IRS guidance, tax education, filing "
-            "status, deductions, credits, 401(k), traditional IRA, Roth IRA, and related "
-            "tax-planning questions; return clarify when the query is too vague or "
-            "missing essential details required to answer accurately, such as a stock "
-            "ticker, date range, filing status, child count, account type, or topic "
-            "scope. Return other for requests outside those categories. Do not answer the "
-            "question."
+            "Choose exactly one intent by the requested task, in the priority order below; "
+            "do not answer. Incidental tax, retirement, deduction, or account mentions "
+            "do not determine intent. "
+            "tax: IRS/tax education, treatment, filing status, deductions, credits, planning, "
+            "or retirement-account rules (Roth/Traditional/SEP/SIMPLE IRA, 401(k), 403(b), "
+            "similar plans), including eligibility, contributions/limits, withdrawals/"
+            "distributions, conversions, definitions, and comparisons of those rules. "
+            "finance_qa: general investing concepts, securities, funds/ETFs, benchmarks, "
+            "options mechanics, compounding explanations and single-principal "
+            "simple/compound-interest "
+            "calculations, diversification, and risk; tax/retirement "
+            "background alone does not exclude it. "
+            "portfolio: analysis of personal holdings, allocation, concentration, or performance. "
+            "market: current quotes for AAPL/MSFT/AMZN/GOOG/GOOGL/META/NVDA/TSLA; "
+            "market requests for historical prices, volume, comparisons, unsupported tickers, "
+            "or missing symbols require clarify. "
+            "goals: savings targets, future values, required contributions, timelines, or "
+            "planning calculations, except tax-advantaged account rules and single-principal "
+            "simple/compound-interest calculations (finance_qa). "
+            "news: current AI/tech/market/industry news summaries or breaking news. "
+            "clarify: domain unclear (e.g. 'Which is better?') or the market cases above. "
+            "Identifiable tax/finance_qa requests stay in that domain despite missing "
+            "income, filing status, year, comparands, or other details; their agents clarify. "
+            "Examples: 'What will be my tax bracket?' -> tax; 'Compare two ETFs' -> finance_qa. "
+            "other: outside these categories."
         ),
         min_length=1,
     )

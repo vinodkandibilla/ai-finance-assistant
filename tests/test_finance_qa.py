@@ -1,23 +1,21 @@
 from __future__ import annotations
 
-from collections import Counter
 from pathlib import Path
 
 import pytest
 from langchain_core.documents import Document
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.types import Command
 
 from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
 from ai_finance_assistant.agents.finance_qa.corpus_index import load_finance_corpus
-from ai_finance_assistant.agents.finance_qa.graph import FinanceQaAgent, _should_replace_best
 from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
+from ai_finance_assistant.agents.finance_qa.retrieval import FinanceHybridRetriever
 from ai_finance_assistant.agents.finance_qa.schemas import (
     ContextEvaluation,
     FinanceDocument,
     QueryAnalysis,
 )
-from ai_finance_assistant.agents.finance_qa.retrieval import FinanceHybridRetriever
+from ai_finance_assistant.rag.orchestration import should_replace_best as _should_replace_best
+from ai_finance_assistant.rag.retriever import QdrantHybridSearch
 
 
 def make_doc(doc_id: str, content: str) -> FinanceDocument:
@@ -40,7 +38,9 @@ def test_metadata_filter_only_uses_corpus_supported_values() -> None:
     assert extractor.extract("This word is not a ticker: ALL") == {}
 
 
-def test_finance_corpus_loader_excludes_out_of_scope_pages(tmp_path: Path) -> None:
+def test_finance_corpus_loader_preserves_nonempty_pages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     pypdf = pytest.importorskip("pypdf")
     writer = pypdf.PdfWriter()
     in_scope = writer.add_blank_page(width=300, height=300)
@@ -59,19 +59,35 @@ def test_finance_corpus_loader_excludes_out_of_scope_pages(tmp_path: Path) -> No
             return self.text
 
     class FakeReader:
-        pages = [FakePage("ETF index tracking concept. " * 30), FakePage("Traditional IRA retirement tax.")]
+        pages = [
+            FakePage("ETF index tracking concept. " * 30),
+            FakePage("Traditional IRA retirement tax."),
+            FakePage("   "),
+        ]
 
     from ai_finance_assistant.agents.finance_qa import corpus_index
 
-    monkeypatch_reader = pytest.MonkeyPatch()
-    monkeypatch_reader.setattr(corpus_index, "PdfReader", lambda _: FakeReader())
+    monkeypatch.setattr(corpus_index, "PdfReader", lambda _: FakeReader())
     chunks = load_finance_corpus(target, FinanceAgentSettings(chunk_size=150, chunk_overlap=10))
-    monkeypatch_reader.undo()
 
     assert chunks
-    assert all("traditional ira" not in chunk.page_content.casefold() for chunk in chunks)
+    assert any("Traditional IRA retirement tax." in chunk.page_content for chunk in chunks)
+    assert {chunk.metadata["page_number"] for chunk in chunks} == {1, 2}
     assert all(chunk.metadata["source"] == str(target) for chunk in chunks)
     assert len({chunk.metadata["doc_id"] for chunk in chunks}) == len(chunks)
+
+
+def test_handbook_preserves_compound_interest_section() -> None:
+    chunks = load_finance_corpus()
+    page_nine = [chunk for chunk in chunks if chunk.metadata["page_number"] == 9]
+
+    assert any("2.2 Simple Interest versus Compound Interest" in c.page_content for c in page_nine)
+    assert any(
+        "Compound interest is calculated on the principal plus any interest already earned."
+        in c.page_content
+        for c in page_nine
+    )
+    assert any("tax rates" in c.page_content for c in page_nine)
 
 
 class FakeClassifier:
@@ -111,12 +127,16 @@ class FakeLLM:
 
 
 class FakeRetriever:
-    def __init__(self, lists: list[list[FinanceDocument]], sparse: list[FinanceDocument] | None = None) -> None:
+    def __init__(
+        self, lists: list[list[FinanceDocument]], sparse: list[FinanceDocument] | None = None
+    ) -> None:
         self.lists = list(lists)
         self.sparse = sparse or []
         self.calls: list[tuple[list[str], list[str]]] = []
 
-    async def retrieve(self, dense_queries: list[str], sparse_keywords: list[str], *, metadata_filter=None):
+    async def retrieve(
+        self, dense_queries: list[str], sparse_keywords: list[str], *, metadata_filter=None
+    ):
         self.calls.append((dense_queries, sparse_keywords))
         lists = self.lists.pop(0)
         return [*lists, *self.sparse], []
@@ -127,62 +147,17 @@ class FakeReranker:
         return documents[:limit]
 
 
-def make_agent(llm: FakeLLM, retriever: FakeRetriever, classifier: FakeClassifier) -> FinanceQaAgent:
-    return FinanceQaAgent(
-        llm=llm,
-        retriever=retriever,
-        metadata_extractor=FinanceMetadataExtractor([]),
-        classifier=classifier,
-        reranker=FakeReranker(),
-        settings=FinanceAgentSettings(rerank_top_n=5),
-        checkpointer=MemorySaver(),
-    )
+def test_best_context_selection_uses_only_sufficient_flag() -> None:
+    high = ContextEvaluation(sufficient=True, reason="covers all parts")
+    worse = ContextEvaluation(sufficient=True, reason="slightly lower")
+    better = ContextEvaluation(sufficient=True, reason="covers all parts")
+    insufficient = ContextEvaluation(sufficient=False, reason="missing concept")
 
-
-@pytest.mark.asyncio
-async def test_out_of_scope_question_returns_handoff_without_retrieval() -> None:
-    llm = FakeLLM([], [])
-    retriever = FakeRetriever([])
-    agent = make_agent(llm, retriever, FakeClassifier([]))
-
-    result = await agent.ainvoke({"user_query": "Compare Roth IRA and Traditional IRA"}, {})
-
-    assert result["final_result"]["status"] == "handoff"
-    assert "tax" in result["final_result"]["handoff_intents"]
-    assert retriever.calls == []
-
-
-@pytest.mark.asyncio
-async def test_query_clarification_interrupt_resumes_through_parent_classifier() -> None:
-    llm = FakeLLM(
-        [QueryAnalysis(needs_clarification=True, clarification_question="Which two concepts?")],
-        [],
-    )
-    classifier = FakeClassifier(["market"])
-    agent = make_agent(llm, FakeRetriever([]), classifier)
-    graph = agent.graph
-    config = {"configurable": {"thread_id": "finance-clarification-test"}}
-
-    paused = await graph.ainvoke({"user_query": "Which is better?"}, config=config)
-    snapshot = await graph.aget_state(config)
-    assert snapshot.tasks[0].interrupts[0].value["question"] == "Which two concepts?"
-    resumed = await graph.ainvoke(Command(resume="What is today's AAPL price?"), config=config)
-
-    assert resumed["final_result"]["status"] == "handoff"
-    assert "market" in resumed["final_result"]["handoff_intents"]
-    assert resumed["intent"] == "market"
-    assert classifier.calls == ["What is today's AAPL price?"]
-
-
-def test_best_context_selection_prefers_sufficient_coverage_and_avoids_small_score_swaps() -> None:
-    high = ContextEvaluation(sufficient=True, sufficiency_score=0.8, reason="covers all parts")
-    worse = ContextEvaluation(sufficient=True, sufficiency_score=0.75, reason="slightly lower")
-    better = ContextEvaluation(sufficient=True, sufficiency_score=0.95, reason="covers all parts")
-    insufficient = ContextEvaluation(sufficient=False, sufficiency_score=0.99, reason="missing concept")
-
-    assert not _should_replace_best(high, worse, tie_tolerance=0.08)
-    assert _should_replace_best(high, better, tie_tolerance=0.08)
-    assert not _should_replace_best(high, insufficient, tie_tolerance=0.08)
+    assert not _should_replace_best(high, worse)
+    assert not _should_replace_best(high, better)
+    assert not _should_replace_best(high, insufficient)
+    assert _should_replace_best(insufficient, high)
+    assert _should_replace_best(None, insufficient)
 
 
 @pytest.mark.asyncio
@@ -212,20 +187,20 @@ async def test_hybrid_retrieval_returns_qdrant_fused_results(monkeypatch) -> Non
             ]
         )
     )
+
     async def embed_query(query: str) -> list[float]:
         return [1.0, 0.0]
-
-    retriever._embeddings = SimpleNamespace(aembed_query=embed_query)
 
     class SparseVectorStub:
         indices = [1]
         values = [1.0]
 
-    class SparseEmbeddingsStub:
-        def embed_query(self, query: str) -> SparseVectorStub:
-            return SparseVectorStub()
-
-    retriever._sparse_embeddings = SparseEmbeddingsStub()
+    retriever._hybrid_search = QdrantHybridSearch(
+        retriever._qdrant_client,
+        retriever._collection_name,
+        SimpleNamespace(aembed_query=embed_query),
+        SimpleNamespace(embed_query=lambda query: SparseVectorStub()),
+    )
 
     fused, errors = await retriever.retrieve(["Delta"], ["Delta"])
 
@@ -248,12 +223,17 @@ async def test_hybrid_retrieval_reports_qdrant_fusion_failure() -> None:
     retriever._qdrant_client = __import__("types").SimpleNamespace(
         query_points=lambda **kwargs: (_ for _ in ()).throw(RuntimeError("Qdrant unavailable"))
     )
+
     async def embed_query(query: str) -> list[float]:
         return [1.0, 0.0]
 
-    retriever._embeddings = __import__("types").SimpleNamespace(aembed_query=embed_query)
-    retriever._sparse_embeddings = __import__("types").SimpleNamespace(
-        embed_query=lambda query: __import__("types").SimpleNamespace(indices=[1], values=[1.0])
+    retriever._hybrid_search = QdrantHybridSearch(
+        retriever._qdrant_client,
+        retriever._collection_name,
+        __import__("types").SimpleNamespace(aembed_query=embed_query),
+        __import__("types").SimpleNamespace(
+            embed_query=lambda query: __import__("types").SimpleNamespace(indices=[1], values=[1.0])
+        ),
     )
 
     candidates, errors = await retriever.retrieve(["Delta"], ["Delta"])
@@ -261,44 +241,6 @@ async def test_hybrid_retrieval_reports_qdrant_fusion_failure() -> None:
     assert candidates == []
     assert errors == ["hybrid retrieval failed: RuntimeError"]
 
-
-@pytest.mark.asyncio
-async def test_agent_retries_once_and_keeps_better_first_context() -> None:
-    first_doc = make_doc("delta", "Delta describes call price sensitivity.")
-    second_doc = make_doc("noise", "Unrelated index information.")
-    analysis = QueryAnalysis(
-        needs_clarification=False,
-        detected_intents=["finance_qa"],
-        dense_sub_queries=["call option Delta and Theta"],
-        sparse_keywords=["Delta", "Theta"],
-    )
-    llm = FakeLLM(
-        [analysis],
-        [
-            ContextEvaluation(
-                sufficient=False,
-                sufficiency_score=0.80,
-                missing_concepts=["Theta"],
-                suggested_queries=["Theta call option time decay"],
-                reason="Initial passages are missing Theta.",
-            ),
-            ContextEvaluation(
-                sufficient=False,
-                sufficiency_score=0.60,
-                missing_concepts=["Theta"],
-                reason="Retry result is less complete.",
-            ),
-        ],
-    )
-    retriever = FakeRetriever([[first_doc], [second_doc]])
-    agent = make_agent(llm, retriever, FakeClassifier([]))
-
-    result = await agent.ainvoke({"user_query": "Explain Delta and Theta."}, {})
-
-    assert len(retriever.calls) == 2
-    assert result["final_result"]["status"] == "insufficient", result
-    assert "Delta describes" in result["final_result"]["answer"] or result["final_result"]["citations"]
-    assert llm.answer_calls == 0
 
 @pytest.mark.asyncio
 async def test_finance_index_creation_reuses_client_and_supports_search(monkeypatch) -> None:
@@ -352,10 +294,12 @@ async def test_finance_index_creation_reuses_client_and_supports_search(monkeypa
         assert matches[0].rank == 1
         from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-        excluded = Filter(must=[FieldCondition(
-            key="metadata.page_number", match=MatchValue(value=2)
-        )])
-        filtered_matches, errors = await retriever.retrieve(["ETF NAV"], ["ETF"], metadata_filter=excluded)
+        excluded = Filter(
+            must=[FieldCondition(key="metadata.page_number", match=MatchValue(value=2))]
+        )
+        filtered_matches, errors = await retriever.retrieve(
+            ["ETF NAV"], ["ETF"], metadata_filter=excluded
+        )
         assert errors == []
         assert filtered_matches == []
         FinanceHybridRetriever.create(
@@ -366,6 +310,23 @@ async def test_finance_index_creation_reuses_client_and_supports_search(monkeypa
             settings=settings,
         )
         assert client.count(settings.finance_collection).count == 1
+        # An interrupted first ingestion can leave a valid but empty collection.
+        client.delete(
+            settings.finance_collection,
+            points_selector=Filter(),
+        )
+        assert client.count(settings.finance_collection).count == 0
+        recovered = FinanceHybridRetriever.create(
+            documents,
+            qdrant_client=client,
+            api_key="test-key",
+            embedding_model="test-model",
+            settings=settings,
+        )
+        assert client.count(settings.finance_collection).count == 1
+        recovered_matches, errors = await recovered.retrieve(["ETF NAV"], ["ETF"])
+        assert errors == []
+        assert recovered_matches[0].doc_id == "etf-nav"
         client.create_collection(
             collection_name="legacy-dense", vectors_config={"": {"size": 3, "distance": "Cosine"}}
         )
@@ -412,74 +373,19 @@ async def test_finance_retriever_returns_empty_results_when_no_documents(monkeyp
         client.close()
 
 
-async def test_parent_passes_current_question_to_finance_subgraph() -> None:
-    from ai_finance_assistant.graph.builder import build_graph
-
-    seen_queries: list[str] = []
-
-    class RecordingLLM(FakeLLM):
-        def with_structured_output(self, schema: type):
-            if schema is not QueryAnalysis:
-                return super().with_structured_output(schema)
-
-            class Analyze:
-                async def ainvoke(self, messages):
-                    query = messages[-1].content
-                    seen_queries.append(query)
-                    if query == "What is Delta?":
-                        return QueryAnalysis(
-                            needs_clarification=True,
-                            clarification_question="Which Delta context?",
-                        )
-                    assert query == "What is ETF?"
-                    return QueryAnalysis(
-                        needs_clarification=False,
-                        detected_intents=["finance_qa"],
-                        dense_sub_queries=[query],
-                        sparse_keywords=["ETF"],
-                    )
-
-            return Analyze()
-
-    llm = RecordingLLM(
-        [],
-        [ContextEvaluation(sufficient=True, sufficiency_score=0.95, reason="ETF covered")],
-    )
-    retriever = FakeRetriever([[make_doc("etf", "An ETF is an exchange-traded fund.")]])
-    classifier = FakeClassifier(["finance_qa", "finance_qa"])
-    agent = FinanceQaAgent(
-        llm=llm,
-        retriever=retriever,
-        metadata_extractor=FinanceMetadataExtractor([]),
-        classifier=classifier,
-        reranker=FakeReranker(),
-        settings=FinanceAgentSettings(),
-    )
-    graph = build_graph(classifier, finance_agent=agent, checkpointer=MemorySaver())
-    delta = await graph.ainvoke(
-        {"query": "What is Delta?"},
-        config={"configurable": {"thread_id": "delta-request"}},
-    )
-    assert delta["__interrupt__"]
-    etf = await graph.ainvoke(
-        {"query": "What is ETF?"},
-        config={"configurable": {"thread_id": "etf-request"}},
-    )
-    assert seen_queries == ["What is Delta?", "What is ETF?"]
-    assert etf["status"] == "answered"
-    assert etf["answer"]
-    assert not etf.get("clarification_question")
-    assert retriever.calls[0][0] == ["What is ETF?"]
-    assert "What is ETF?" in llm.answer_messages[0][-1].content
-
-
 async def test_etf_glossary_supports_definition_but_not_comparison() -> None:
     from ai_finance_assistant.agents.finance_qa.evaluator import FinanceContextEvaluator
 
-    llm = FakeLLM([], [ContextEvaluation(
-        sufficient=False, sufficiency_score=0.2,
-        missing_concepts=["mutual fund"], reason="No comparison evidence",
-    )])
+    llm = FakeLLM(
+        [],
+        [
+            ContextEvaluation(
+                sufficient=False,
+                missing_concepts=["mutual fund"],
+                reason="No comparison evidence",
+            )
+        ],
+    )
     evaluator = FinanceContextEvaluator(llm)
     glossary = make_doc(
         "etf-definition",
@@ -502,12 +408,24 @@ def test_public_citations_and_generation_context_omit_internal_ids() -> None:
     from ai_finance_assistant.agents.finance_qa.graph import _citations, _format_context
 
     documents = [
-        FinanceDocument(doc_id="internal-chunk-a", content="ETF evidence.",
-                        source="/private/handbook.pdf", metadata={"page_number": 50}),
-        FinanceDocument(doc_id="internal-chunk-b", content="More ETF evidence.",
-                        source="/private/handbook.pdf", metadata={"page_number": 50}),
-        FinanceDocument(doc_id="internal-chunk-c", content="Risk evidence.",
-                        source="/private/handbook.pdf", metadata={"page_number": 35}),
+        FinanceDocument(
+            doc_id="internal-chunk-a",
+            content="ETF evidence.",
+            source="/private/handbook.pdf",
+            metadata={"page_number": 50},
+        ),
+        FinanceDocument(
+            doc_id="internal-chunk-b",
+            content="More ETF evidence.",
+            source="/private/handbook.pdf",
+            metadata={"page_number": 50},
+        ),
+        FinanceDocument(
+            doc_id="internal-chunk-c",
+            content="Risk evidence.",
+            source="/private/handbook.pdf",
+            metadata={"page_number": 35},
+        ),
     ]
     assert _citations(documents) == [
         "Financial Education Handbook, page 50",

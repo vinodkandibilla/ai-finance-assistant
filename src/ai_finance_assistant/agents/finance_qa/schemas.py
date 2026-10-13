@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import BaseModel, Field
 
-FinanceDomainIntent = Literal["finance_qa", "tax", "market", "news", "portfolio", "goals", "other"]
+from ai_finance_assistant.agents.common.schemas import AgentResult, DomainIntent
+from ai_finance_assistant.rag.evaluation import ContextEvaluation as ContextEvaluation
+from ai_finance_assistant.rag.models import RetrievedDocument
+
+FinanceDomainIntent = DomainIntent
 
 
 class QueryAnalysis(BaseModel):
@@ -16,28 +18,8 @@ class QueryAnalysis(BaseModel):
     dense_sub_queries: list[str] = Field(default_factory=list, max_length=3)
 
 
-class ContextEvaluation(BaseModel):
-    sufficient: bool
-    sufficiency_score: float = Field(ge=0, le=1)
-    missing_concepts: list[str] = Field(default_factory=list)
-    suggested_queries: list[str] = Field(default_factory=list, max_length=4)
-    reason: str
+FinanceDocument = RetrievedDocument
 
 
-class FinanceDocument(BaseModel):
-    doc_id: str
-    content: str
-    metadata: dict[str, str | int | float | bool] = Field(default_factory=dict)
-    source: str
-    score: float = 0.0
-    rank: int = 0
-    provenance: list[str] = Field(default_factory=list)
-
-
-class FinanceAgentResult(BaseModel):
-    answer: str = ""
-    citations: list[str] = Field(default_factory=list)
-    status: Literal["answered", "clarification", "handoff", "insufficient", "error"]
-    handoff_intents: list[FinanceDomainIntent] = Field(default_factory=list)
-    clarification_question: str | None = None
-    errors: list[str] = Field(default_factory=list)
+class FinanceAgentResult(AgentResult):
+    """Finance education result returned to the API."""

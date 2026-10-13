@@ -10,23 +10,16 @@ from pypdf import PdfReader
 
 from ai_finance_assistant.agents.finance_qa.config import FINANCE_PDF_PATH, FinanceAgentSettings
 
-OUT_OF_SCOPE_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        r"\b(?:roth|traditional|sep|simple)\s+ira\b",
-        r"\b401\s*\(?k\)?\b",
-        r"\bretirement\b",
-        r"\b(?:tax|taxation|irs|deduction|filing status|tax credit)\b",
-        r"\b(?:immigration|visa|resident alien|nonresident alien)\b",
-    )
-)
-
 
 def load_finance_corpus(
     pdf_path=FINANCE_PDF_PATH,
     settings: FinanceAgentSettings | None = None,
 ) -> list[Document]:
-    """Extract in-scope pages, chunk them deterministically, and retain citations."""
+    """Chunk all nonempty handbook pages and retain citations.
+
+    Query routing owns domain scope; incidental keywords must not remove
+    supporting evidence during ingestion.
+    """
     resolved_settings = settings or FinanceAgentSettings()
     reader = PdfReader(str(pdf_path))
     splitter = RecursiveCharacterTextSplitter(
@@ -37,7 +30,7 @@ def load_finance_corpus(
     source = str(pdf_path)
     for page_number, page in enumerate(reader.pages, start=1):
         text = (page.extract_text() or "").strip()
-        if not text or any(pattern.search(text) for pattern in OUT_OF_SCOPE_PATTERNS):
+        if not text:
             continue
         page_document = Document(
             page_content=text,

@@ -1,32 +1,18 @@
-import re
 from typing import Literal, Protocol
 
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from ai_finance_assistant.agents.finance_qa import FinanceQaAgent
-from ai_finance_assistant.agents.finance_qa.schemas import FinanceAgentResult
+from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
+from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.graph.classifier import IntentClassifier
 from ai_finance_assistant.graph.state import FinanceAssistantState
-from ai_finance_assistant.providers.market_data import extract_supported_symbol
-from ai_finance_assistant.rag.models import RetrievedDocument
-
-
-class TaxRetriever(Protocol):
-    async def search(
-        self,
-        query: str,
-        *,
-        limit: int = 5,
-        metadata_filter: object | None = None,
-    ) -> list[RetrievedDocument]: ...
-
-
-class FinanceLLM(Protocol):
-    async def ainvoke(self, messages: object) -> object: ...
+from ai_finance_assistant.providers.market_data import (
+    MARKET_QUOTES_DISABLED_RESPONSE,
+    extract_supported_symbol,
+)
 
 
 class MarketQuoteTool(Protocol):
@@ -50,19 +36,9 @@ NEWS_RESPONSE = (
     "limit aimed at heavy-duty workloads like coding, knowledge work, and "
     "cybersecurity defense"
 )
-TAX_RESPONSE = (
-    "For a Married Filing Jointly household with two qualifying children in 2026, "
-    "the standard deduction is $32,000."
-)
 CLARIFY_RESPONSE = (
     "I need a few more details to answer accurately. Please share the specific ticker, "
     "date range, filing status, account type, or topic you want covered."
-)
-TAX_RELATED_QUERY = re.compile(
-    r"\b(?:tax|taxation|irs|deduction|filing status|tax credit|roth|traditional|sep|simple)\s+ira\b"
-    r"|\b(?:tax|taxation|irs|deduction|filing status|tax credit|retirement)\b"
-    r"|\b401\s*\(?k\)?\b",
-    re.IGNORECASE,
 )
 
 
@@ -71,7 +47,9 @@ async def _classify_intent(
     *,
     classifier: IntentClassifier,
 ) -> FinanceAssistantState:
-    return {"intent": await classifier.classify(state["query"])}
+    intent = await classifier.classify(state["query"])
+    handler = _route_intent({**state, "intent": intent})
+    return {"intent": intent, "classified_intent": intent, "executed_handler": handler}
 
 
 def _is_generic_query(intent: str | None, query: str | None) -> bool:
@@ -148,8 +126,6 @@ def _route_intent(
     "unsupported_node",
 ]:
     intent = state.get("intent")
-    if TAX_RELATED_QUERY.search(state.get("query") or ""):
-        return "tax_education_node"
     if intent == "finance_qa":
         return "finance_qa_node"
     if intent == "portfolio":
@@ -157,6 +133,8 @@ def _route_intent(
             return "clarify_node"
         return "portfolio_analysis_node"
     if intent == "market":
+        if not get_settings().market_quotes_enabled:
+            return "market_analysis_node"
         if _is_generic_query(intent, state.get("query")):
             return "clarify_node"
         return "market_analysis_node"
@@ -188,6 +166,8 @@ async def market_analysis_node(
     *,
     quote_tool: MarketQuoteTool | None = None,
 ) -> FinanceAssistantState:
+    if not get_settings().market_quotes_enabled:
+        return {"answer": MARKET_QUOTES_DISABLED_RESPONSE}
     query = state.get("query") or ""
     symbol = extract_supported_symbol(query)
     if symbol is None:
@@ -207,6 +187,8 @@ async def market_analysis_node(
 
     if not isinstance(quote, str) or not quote.strip():
         return {"answer": MARKET_QUOTE_UNAVAILABLE_RESPONSE}
+    if quote == MARKET_QUOTES_DISABLED_RESPONSE:
+        return {"answer": quote}
     if quote.startswith("Stock price unavailable"):
         return {"answer": quote}
     try:
@@ -224,77 +206,6 @@ def news_synthesizer_node(_: FinanceAssistantState) -> FinanceAssistantState:
     return {"answer": NEWS_RESPONSE}
 
 
-async def tax_education_node_with_context(
-    state: FinanceAssistantState,
-    *,
-    retriever: TaxRetriever | None,
-    llm: FinanceLLM | None,
-) -> FinanceAssistantState:
-    query = (state.get("query") or "").strip()
-    if not query or retriever is None or llm is None:
-        return {"answer": TAX_RESPONSE}
-
-    from ai_finance_assistant.rag.tax_education import (
-        build_tax_metadata_filter,
-        extract_tax_metadata,
-    )
-
-    metadata = extract_tax_metadata(query)
-    metadata_filter = build_tax_metadata_filter(metadata)
-    try:
-        matches = await retriever.search(query, limit=3, metadata_filter=metadata_filter)
-    except Exception:
-        matches = []
-    if not matches and metadata_filter is not None:
-        try:
-            matches = await retriever.search(query, limit=3)
-        except Exception:
-            return {"answer": TAX_RESPONSE}
-    if not matches:
-        return {"answer": TAX_RESPONSE}
-
-    context_blocks = []
-    for document in matches:
-        metadata = document.metadata or {}
-        citation = metadata.get("title") or metadata.get("chunk_id") or document.source
-        context_blocks.append(f"[Source: {citation}]\n{document.content.strip()}")
-    context = "\n\n".join(context_blocks)
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "You are a careful tax education assistant. Answer only from the retrieved "
-                "IRS tax corpus. Do not provide personalized legal or tax advice, and do not "
-                "invent amounts or rules. If the context is insufficient, state what is "
-                "missing. Cite the source title for factual claims.",
-            ),
-            (
-                "human",
-                "Question: {question}\n\nRetrieved tax context:\n{context}\n\n"
-                "Answer clearly and concisely, citing the relevant source title.",
-            ),
-        ]
-    )
-
-    async def _call_llm(messages: object) -> object:
-        return await llm.ainvoke(messages)
-
-    qa_chain = (
-        {
-            "context": RunnableLambda(lambda _: context),
-            "question": RunnablePassthrough(),
-        }
-        | prompt
-        | RunnableLambda(_call_llm)
-        | StrOutputParser()
-    )
-    try:
-        answer = await qa_chain.ainvoke(query)
-    except Exception:
-        return {"answer": TAX_RESPONSE}
-    return {"answer": (answer or TAX_RESPONSE).strip() or TAX_RESPONSE}
-
-
 def clarify_node(_: FinanceAssistantState) -> FinanceAssistantState:
     return {"answer": CLARIFY_RESPONSE}
 
@@ -306,10 +217,9 @@ def unsupported_node(_: FinanceAssistantState) -> FinanceAssistantState:
 def build_graph(
     classifier: IntentClassifier,
     *,
-    tax_retriever: TaxRetriever | None = None,
-    llm: FinanceLLM | None = None,
     market_quote_tool: MarketQuoteTool | None = None,
     finance_agent: FinanceQaAgent | None = None,
+    tax_agent: TaxEducationAgent | None = None,
     checkpointer: object | None = None,
 ) -> FinanceAssistantGraph:
     async def classify_node(state: FinanceAssistantState) -> FinanceAssistantState:
@@ -318,12 +228,13 @@ def build_graph(
     async def market_analysis_node_with_quote(
         state: FinanceAssistantState,
     ) -> FinanceAssistantState:
-        return await market_analysis_node(state, quote_tool=market_quote_tool)
+        return {
+            **await market_analysis_node(state, quote_tool=market_quote_tool),
+            "status": "answered",
+        }
 
-    async def tax_education_node_with_retrieval(
-        state: FinanceAssistantState,
-    ) -> FinanceAssistantState:
-        return await tax_education_node_with_context(state, retriever=tax_retriever, llm=llm)
+    def unavailable_tax_node(_: FinanceAssistantState) -> FinanceAssistantState:
+        return {"answer": "Tax education agent is not configured.", "status": "error"}
 
     def empty_finance_qa_node(_: FinanceAssistantState) -> FinanceAssistantState:
         return {"answer": "", "status": "not_implemented", "citations": []}
@@ -336,15 +247,34 @@ def build_graph(
         "finance_qa_node",
         finance_agent.graph if finance_agent is not None else RunnableLambda(empty_finance_qa_node),
     )
-    workflow.add_node("portfolio_analysis_node", RunnableLambda(portfolio_analysis_node))
+    workflow.add_node(
+        "portfolio_analysis_node",
+        RunnableLambda(lambda state: {**portfolio_analysis_node(state), "status": "answered"}),
+    )
     workflow.add_node("market_analysis_node", market_analysis_node_with_quote)
-    workflow.add_node("goals_node", RunnableLambda(goals_node))
-    workflow.add_node("news_synthesizer_node", RunnableLambda(news_synthesizer_node))
-    workflow.add_node("tax_education_node", tax_education_node_with_retrieval)
-    workflow.add_node("clarify_node", RunnableLambda(clarify_node))
-    workflow.add_node("unsupported_node", RunnableLambda(unsupported_node))
+    workflow.add_node(
+        "goals_node", RunnableLambda(lambda state: {**goals_node(state), "status": "answered"})
+    )
+    workflow.add_node(
+        "news_synthesizer_node",
+        RunnableLambda(lambda state: {**news_synthesizer_node(state), "status": "answered"}),
+    )
+    workflow.add_node(
+        "tax_education_node",
+        tax_agent.graph if tax_agent is not None else RunnableLambda(unavailable_tax_node),
+    )
+    workflow.add_node(
+        "clarify_node", RunnableLambda(lambda state: {**clarify_node(state), "status": "answered"})
+    )
+    workflow.add_node(
+        "unsupported_node",
+        RunnableLambda(lambda state: {**unsupported_node(state), "status": "answered"}),
+    )
     workflow.add_edge(START, "intent_router")
-    workflow.add_conditional_edges("intent_router", _route_intent)
+    workflow.add_conditional_edges(
+        "intent_router",
+        lambda state: state["executed_handler"],
+    )
     workflow.add_edge("finance_qa_node", END)
     workflow.add_edge("portfolio_analysis_node", END)
     workflow.add_edge("market_analysis_node", END)

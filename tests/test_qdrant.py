@@ -8,7 +8,8 @@ def test_qdrant_defaults_to_local_disk_mode() -> None:
     assert settings.qdrant_mode == "local"
 
 
-def test_local_qdrant_client_can_create_a_collection() -> None:
+def test_local_qdrant_client_can_create_a_collection(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("ai_finance_assistant.rag.qdrant.LOCAL_QDRANT_PATH", tmp_path / "qdrant")
     client = create_qdrant_client(Settings(_env_file=None, qdrant_mode="local"))
     collection_name = "test_finance_knowledge"
 

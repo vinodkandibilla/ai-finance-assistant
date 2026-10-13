@@ -11,18 +11,15 @@ from langchain_qdrant.qdrant import RetrievalMode
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
-    Fusion,
     Modifier,
-    Prefetch,
-    Rrf,
-    RrfQuery,
-    SparseVector,
     SparseVectorParams,
     VectorParams,
 )
 
 from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
 from ai_finance_assistant.agents.finance_qa.schemas import FinanceDocument
+from ai_finance_assistant.rag.models import RetrievedDocument
+from ai_finance_assistant.rag.retriever import QdrantHybridSearch
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +45,12 @@ class FinanceHybridRetriever:
             )
         self._embeddings = embeddings
         self._sparse_embeddings = sparse_embeddings
+        self._hybrid_search = QdrantHybridSearch(
+            qdrant_client,
+            self._collection_name,
+            embeddings,
+            sparse_embeddings,
+        )
         self._semaphore = asyncio.Semaphore(settings.max_parallel_searches)
 
     @classmethod
@@ -72,20 +75,24 @@ class FinanceHybridRetriever:
                 sparse_embeddings=sparse_embeddings,
                 settings=settings,
             )
+        needs_indexing = True
         if qdrant_client.collection_exists(collection_name):
             sparse_config = (
-                qdrant_client.get_collection(collection_name).config.params.sparse_vectors
-                or {}
+                qdrant_client.get_collection(collection_name).config.params.sparse_vectors or {}
             )
             if QdrantVectorStore.SPARSE_VECTOR_NAME not in sparse_config:
                 raise ValueError(
                     f"Finance collection '{collection_name}' must have sparse vectors configured."
                 )
-            logger.info("Reusing finance hybrid collection '%s'.", collection_name)
+            needs_indexing = qdrant_client.count(collection_name, exact=True).count == 0
+            if not needs_indexing:
+                logger.info("Reusing finance hybrid collection '%s'.", collection_name)
         else:
             dense_vectors = embeddings.embed_documents([documents[0].page_content])
             if not dense_vectors or not dense_vectors[0]:
-                logger.error("Finance embeddings are empty; skipping indexing into '%s'.", collection_name)
+                logger.error(
+                    "Finance embeddings are empty; skipping indexing into '%s'.", collection_name
+                )
                 return cls(
                     documents,
                     qdrant_client=qdrant_client,
@@ -105,6 +112,8 @@ class FinanceHybridRetriever:
                     QdrantVectorStore.SPARSE_VECTOR_NAME: SparseVectorParams(modifier=Modifier.IDF)
                 },
             )
+        if needs_indexing:
+            logger.info("Indexing %d handbook chunks into '%s'.", len(documents), collection_name)
             vector_store = QdrantVectorStore(
                 embedding=embeddings,
                 collection_name=collection_name,
@@ -133,49 +142,18 @@ class FinanceHybridRetriever:
         query = " ".join(sparse_keywords).strip()
         try:
             async with self._semaphore:
-                async with asyncio.timeout(self._settings.retrieval_timeout_seconds):
-                    dense_vectors = await asyncio.gather(
-                        *(self._embeddings.aembed_query(value) for value in dense_queries)
-                    )
-                    prefetch = [
-                        Prefetch(
-                            query=vector,
-                            using=QdrantVectorStore.VECTOR_NAME,
-                            limit=self._settings.dense_top_k,
-                            filter=metadata_filter,
-                        )
-                        for vector in dense_vectors
-                        if vector
-                    ]
-                    if query:
-                        sparse_vector = await asyncio.to_thread(
-                            self._sparse_embeddings.embed_query, query
-                        )
-                        if sparse_vector.indices:
-                            prefetch.append(
-                                Prefetch(
-                                    query=SparseVector(
-                                        indices=sparse_vector.indices,
-                                        values=sparse_vector.values,
-                                    ),
-                                    using=QdrantVectorStore.SPARSE_VECTOR_NAME,
-                                    limit=self._settings.sparse_top_k,
-                                    filter=metadata_filter,
-                                )
-                            )
-                    if not prefetch:
-                        return [], []
-                    response = await asyncio.to_thread(
-                        self._qdrant_client.query_points,
-                        collection_name=self._collection_name,
-                        prefetch=prefetch,
-                        query=RrfQuery(rrf=Rrf(k=self._settings.rrf_k)),
-                        query_filter=metadata_filter,
-                        limit=self._settings.rrf_candidates,
-                        with_payload=True,
-                    )
-            documents: list[FinanceDocument] = []
-            for rank, point in enumerate(response.points, start=1):
+                points = await self._hybrid_search.search(
+                    dense_queries,
+                    query,
+                    dense_limit=self._settings.dense_top_k,
+                    sparse_limit=self._settings.sparse_top_k,
+                    candidate_limit=self._settings.rrf_candidates,
+                    rrf_k=self._settings.rrf_k,
+                    timeout_seconds=self._settings.retrieval_timeout_seconds,
+                    query_filter=metadata_filter,
+                )
+            documents: list[RetrievedDocument] = []
+            for rank, point in enumerate(points, start=1):
                 payload = point.payload or {}
                 metadata = payload.get("metadata") or {}
                 content = payload.get("page_content") or payload.get("content") or ""

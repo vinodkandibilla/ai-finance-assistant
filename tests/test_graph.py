@@ -1,14 +1,14 @@
+import pytest
+
 from ai_finance_assistant.graph.builder import (
     CLARIFY_RESPONSE,
     GOALS_RESPONSE,
     MARKET_QUOTE_UNAVAILABLE_RESPONSE,
     NEWS_RESPONSE,
     PORTFOLIO_ANALYSIS_RESPONSE,
-    TAX_RESPONSE,
     build_graph,
 )
 from ai_finance_assistant.graph.state import FinanceIntent
-from ai_finance_assistant.rag.models import RetrievedDocument
 
 
 class FakeClassifier:
@@ -26,35 +26,6 @@ async def test_graph_routes_financial_education_to_empty_finance_qa_node() -> No
 
     assert result["intent"] == "finance_qa"
     assert result["answer"] == ""
-
-
-async def test_graph_routes_roth_ira_finance_classification_to_tax_rag() -> None:
-    class RecordingTaxRetriever:
-        queries: list[str] = []
-
-        async def search(self, query: str, *, limit: int = 5, metadata_filter=None):
-            self.queries.append(query)
-            return []
-
-    retriever = RecordingTaxRetriever()
-    result = await build_graph(
-        FakeClassifier("finance_qa"),
-        tax_retriever=retriever,
-        llm=FakeTaxAnswerLLM("Roth IRA tax information from the corpus."),
-    ).ainvoke({"query": "What is ROTH IRA?"})
-
-    assert result["intent"] == "finance_qa"
-    assert retriever.queries
-    assert all(query == "What is ROTH IRA?" for query in retriever.queries)
-    assert result["answer"] == TAX_RESPONSE
-
-
-class FakeTaxAnswerLLM:
-    def __init__(self, answer: str) -> None:
-        self.answer = answer
-
-    async def ainvoke(self, prompt: object) -> str:
-        return self.answer
 
 
 class FakeMarketQuoteTool:
@@ -140,83 +111,8 @@ async def test_graph_routes_tax_intent_to_tax_education_node() -> None:
     )
 
     assert result["intent"] == "tax"
-    assert result["answer"] == TAX_RESPONSE
-
-
-async def test_graph_uses_tax_hybrid_retrieval_with_extracted_metadata() -> None:
-    class FakeTaxRetriever:
-        metadata_filter = None
-
-        async def search(self, query: str, *, limit: int = 5, metadata_filter=None):
-            self.metadata_filter = metadata_filter
-            assert query == (
-                "What is the standard deduction for Married Filing Jointly "
-                "in tax year 2026?"
-            )
-            assert limit == 3
-            return [
-                RetrievedDocument(
-                    content="The standard deduction amount depends on filing status.",
-                    source="tax_corpus.jsonl",
-                    metadata={"title": "Standard vs. Itemized Deductions"},
-                    score=0.9,
-                )
-            ]
-
-    tax_retriever = FakeTaxRetriever()
-    llm = FakeTaxAnswerLLM(
-        "The deduction depends on filing status. Source: Standard vs. Itemized Deductions."
-    )
-
-    result = await build_graph(
-        FakeClassifier("tax"),
-        tax_retriever=tax_retriever,
-        llm=llm,
-    ).ainvoke(
-        {"query": "What is the standard deduction for Married Filing Jointly in tax year 2026?"}
-    )
-
-    assert result["intent"] == "tax"
-    assert result["answer"] == llm.answer
-    assert tax_retriever.metadata_filter is not None
-    assert {condition.key for condition in tax_retriever.metadata_filter.must} == {
-        "metadata.tax_year",
-        "metadata.filing_status",
-        "metadata.topic",
-    }
-
-
-async def test_tax_retries_hybrid_search_without_filter_when_no_filtered_results() -> None:
-    class FilterFallbackRetriever:
-        filters = []
-
-        async def search(self, query: str, *, limit: int = 5, metadata_filter=None):
-            self.filters.append(metadata_filter)
-            if metadata_filter is not None:
-                return []
-            return [
-                RetrievedDocument(
-                    content="The standard deduction depends on filing status.",
-                    source="tax_corpus.jsonl",
-                    metadata={"title": "Standard vs. Itemized Deductions"},
-                    score=0.8,
-                )
-            ]
-
-    tax_retriever = FilterFallbackRetriever()
-    llm = FakeTaxAnswerLLM("The corpus says it depends on filing status.")
-    query = "What is the standard deduction limit for year 2026"
-
-    result = await build_graph(
-        FakeClassifier("tax"),
-        tax_retriever=tax_retriever,
-        llm=llm,
-    ).ainvoke({"query": query})
-
-    assert result["answer"] == llm.answer
-    assert len(tax_retriever.filters) == 2
-    assert tax_retriever.filters[0] is not None
-    assert tax_retriever.filters[1] is None
+    assert result["answer"] == "Tax education agent is not configured."
+    assert result["status"] == "error"
 
 
 async def test_graph_routes_market_query_without_ticker_to_clarify_node() -> None:
@@ -238,32 +134,10 @@ async def test_graph_routes_generic_market_query_to_clarify_node() -> None:
 
 
 async def test_graph_routes_generic_news_query_to_clarify_node() -> None:
-    result = await build_graph(FakeClassifier("news")).ainvoke(
-        {"query": "top news"}
-    )
+    result = await build_graph(FakeClassifier("news")).ainvoke({"query": "top news"})
 
     assert result["intent"] == "news"
     assert result["answer"] == CLARIFY_RESPONSE
-
-
-async def test_graph_routes_generic_tax_query_to_tax_rag() -> None:
-    class RecordingTaxRetriever:
-        queries: list[str] = []
-
-        async def search(self, query: str, *, limit: int = 5, metadata_filter=None):
-            self.queries.append(query)
-            return []
-
-    retriever = RecordingTaxRetriever()
-    result = await build_graph(
-        FakeClassifier("tax"),
-        tax_retriever=retriever,
-        llm=FakeTaxAnswerLLM("Tax details from the corpus."),
-    ).ainvoke({"query": "tax details"})
-
-    assert result["intent"] == "tax"
-    assert retriever.queries == ["tax details"]
-    assert result["answer"] == TAX_RESPONSE
 
 
 async def test_graph_routes_generic_or_incomplete_query_to_clarify_node() -> None:
@@ -273,3 +147,75 @@ async def test_graph_routes_generic_or_incomplete_query_to_clarify_node() -> Non
 
     assert result["intent"] == "clarify"
     assert result["answer"] == CLARIFY_RESPONSE
+
+
+async def test_out_of_scope_stops_without_invoking_another_domain():
+    from types import SimpleNamespace
+
+    from langgraph.graph import END, START, StateGraph
+
+    from ai_finance_assistant.graph.state import FinanceAssistantState
+
+    def finance(state):
+        return {
+            "status": "out_of_scope",
+            "answer": "Please submit a new question.",
+            "citations": [],
+        }
+
+    def tax(state):
+        raise AssertionError("Domain agents must not dispatch to other agents")
+
+    def agent(node):
+        workflow = StateGraph(FinanceAssistantState)
+        workflow.add_node("run", node)
+        workflow.add_edge(START, "run")
+        workflow.add_edge("run", END)
+        return SimpleNamespace(graph=workflow.compile())
+
+    graph = build_graph(
+        FakeClassifier("finance_qa"), finance_agent=agent(finance), tax_agent=agent(tax)
+    )
+    result = await graph.ainvoke({"query": "What is an ETF?"})
+    assert result["intent"] == "finance_qa"
+    assert result["status"] == "out_of_scope"
+    assert not result["citations"]
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "Explain compound interest while I save for retirement.",
+        "Explain ETF expense ratios; I will consider tax later.",
+        "Explain diversification after a payroll deduction funds my investments.",
+    ],
+)
+async def test_incidental_tax_words_do_not_override_finance_classification(query):
+    result = await build_graph(FakeClassifier("finance_qa")).ainvoke({"query": query})
+    assert result["classified_intent"] == "finance_qa"
+    assert result["executed_handler"] == "finance_qa_node"
+    assert result["status"] == "not_implemented"
+
+
+async def test_tax_classification_still_routes_without_a_tax_keyword():
+    result = await build_graph(FakeClassifier("tax")).ainvoke({"query": "Explain wash-sale rules"})
+    assert result["classified_intent"] == "tax"
+    assert result["executed_handler"] == "tax_education_node"
+
+
+async def test_disabled_market_feature_returns_disabled_without_invoking_tool(monkeypatch):
+    from ai_finance_assistant.core.config import Settings
+    from ai_finance_assistant.graph import builder
+
+    monkeypatch.setattr(
+        builder, "get_settings", lambda: Settings(_env_file=None, market_quotes_enabled=False)
+    )
+    quote_tool = FakeMarketQuoteTool("212.35")
+    for query in ("What is AAPL's price?", "What is the stock price?", "What is IBM's price?"):
+        result = await build_graph(FakeClassifier("market"), market_quote_tool=quote_tool).ainvoke(
+            {"query": query}
+        )
+        assert result["answer"] == "Market quotes are disabled."
+        assert result["classified_intent"] == "market"
+        assert result["executed_handler"] == "market_analysis_node"
+    assert not quote_tool.symbols

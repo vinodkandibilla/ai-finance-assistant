@@ -192,3 +192,29 @@ def test_settings_load_alpha_vantage_key_from_environment(monkeypatch) -> None:
 
     assert settings.alpha_vantage_api_key is not None
     assert settings.alpha_vantage_api_key.get_secret_value() == "test-key"
+
+
+async def test_disabled_quotes_bypass_disk_and_provider(monkeypatch, tmp_path):
+    cache_path = tmp_path / "quotes.json"
+    cache = market_data.DiskCache(cache_path)
+    cache.set("AAPL", "213.45")
+    original = cache_path.read_bytes()
+    monkeypatch.setattr(market_data, "QUOTE_CACHE_PATH", cache_path)
+    monkeypatch.setattr(
+        market_data, "get_settings", lambda: Settings(_env_file=None, market_quotes_enabled=False)
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Disabled feature must not access cache or provider")
+
+    monkeypatch.setattr(market_data, "DiskCache", forbidden)
+    monkeypatch.setattr(market_data.httpx, "AsyncClient", forbidden)
+    assert await market_data.get_stock_price.ainvoke({"symbol": "AAPL"}) == (
+        "Market quotes are disabled."
+    )
+    assert cache_path.read_bytes() == original
+
+
+def test_market_feature_flag_loads_from_environment(monkeypatch):
+    monkeypatch.setenv("MARKET_QUOTES_ENABLED", "false")
+    assert Settings(_env_file=None).market_quotes_enabled is False

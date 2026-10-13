@@ -12,10 +12,11 @@ from ai_finance_assistant.agents.finance_qa.corpus_index import get_finance_corp
 from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
 from ai_finance_assistant.agents.finance_qa.reranker import FinanceCrossEncoderReranker
 from ai_finance_assistant.agents.finance_qa.retrieval import FinanceHybridRetriever
+from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.graph.builder import FinanceAssistantGraph, build_graph
 from ai_finance_assistant.graph.classifier import IntentClassifier, create_intent_classifier
-from ai_finance_assistant.graph.state import FinanceIntent
+from ai_finance_assistant.graph.state import ExecutedHandler, FinanceIntent
 from ai_finance_assistant.providers.market_data import get_stock_price
 from ai_finance_assistant.rag.qdrant import get_qdrant_client
 from ai_finance_assistant.rag.tax_education import get_tax_retriever
@@ -34,11 +35,14 @@ class QueryRequest(BaseModel):
 
 class QueryResponse(BaseModel):
     intent: FinanceIntent
+    classified_intent: FinanceIntent | None = None
+    executed_handler: ExecutedHandler | None = None
     answer: str
+    calculation: dict | None = None
+    calculations: list[dict] | None = None
     status: str | None = None
     citations: list[str] | None = None
     thread_id: str | None = None
-    handoff_intents: list[str] | None = None
     clarification_question: str | None = None
 
 
@@ -66,7 +70,7 @@ def get_query_graph(
             api_key=settings.openai_api_key.get_secret_value(),
         )
         qdrant_client = get_qdrant_client()
-        tax_retriever = get_tax_retriever(qdrant_client)
+        tax_retriever = get_tax_retriever(qdrant_client, llm)
 
         finance_settings = FinanceAgentSettings(
             query_analysis_model=settings.finance_query_analysis_model,
@@ -99,10 +103,13 @@ def get_query_graph(
         )
     return build_graph(
         classifier,
-        tax_retriever=tax_retriever,
-        llm=llm,
         market_quote_tool=get_stock_price,
         finance_agent=finance_agent,
+        tax_agent=TaxEducationAgent(
+            retriever=tax_retriever,
+            llm=llm,
+            reranker=FinanceCrossEncoderReranker(settings.finance_reranker_model),
+        ),
         checkpointer=checkpointer,
     )
 
@@ -125,11 +132,20 @@ async def query_assistant(
         status = None
     return QueryResponse(
         intent=result["intent"],
-        answer=result.get("answer", ""),
+        classified_intent=result.get("classified_intent"),
+        executed_handler=result.get("executed_handler"),
+        answer=(interrupt_payload.get("answer") or result.get("answer", ""))
+        if interrupt_payload
+        else result.get("answer", ""),
+        calculations=result.get("calculations"),
+        calculation=interrupt_payload.get("calculation")
+        if interrupt_payload
+        else result.get("calculation"),
         status=status,
-        citations=result.get("citations") or None,
+        citations=(interrupt_payload.get("citations") or result.get("citations") or None)
+        if interrupt_payload
+        else result.get("citations") or None,
         thread_id=thread_id if interrupt_payload else None,
-        handoff_intents=result.get("handoff_intents") or None,
         clarification_question=(
             interrupt_payload.get("question")
             if interrupt_payload
@@ -165,11 +181,20 @@ async def resume_query(
         status = None
     return QueryResponse(
         intent=result.get("intent", "finance_qa"),
-        answer=result.get("answer", ""),
+        classified_intent=result.get("classified_intent"),
+        executed_handler=result.get("executed_handler"),
+        answer=(interrupt_payload.get("answer") or result.get("answer", ""))
+        if interrupt_payload
+        else result.get("answer", ""),
+        calculations=result.get("calculations"),
+        calculation=interrupt_payload.get("calculation")
+        if interrupt_payload
+        else result.get("calculation"),
         status=status,
-        citations=result.get("citations") or None,
+        citations=(interrupt_payload.get("citations") or result.get("citations") or None)
+        if interrupt_payload
+        else result.get("citations") or None,
         thread_id=request.thread_id if interrupt_payload else None,
-        handoff_intents=result.get("handoff_intents") or None,
         clarification_question=(
             interrupt_payload.get("question")
             if interrupt_payload
@@ -187,7 +212,10 @@ async def _get_interrupt_payload(
         value = getattr(item, "value", None)
         if isinstance(value, dict) and value.get("kind") == "clarification":
             return value
-    if getattr(graph, "checkpointer", None) is None or getattr(graph, "checkpointer", None) is False:
+    if (
+        getattr(graph, "checkpointer", None) is None
+        or getattr(graph, "checkpointer", None) is False
+    ):
         return None
     try:
         snapshot = await graph.aget_state({"configurable": {"thread_id": thread_id}})
