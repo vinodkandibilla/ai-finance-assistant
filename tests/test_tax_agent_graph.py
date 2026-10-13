@@ -151,12 +151,12 @@ async def test_domain_change_on_resume_returns_out_of_scope_without_dispatch():
         ),
     )
 
-    class Quote:
+    class MarketAgent:
         async def ainvoke(self, input):
             raise AssertionError("Resume must not invoke another domain")
 
     graph = build_graph(
-        Classifier(), tax_agent=agent, market_quote_tool=Quote(), checkpointer=MemorySaver()
+        Classifier(), tax_agent=agent, market_agent=MarketAgent(), checkpointer=MemorySaver()
     )
     config = {"configurable": {"thread_id": "tax-scope-change"}}
     await graph.ainvoke({"query": "tax help"}, config)

@@ -1,23 +1,16 @@
-from typing import Literal, Protocol
+from typing import Literal
 
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from ai_finance_assistant.agents.common.clarification import build_clarification_graph
 from ai_finance_assistant.agents.finance_qa import FinanceQaAgent
+from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgent
 from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.graph.classifier import IntentClassifier
 from ai_finance_assistant.graph.state import FinanceAssistantState
-from ai_finance_assistant.providers.market_data import (
-    MARKET_QUOTES_DISABLED_RESPONSE,
-    extract_supported_symbol,
-)
-
-
-class MarketQuoteTool(Protocol):
-    async def ainvoke(self, input: dict[str, str]) -> object: ...
-
 
 type FinanceAssistantGraph = CompiledStateGraph[
     FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState
@@ -89,26 +82,7 @@ def _is_generic_query(intent: str | None, query: str | None) -> bool:
     is_generic = any(phrase in normalized for phrase in generic_phrases)
 
     if intent == "market":
-        return is_generic and not any(
-            token in normalized
-            for token in (
-                "aapl",
-                "msft",
-                "goog",
-                "googl",
-                "nvda",
-                "tsla",
-                "amzn",
-                "meta",
-                "nflx",
-                "apple",
-                "microsoft",
-                "google",
-                "nvidia",
-                "tesla",
-                "amazon",
-            )
-        )
+        return normalized.rstrip("?.!") in generic_phrases
 
     return is_generic
 
@@ -161,43 +135,6 @@ def finance_qa_node(_: FinanceAssistantState) -> FinanceAssistantState:
     return {"answer": ""}
 
 
-async def market_analysis_node(
-    state: FinanceAssistantState,
-    *,
-    quote_tool: MarketQuoteTool | None = None,
-) -> FinanceAssistantState:
-    if not get_settings().market_quotes_enabled:
-        return {"answer": MARKET_QUOTES_DISABLED_RESPONSE}
-    query = state.get("query") or ""
-    symbol = extract_supported_symbol(query)
-    if symbol is None:
-        return {
-            "answer": (
-                "I can look up current quotes for MAG7 tickers: "
-                "AAPL, MSFT, AMZN, GOOGL, META, NVDA, and TSLA."
-            )
-        }
-    if quote_tool is None:
-        return {"answer": MARKET_QUOTE_UNAVAILABLE_RESPONSE}
-
-    try:
-        quote = await quote_tool.ainvoke({"symbol": symbol})
-    except Exception:
-        return {"answer": MARKET_QUOTE_UNAVAILABLE_RESPONSE}
-
-    if not isinstance(quote, str) or not quote.strip():
-        return {"answer": MARKET_QUOTE_UNAVAILABLE_RESPONSE}
-    if quote == MARKET_QUOTES_DISABLED_RESPONSE:
-        return {"answer": quote}
-    if quote.startswith("Stock price unavailable"):
-        return {"answer": quote}
-    try:
-        formatted_quote = f"{float(quote.strip()):.2f}"
-    except ValueError:
-        return {"answer": MARKET_QUOTE_UNAVAILABLE_RESPONSE}
-    return {"answer": f"The latest available price for {symbol} is ${formatted_quote}."}
-
-
 def goals_node(_: FinanceAssistantState) -> FinanceAssistantState:
     return {"answer": GOALS_RESPONSE}
 
@@ -217,7 +154,7 @@ def unsupported_node(_: FinanceAssistantState) -> FinanceAssistantState:
 def build_graph(
     classifier: IntentClassifier,
     *,
-    market_quote_tool: MarketQuoteTool | None = None,
+    market_agent: MarketAnalysisAgent | None = None,
     finance_agent: FinanceQaAgent | None = None,
     tax_agent: TaxEducationAgent | None = None,
     checkpointer: object | None = None,
@@ -225,13 +162,14 @@ def build_graph(
     async def classify_node(state: FinanceAssistantState) -> FinanceAssistantState:
         return await _classify_intent(state, classifier=classifier)
 
-    async def market_analysis_node_with_quote(
+    async def market_analysis_handler(
         state: FinanceAssistantState,
     ) -> FinanceAssistantState:
-        return {
-            **await market_analysis_node(state, quote_tool=market_quote_tool),
-            "status": "answered",
-        }
+        if not get_settings().market_quotes_enabled:
+            return {"answer": "Market quotes are disabled.", "status": "answered"}
+        if market_agent is not None:
+            return await market_agent.ainvoke(state)
+        return {"answer": MARKET_QUOTE_UNAVAILABLE_RESPONSE, "status": "error"}
 
     def unavailable_tax_node(_: FinanceAssistantState) -> FinanceAssistantState:
         return {"answer": "Tax education agent is not configured.", "status": "error"}
@@ -251,7 +189,7 @@ def build_graph(
         "portfolio_analysis_node",
         RunnableLambda(lambda state: {**portfolio_analysis_node(state), "status": "answered"}),
     )
-    workflow.add_node("market_analysis_node", market_analysis_node_with_quote)
+    workflow.add_node("market_analysis_node", build_clarification_graph(market_analysis_handler))
     workflow.add_node(
         "goals_node", RunnableLambda(lambda state: {**goals_node(state), "status": "answered"})
     )
