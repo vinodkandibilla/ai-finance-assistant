@@ -14,8 +14,8 @@ from langchain_core.tools import tool
 from langgraph.errors import GraphInterrupt, GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import InjectedState, create_react_agent
-from langgraph.types import interrupt
 
+from ai_finance_assistant.agents.common.clarification import clarification_reply
 from ai_finance_assistant.agents.common.schemas import AgentResult, AgentState, EvidenceResult
 from ai_finance_assistant.rag.models import RetrievedDocument
 
@@ -131,7 +131,7 @@ class AutonomousEducationAgent:
             )
             if guidance is not None:
                 return guidance, {"kind": "policy_guidance"}
-            reply = str(interrupt({"kind": "clarification", "question": question}))
+            reply = clarification_reply(question)
             return reply, {"kind": "user_reply"}
 
         def agent_prompt(state):

@@ -21,7 +21,7 @@ Ask an investing or US tax question in plain English. Separate tool-calling agen
 | Options education | “How do Delta and Theta affect a call option?” | Handbook-grounded explanations; the model chooses follow-up searches within its budget. |
 | Finance clarification | “Which is better?” | Interrupts retrieval for essential missing details; supports a checkpointed reply through `/query/resume`. |
 | US tax education | “Explain capital gains for tax year 2026.” | Autonomous tax agent with original-question metadata constraints and a hybrid RAG tool. |
-| Market quotes | “What is Apple's latest available stock price?” | Alpha Vantage quote lookup for supported MAG7 symbols with a persistent cache. |
+| Market quotes | “What is Apple's latest available stock price?” | Twelve Data MCP quotes with price, volume, and daily changes. |
 | Portfolio, goals, news | Holdings analysis, savings projections, news summaries | Fixed demonstration responses; these integrations and calculations are not implemented. |
 
 The project is in active development. Finance and tax agents are implemented, but the complete application is not production-ready. The operational limitations below describe the current code, including differences from the [Finance Agentic RAG coding prompt](resources/prompts/Finance_Agentic_RAG_Coding_Agent_Prompt.md).
@@ -44,7 +44,7 @@ The project is in active development. Finance and tax agents are implemented, bu
 
 - Python **3.12** (`>=3.12,<3.13`).
 - An OpenAI API key for routing, query/document embeddings, agent reasoning, and structured answers.
-- An Alpha Vantage API key if you want uncached market quotes.
+- A Twelve Data API key and the local official Twelve Data MCP server for market quotes.
 - The bundled finance PDF and tax JSONL sources in this checkout.
 - Network access for provider calls and initial FastEmbed/cross-encoder model downloads.
 
@@ -67,7 +67,7 @@ LOG_LEVEL=INFO
 OPENAI_API_KEY=your-openai-api-key
 OPENAI_MODEL=gpt-4o-mini
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-ALPHA_VANTAGE_API_KEY=your-alpha-vantage-api-key
+TWELVE_DATA_API_KEY=your-twelve-data-api-key
 QDRANT_MODE=local
 FINANCE_COLLECTION=finance_education_hybrid
 FINANCE_QUERY_ANALYSIS_MODEL=gpt-4o-mini
@@ -399,19 +399,123 @@ Taxable income already reflects deductions; none are subtracted again. This is a
 
 Implementation: [`tax_calculation.py`](src/ai_finance_assistant/agents/tax_education/tax_calculation.py), [`calculator_tools.py`](src/ai_finance_assistant/agents/tax_education/calculator_tools.py), and domain instructions in `tax_education/graph.py`. Tests cover the sample, all filing statuses and thresholds, validation, direct RAG/calculation, error repair and resumable clarification.
 
-### Market quotes
+### Market quotes and historical data
 
-`get_stock_price` is the LangChain tool encapsulating Alpha Vantage `GLOBAL_QUOTE` calls and the persistent disk cache; the market node delegates quote access to this tool. `MARKET_QUOTES_ENABLED` defaults to `true`. Set it to `false` to disable the whole quote feature, including cached quotes. Both the market handler and direct tool calls return **"Market quotes are disabled."** before touching the cache or provider. Cached files are retained for later re-enabling. Disabled market requests do not ask for a ticker. Restart the server after changing this flag because settings are cached.
+The application routes market requests to `MarketAnalysisAgent`, using the supplied market system prompt for quotes and historical data. It discovers and binds `get_quote`, `search_symbol`, and `get_time_series` from the [official Twelve Data MCP server](https://github.com/twelvedata/mcp). The legacy Alpha Vantage tool and cache have been removed.
 
-The market handler supports `AAPL`, `MSFT`, `AMZN`, `GOOG`, `GOOGL`, `META`, `NVDA`, and `TSLA`, including company-name aliases. It selects the first supported symbol and uses a LangChain tool for Alpha Vantage `GLOBAL_QUOTE` retrieval.
+Run from the repository root:
 
-Successful quotes persist in `.cache/market_quotes.json` with a default **24-hour TTL**. Per-symbol async locks coalesce concurrent cache misses within one process. Prices are validated as finite, nonnegative decimals. Missing keys, failed requests, or invalid quotes return an unavailable message.
+```bash
+python scripts/setup_twelve_data_mcp.py
+pip install -e '.[dev]'
+```
 
-“Latest available” can mean a cached quote almost 24 hours old. The cache timestamp records local retrieval time, not exchange quote time. Historical prices, volume, index levels, and comparisons are not implemented.
+Set `TWELVE_DATA_API_KEY` in `.env`, then restart the service. The setup script downloads a pinned official server revision to `.cache/twelvedata-mcp` and installs it in an isolated virtual environment. The application passes the key to its stdio subprocess; the hosted server uses OAuth and is not used by this integration.
+
+Try `What is the latest quote for AAPL?` or `Give me QQQ price, volume, and daily change.` The agent uses symbol search for company names or ambiguous symbols. Responses include currency, exchange, latest price, volume, absolute and percentage daily change, and provider time when available. Missing metrics are marked unavailable. Quotes are fetched without the old disk cache; freshness and instrument coverage depend on your Twelve Data subscription and market hours.
+
+`MARKET_QUOTES_ENABLED=false` disables market requests before opening the MCP connection. `MARKET_AGENT_TIMEOUT_SECONDS` defaults to 30 seconds for the complete market invocation. Override `TWELVE_DATA_MCP_COMMAND` and `TWELVE_DATA_MCP_ARGS` (a JSON array) for an existing local server installation. Single-asset growth and cross-asset price-growth comparisons are supported.
+
+
+The custom tool `resolve_market_timeframe` performs historical window calculations in Python using today's date in `America/Phoenix`. The agent first calls it, then uses Twelve Data's existing `get_time_series`. The tool receives the original user query; provider calls use its computed parameters, overriding any dates or counts generated by the LLM.
+
+| Request | Deterministic parameters |
+| --- | --- |
+| “QQQ weekly data for the last 12 weeks” | `interval="1week"`, `outputsize=12` |
+| “AAPL daily data for the last 12 weeks” | `interval="1day"`, date bounds from today minus 84 days through today |
+| “AAPL calendar Q2 2025” | Asks for explicit from/to dates |
+| “QQQ last quarter” | Asks for explicit from/to dates |
+| “AAPL weekly history from 2025-01-01 to 2025-03-31” | Explicit bounds with `interval="1week"` |
+
+Twelve Data requests support a maximum of **100 records**. Date-bound requests set `outputsize=100`; relative counts above 100 require clarification. Date windows estimated to exceed 100 records require narrowing or a coarser interval. Daily-window estimates conservatively count calendar days, including weekends. Symbol-search output sizes are capped at 100 when supported by the MCP schema. The agent does not paginate to bypass the limit. Relative counts request the latest available bars: daily bars represent trading observations, and the latest weekly/monthly bar may be incomplete. Responses should retain these notes and show dated closing prices.
+
+Only explicit from/to ISO date pairs and relative last/past N days, weeks, or months are supported. Quarter names (calendar or fiscal), results references, and unspecified periods ask for explicit from/to dates. No quarter-boundary inference or fiscal-calendar lookup is performed. Reversed, invalid, or future date ranges require clarification.
+
+
+### Market response cache
+
+All market quote, symbol-search, and time-series calls—including requests made inside growth calculations—use one shared, in-memory TTL/LRU cache.
+
+| MCP tool | Twelve Data API | Fixed TTL |
+| --- | --- | --- |
+| `get_quote` | `/quote` | 30 minutes |
+| `search_symbol` | `/symbol_search` | 24 hours |
+| `get_time_series` | `/time_series` | 24 hours |
+
+Configure the maximum number of entries across all three tools in `.env`:
+
+```dotenv
+MARKET_CACHE_MAX_ENTRIES=100
+```
+
+The default is **100 entries**, and the value must be a positive integer. Restart the service after changing it. Capacity counts cached responses, not historical records: one response containing 100 bars occupies one entry. The separate 100-record limit on provider responses is unchanged.
+
+A cache key contains the tool name and sorted request parameters, for example `get_quote:{"symbol": "AAPL"}`. Ticker symbols are trimmed and uppercased; symbol-search text is trimmed. Dates, intervals, output sizes, and optional filters distinguish entries. Cache keys do not contain user queries or API keys.
+
+On a hit, an unexpired response is returned and moved to the most-recently-used position. On a miss, the MCP response is fetched and cached if successful. Expired entries are removed during access; when capacity is exceeded, the least recently used entry is evicted. Identical simultaneous requests share one fetch. Provider errors and rate-limit responses are not cached as data.
+
+TTLs are fixed; no unfinished-bar checks are performed. Quotes can be cached for 30 minutes and current-period history for 24 hours. Provider observation dates remain available, and quote answers describe the latest available data rather than promising live freshness. Entries are shared across clients within one application process, cleared on restart, and not shared across worker processes. Cache misses still consume provider credits; caching does not implement credit pacing.
+
+### Single-asset price growth
+
+Try “What is the price growth of AAPL in the last 6 months?” or “Calculate QQQ percentage change from 2025-01-01 to 2025-03-31.” The existing timeframe tool computes exact calendar date boundaries for growth; the new `calculate_price_growth` tool retrieves provider data and calculates `(end_price - start_price) / start_price * 100` using Python `Decimal`. The LLM supplies only the symbol, not the prices or computed dates.
+
+The baseline is the closest daily close on or before the requested start date, searched within the preceding 14 days. A historical endpoint uses the same rule; an endpoint of today uses the latest quote, which may be intraday or delayed. Each historical request is limited to 15 records, within the 100-record cap. Large growth horizons do not require fetching all daily observations. Responses show requested boundaries, actual observation dates, operands, subtraction, and percentage math. Zero/invalid baselines and missing observations return an error. Quarter/results references still require explicit from/to dates. This measures price growth, excluding dividends.
+
+
+
+Market clarification uses the same interrupt payload and `/query/resume` endpoint as the finance/tax agents. A paused `/query` response includes `status="clarification"`, `thread_id`, and `clarification_question`. Reply using that thread rather than submitting a new query:
+
+```json
+{"thread_id": "<returned thread_id>", "reply": "Exclude TSLA"}
+```
+
+The market subgraph retains the original query and accumulates additional details. Resume continues inside the market domain without rerunning the intent router. If another detail is needed, the same thread pauses again. The clarification node is separate from provider execution, so replaying the interrupt does not repeat earlier data calls. Each resumed market invocation receives a fresh active execution timeout. No new tools or endpoints are added.
+
+### Cross-asset price comparisons
+
+Comparisons are limited to **four distinct assets**. Larger requests pause in a checkpointed market subgraph and ask the user to choose up to four before growth data is retrieved. Provider rate-limit responses return “Please try again after one minute” with `status="error"`.
+
+The existing `calculate_price_growth` tool also accepts an array of symbols; no new tool is introduced. Try “Compare AAPL and Microsoft growth over the last 6 months” or “Compare AAPL and MSFT growth from 2025-01-01 to 2025-03-31.” Company names are resolved through the existing symbol-search tool. The agent also combines multiple growth calls in one model response so every requested asset is included.
+
+MCP calls to the same history API run sequentially across assets. Concurrency is used only for independent calls to different APIs: a single-asset historical baseline and current quote can be fetched together. Comparisons use a shared requested window and the latest common start/end observation dates within the 14-day endpoint lookup windows. Comparisons ending today use daily closes on or before yesterday, avoiding mixing live and closing prices. If common dates or an asset's prices are unavailable, no comparison is calculated. Each history request remains capped at 15 records.
+
+The deterministic response includes starting/ending prices, currency when available, absolute price change, percentage growth, direction, and percentage-point deltas relative to the first asset, plus each asset's formula. These are local-currency price returns excluding dividends and FX changes. Direction describes endpoint movement, not volatility or an inferred intra-period trend. Quarter references and differing fiscal calendars require explicit shared from/to dates; company fiscal calendars are not inferred.
 
 ## Example queries
 
 Send each example to `POST /query` as `{"query":"<example>"}`. The behavior column describes the intended path, not a guaranteed answer or a benchmark result; available evidence and model decisions determine the response.
+
+
+### Ten market analysis queries
+
+These examples cover quotes, symbol lookup, history, growth, comparisons, and clarification. Outcomes depend on provider coverage, available observations, model decisions, and remaining API credits; no example promises particular market prices.
+
+| # | User query | Possible outcome |
+| --- | --- | --- |
+| 1 | Give me QQQ's latest price, volume, and daily change. | Returns the latest available quote with provider date/time and available daily metrics; an identical request may use the 30-minute quote cache. |
+| 2 | What is Microsoft's latest stock quote? | Resolves the company name through symbol search when needed, then retrieves the quote for the selected ticker; ambiguous matches prompt clarification. |
+| 3 | Show AAPL weekly closing prices for the last 12 weeks. | Resolves `interval="1week"` and `outputsize=12`, then presents dated closing prices. The latest weekly bar may be incomplete. |
+| 4 | Show AAPL daily prices from 2025-01-01 to 2025-03-31. | Uses explicit boundaries with `interval="1day"` and `outputsize=100`; returns available trading-day observations within that range. |
+| 5 | What is AAPL's price growth over the last 6 months? | Computes calendar date boundaries in Python, selects a baseline close on or before the starting date, retrieves the latest quote, and displays deterministic percentage math with actual dates. |
+| 6 | Calculate QQQ percentage change from 2025-01-01 to 2025-03-31. | Uses historical closing observations on or before each boundary and shows both prices, absolute change, and percentage growth. |
+| 7 | Compare AAPL, Microsoft, and META growth over the last 1 month. | Resolves names as needed, aligns common observation dates, and returns prices, growth, direction, and percentage-point differences relative to AAPL. Same-history-API requests run sequentially. |
+| 8 | Compare AAPL, MSFT, META, NVDA, and TSLA growth over the last 1 month. | Pauses with `status="clarification"`, a `thread_id`, and a request to choose at most four assets. Resume with `Exclude TSLA` on the same thread. |
+| 9 | Show AAPL prices for fiscal Q2 2025. | Pauses and asks for explicit from/to dates. Resume with the desired ISO date pair; fiscal/calendar boundaries are not inferred. |
+| 10 | Show AAPL daily prices from 2025-01-01 to 2025-12-31. | Pauses because the conservative daily-window estimate exceeds 100 records. Resume with `Use weekly data` to request a coarser interval. |
+
+Use numeric relative windows such as **last 1 month**, not just **last month**. Date errors, missing observations, and ambiguous symbols can also require clarification or return an error. If the provider reports a rate limit, the response has `status="error"` and the message: **"The Market Analysis agent's API rate limit was reached. Please try again after one minute."**
+
+For paused examples, send the reply to `POST /query/resume`:
+
+```json
+{
+  "thread_id": "<thread_id from the clarification response>",
+  "reply": "Exclude TSLA"
+}
+```
+
+Resume retains the original query and accumulated details and continues inside the market agent without rerunning the router. A further missing detail can pause the same thread again.
 
 ### Five finance queries
 
@@ -472,9 +576,12 @@ Application settings load from `.env` and environment variables through [`core/c
 | `QDRANT_MODE` | `local` | Shared API Qdrant client uses embedded storage or `server`. |
 | `QDRANT_URL` | `http://localhost:6333` | Shared server-mode endpoint. |
 | `QDRANT_API_KEY` | Unset | Optional Qdrant server credential. |
-| `MARKET_QUOTES_ENABLED` | `true` | Enables market quote lookup and disk-cache access; `false` disables both. |
-| `ALPHA_VANTAGE_API_KEY` | Unset | Required for uncached quotes. |
-| `ALPHA_VANTAGE_TIMEOUT_SECONDS` | `3.0` | Quote request timeout. |
+| `MARKET_QUOTES_ENABLED` | `true` | Enables Twelve Data market quotes. |
+| `MARKET_CACHE_MAX_ENTRIES` | `100` | Positive entry capacity for the shared process-local TTL/LRU market cache; restart after changing. |
+| `TWELVE_DATA_API_KEY` | Unset | Key for the local Twelve Data MCP server. |
+| `TWELVE_DATA_MCP_COMMAND` | `.cache/twelvedata-mcp/.venv/bin/python` | Local MCP executable. |
+| `TWELVE_DATA_MCP_ARGS` | `[".cache/twelvedata-mcp/src/server.py"]` | MCP arguments as a JSON array. |
+| `MARKET_AGENT_TIMEOUT_SECONDS` | `30` | Complete market request timeout. |
 | `QUOTE_CACHE_TTL_SECONDS` | `86400` | Quote cache lifetime. |
 
 Finance retrieval settings come from [`FinanceAgentSettings`](src/ai_finance_assistant/agents/finance_qa/config.py). These tuning variables must be **exported into the process environment**; that settings class does not load `.env` itself.
@@ -554,7 +661,7 @@ To refresh Finance QA after changing sources or embedding settings, stop the API
 | --- | --- |
 | `.qdrant/` | Embedded collection metadata and persisted vectors |
 | `.cache/finance_agent_checkpoints.sqlite` | Async workflow checkpoints, including clarification state |
-| `.cache/market_quotes.json` | Persistent market quote cache |
+| `.cache/twelvedata-mcp` | Local Twelve Data MCP server and isolated environment |
 | `.env` | Local credentials and application configuration |
 
 For a stable local run, omit `--reload` and use one worker:
@@ -598,7 +705,7 @@ OpenAI receives queries and retrieved context, and receives corpus chunks during
 | [`rag/tax_education.py`](src/ai_finance_assistant/rag/tax_education.py) | Tax corpus loading, metadata extraction, and retriever adapter. |
 | [`rag/retriever.py`](src/ai_finance_assistant/rag/retriever.py) | Shared dense/BM25 prefetch and Qdrant RRF search. |
 | [`rag/qdrant.py`](src/ai_finance_assistant/rag/qdrant.py) | Shared embedded/server Qdrant client. |
-| [`providers/market_data.py`](src/ai_finance_assistant/providers/market_data.py) | Alpha Vantage quote tool and cache. |
+| [`agents/market_analysis/agent.py`](src/ai_finance_assistant/agents/market_analysis/agent.py) | Twelve Data MCP market agent. |
 
 Finance/tax evaluator modules and the finance query analyzer remain for legacy/shared helper paths and tests. They are not separate decision nodes in either active autonomous agent. Direct tax retriever calls without a prepared plan can still invoke its analyzer fallback; the tax RAG tool supplies its plan explicitly.
 

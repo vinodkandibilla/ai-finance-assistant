@@ -12,12 +12,12 @@ from ai_finance_assistant.agents.finance_qa.corpus_index import get_finance_corp
 from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
 from ai_finance_assistant.agents.finance_qa.reranker import FinanceCrossEncoderReranker
 from ai_finance_assistant.agents.finance_qa.retrieval import FinanceHybridRetriever
+from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgent
 from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.graph.builder import FinanceAssistantGraph, build_graph
 from ai_finance_assistant.graph.classifier import IntentClassifier, create_intent_classifier
 from ai_finance_assistant.graph.state import ExecutedHandler, FinanceIntent
-from ai_finance_assistant.providers.market_data import get_stock_price
 from ai_finance_assistant.rag.qdrant import get_qdrant_client
 from ai_finance_assistant.rag.tax_education import get_tax_retriever
 
@@ -103,7 +103,7 @@ def get_query_graph(
         )
     return build_graph(
         classifier,
-        market_quote_tool=get_stock_price,
+        market_agent=MarketAnalysisAgent(llm=llm, settings=settings),
         finance_agent=finance_agent,
         tax_agent=TaxEducationAgent(
             retriever=tax_retriever,

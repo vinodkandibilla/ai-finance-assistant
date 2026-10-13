@@ -28,14 +28,13 @@ async def test_graph_routes_financial_education_to_empty_finance_qa_node() -> No
     assert result["answer"] == ""
 
 
-class FakeMarketQuoteTool:
-    def __init__(self, price: str) -> None:
-        self.price = price
-        self.symbols: list[str] = []
+class FakeMarketAgent:
+    def __init__(self):
+        self.queries = []
 
-    async def ainvoke(self, input: dict[str, str]) -> str:
-        self.symbols.append(input["symbol"])
-        return self.price
+    async def ainvoke(self, state):
+        self.queries.append(state["query"])
+        return {"answer": "Market agent response", "status": "answered"}
 
 
 async def test_graph_routes_other_intent_to_unsupported_node() -> None:
@@ -54,30 +53,20 @@ async def test_graph_routes_portfolio_intent_to_computational_node() -> None:
     assert result["answer"] == PORTFOLIO_ANALYSIS_RESPONSE
 
 
-async def test_graph_routes_market_intent_to_market_analysis_node() -> None:
-    quote_tool = FakeMarketQuoteTool("212.35")
-    result = await build_graph(FakeClassifier("market"), market_quote_tool=quote_tool).ainvoke(
-        {"query": "What is the current price of AAPL?"}
+@pytest.mark.parametrize("symbol", ["AAPL", "IBM", "QQQ"])
+async def test_graph_routes_market_intent_to_market_analysis_node(symbol):
+    agent = FakeMarketAgent()
+    query = f"What is the current price of {symbol}?"
+    result = await build_graph(FakeClassifier("market"), market_agent=agent).ainvoke(
+        {"query": query}
     )
-
     assert result["intent"] == "market"
-    assert result["answer"] == "The latest available price for AAPL is $212.35."
-    assert quote_tool.symbols == ["AAPL"]
-
-
-async def test_graph_does_not_call_quote_tool_for_unsupported_ticker() -> None:
-    quote_tool = FakeMarketQuoteTool("212.35")
-    result = await build_graph(FakeClassifier("market"), market_quote_tool=quote_tool).ainvoke(
-        {"query": "What is the current price of IBM?"}
-    )
-
-    assert result["intent"] == "market"
-    assert result["answer"].startswith("I can look up current quotes for MAG7 tickers:")
-    assert quote_tool.symbols == []
+    assert result["answer"] == "Market agent response"
+    assert agent.queries == [query]
 
 
 async def test_graph_returns_unavailable_response_when_quote_tool_fails() -> None:
-    result = await build_graph(FakeClassifier("market"), market_quote_tool=None).ainvoke(
+    result = await build_graph(FakeClassifier("market"), market_agent=None).ainvoke(
         {"query": "What is the current price of AAPL?"}
     )
 
@@ -210,12 +199,12 @@ async def test_disabled_market_feature_returns_disabled_without_invoking_tool(mo
     monkeypatch.setattr(
         builder, "get_settings", lambda: Settings(_env_file=None, market_quotes_enabled=False)
     )
-    quote_tool = FakeMarketQuoteTool("212.35")
+    agent = FakeMarketAgent()
     for query in ("What is AAPL's price?", "What is the stock price?", "What is IBM's price?"):
-        result = await build_graph(FakeClassifier("market"), market_quote_tool=quote_tool).ainvoke(
+        result = await build_graph(FakeClassifier("market"), market_agent=agent).ainvoke(
             {"query": query}
         )
         assert result["answer"] == "Market quotes are disabled."
         assert result["classified_intent"] == "market"
         assert result["executed_handler"] == "market_analysis_node"
-    assert not quote_tool.symbols
+    assert not agent.queries

@@ -82,6 +82,7 @@ def test_query_endpoint_routes_market_intent() -> None:
         "executed_handler": "market_analysis_node",
         "intent": "market",
         "answer": MARKET_QUOTE_UNAVAILABLE_RESPONSE,
+        "status": "error",
     }
 
 

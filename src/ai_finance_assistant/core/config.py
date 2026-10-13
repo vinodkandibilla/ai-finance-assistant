@@ -18,10 +18,11 @@ class Settings(BaseSettings):
     finance_collection: str = "finance_education_hybrid"
     finance_checkpoint_path: str = ".cache/finance_agent_checkpoints.sqlite"
     market_quotes_enabled: bool = True
-    alpha_vantage_api_key: SecretStr | None = None
-    alpha_vantage_base_url: str = "https://www.alphavantage.co/query"
-    alpha_vantage_timeout_seconds: float = 3.0
-    quote_cache_ttl_seconds: int = 24 * 60 * 60
+    market_cache_max_entries: int = Field(default=100, gt=0)
+    twelve_data_api_key: SecretStr | None = None
+    twelve_data_mcp_command: str = ".cache/twelvedata-mcp/.venv/bin/python"
+    twelve_data_mcp_args: list[str] = [".cache/twelvedata-mcp/src/server.py"]
+    market_agent_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     intent_router_system_prompt: str = Field(
         default=(
             "Choose exactly one intent by the requested task, in the priority order below; "
@@ -37,9 +38,13 @@ class Settings(BaseSettings):
             "calculations, diversification, and risk; tax/retirement "
             "background alone does not exclude it. "
             "portfolio: analysis of personal holdings, allocation, concentration, or performance. "
-            "market: current quotes for AAPL/MSFT/AMZN/GOOG/GOOGL/META/NVDA/TSLA; "
-            "market requests for historical prices, volume, comparisons, unsupported tickers, "
-            "or missing symbols require clarify. "
+            "market: current prices, quotes, volume, and daily change for stocks, ETFs "
+            "(including AAPL and QQQ), forex, or crypto; company names and missing or "
+            "ambiguous symbols are resolved by the market agent. "
+            "Historical prices and time-series windows, including weekly/daily data and "
+            "calendar or fiscal quarters, also route to market; that agent owns timeframe "
+            "clarification. Single-asset price growth, returns, or percentage changes over "
+            "a horizon and cross-asset price-performance comparisons also route to market. "
             "goals: savings targets, future values, required contributions, timelines, or "
             "planning calculations, except tax-advantaged account rules and single-principal "
             "simple/compound-interest calculations (finance_qa). "
