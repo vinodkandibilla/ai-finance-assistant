@@ -44,7 +44,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-ai_finance_assistant = [
+finassist = [
     "data/corpora/finance_qa/*.pdf",
     "data/corpora/finance_qa/*.docx",
     "data/corpora/tax_education/*.pdf",
@@ -74,7 +74,7 @@ plugins = ["pydantic.mypy"]
 
 [tool.coverage.run]
 branch = true
-source = ["ai_finance_assistant"]
+source = ["finassist"]
 
 [tool.coverage.report]
 show_missing = true

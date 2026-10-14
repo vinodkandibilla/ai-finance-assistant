@@ -5,17 +5,17 @@ from pathlib import Path
 import pytest
 from langchain_core.documents import Document
 
-from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
-from ai_finance_assistant.agents.finance_qa.corpus_index import load_finance_corpus
-from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
-from ai_finance_assistant.agents.finance_qa.retrieval import FinanceHybridRetriever
-from ai_finance_assistant.agents.finance_qa.schemas import (
+from finassist.agents.finance_qa.config import FinanceAgentSettings
+from finassist.agents.finance_qa.corpus_index import load_finance_corpus
+from finassist.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
+from finassist.agents.finance_qa.retrieval import FinanceHybridRetriever
+from finassist.agents.finance_qa.schemas import (
     ContextEvaluation,
     FinanceDocument,
     QueryAnalysis,
 )
-from ai_finance_assistant.rag.orchestration import should_replace_best as _should_replace_best
-from ai_finance_assistant.rag.retriever import QdrantHybridSearch
+from finassist.rag.orchestration import should_replace_best as _should_replace_best
+from finassist.rag.retriever import QdrantHybridSearch
 
 
 def make_doc(doc_id: str, content: str) -> FinanceDocument:
@@ -65,7 +65,7 @@ def test_finance_corpus_loader_preserves_nonempty_pages(
             FakePage("   "),
         ]
 
-    from ai_finance_assistant.agents.finance_qa import corpus_index
+    from finassist.agents.finance_qa import corpus_index
 
     monkeypatch.setattr(corpus_index, "PdfReader", lambda _: FakeReader())
     chunks = load_finance_corpus(target, FinanceAgentSettings(chunk_size=150, chunk_overlap=10))
@@ -255,7 +255,7 @@ async def test_finance_index_creation_reuses_client_and_supports_search(monkeypa
             return [1.0, 0.0, 0.0]
 
     monkeypatch.setattr(
-        "ai_finance_assistant.agents.finance_qa.retrieval.OpenAIEmbeddings",
+        "finassist.agents.finance_qa.retrieval.OpenAIEmbeddings",
         lambda **kwargs: LocalEmbeddings(),
     )
     from langchain_qdrant.sparse_embeddings import SparseEmbeddings, SparseVector
@@ -268,7 +268,7 @@ async def test_finance_index_creation_reuses_client_and_supports_search(monkeypa
             return SparseVector(indices=[1], values=[1.0])
 
     monkeypatch.setattr(
-        "ai_finance_assistant.agents.finance_qa.retrieval.FastEmbedSparse",
+        "finassist.agents.finance_qa.retrieval.FastEmbedSparse",
         lambda **kwargs: LocalSparseEmbeddings(),
     )
     documents = [
@@ -349,11 +349,11 @@ async def test_finance_retriever_returns_empty_results_when_no_documents(monkeyp
     from qdrant_client import QdrantClient
 
     monkeypatch.setattr(
-        "ai_finance_assistant.agents.finance_qa.retrieval.OpenAIEmbeddings",
+        "finassist.agents.finance_qa.retrieval.OpenAIEmbeddings",
         lambda **kwargs: object(),
     )
     monkeypatch.setattr(
-        "ai_finance_assistant.agents.finance_qa.retrieval.FastEmbedSparse",
+        "finassist.agents.finance_qa.retrieval.FastEmbedSparse",
         lambda **kwargs: object(),
     )
     settings = FinanceAgentSettings()
@@ -374,7 +374,7 @@ async def test_finance_retriever_returns_empty_results_when_no_documents(monkeyp
 
 
 async def test_etf_glossary_supports_definition_but_not_comparison() -> None:
-    from ai_finance_assistant.agents.finance_qa.evaluator import FinanceContextEvaluator
+    from finassist.agents.finance_qa.evaluator import FinanceContextEvaluator
 
     llm = FakeLLM(
         [],
@@ -405,7 +405,7 @@ async def test_etf_glossary_supports_definition_but_not_comparison() -> None:
 
 
 def test_public_citations_and_generation_context_omit_internal_ids() -> None:
-    from ai_finance_assistant.agents.finance_qa.graph import _citations, _format_context
+    from finassist.agents.finance_qa.graph import _citations, _format_context
 
     documents = [
         FinanceDocument(

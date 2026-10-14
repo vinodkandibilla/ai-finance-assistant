@@ -3,10 +3,10 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
-from ai_finance_assistant.api.query import get_query_graph
-from ai_finance_assistant.main import create_app
-from ai_finance_assistant.workflow.builder import build_graph
-from ai_finance_assistant.workflow.classifier import ClassificationTimeoutError, LLMIntentClassifier
+from finassist.api.query import get_query_graph
+from finassist.main import create_app
+from finassist.workflow.builder import build_graph
+from finassist.workflow.classifier import ClassificationTimeoutError, LLMIntentClassifier
 
 
 class SlowModel:
@@ -57,8 +57,8 @@ async def test_client_cancellation_is_not_misreported_as_router_timeout(caplog):
 
 
 def test_factory_passes_configured_deadline_to_provider_and_classifier(monkeypatch):
-    from ai_finance_assistant.core.config import Settings
-    from ai_finance_assistant.workflow.classifier import create_intent_classifier
+    from finassist.core.config import Settings
+    from finassist.workflow.classifier import create_intent_classifier
 
     options = {}
 
@@ -83,7 +83,7 @@ def test_factory_passes_configured_deadline_to_provider_and_classifier(monkeypat
 def test_invalid_configured_deadline_is_rejected(timeout):
     from pydantic import ValidationError
 
-    from ai_finance_assistant.core.config import Settings
+    from finassist.core.config import Settings
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, router_timeout_seconds=timeout)

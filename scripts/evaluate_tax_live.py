@@ -13,10 +13,10 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from qdrant_client import QdrantClient
 
-from ai_finance_assistant.agents.finance_qa.reranker import FinanceCrossEncoderReranker
-from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
-from ai_finance_assistant.core.config import get_settings
-from ai_finance_assistant.rag.tax_education import get_tax_retriever
+from finassist.agents.finance_qa.reranker import FinanceCrossEncoderReranker
+from finassist.agents.tax_education.graph import TaxEducationAgent
+from finassist.core.config import get_settings
+from finassist.rag.tax_education import get_tax_retriever
 
 
 async def main():

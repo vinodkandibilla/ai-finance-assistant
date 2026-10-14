@@ -5,8 +5,8 @@ from langchain_core.tools import tool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from ai_finance_assistant.agents.news_synthesizer import NewsSynthesizerAgent
-from ai_finance_assistant.agents.news_synthesizer.schemas import (
+from finassist.agents.news_synthesizer import NewsSynthesizerAgent
+from finassist.agents.news_synthesizer.schemas import (
     EvidenceAssessment,
     NewsAgentResult,
     NewsClaim,
@@ -163,7 +163,7 @@ async def test_model_can_report_missing_coverage_instead_of_answering():
 
 
 async def test_sufficient_first_search_stops_without_consuming_remaining_budget(caplog):
-    caplog.set_level("INFO", logger="ai_finance_assistant.agents.news_synthesizer.agent")
+    caplog.set_level("INFO", logger="finassist.agents.news_synthesizer.agent")
     agent, model, calls = make_agent(
         [
             call("search_financial_news", {"query": "first query"}, "first"),
@@ -183,7 +183,7 @@ async def test_sufficient_first_search_stops_without_consuming_remaining_budget(
 
 
 async def test_three_search_budget_returns_grounded_partial_summary_and_missing_aspects(caplog):
-    caplog.set_level("INFO", logger="ai_finance_assistant.agents.news_synthesizer.agent")
+    caplog.set_level("INFO", logger="finassist.agents.news_synthesizer.agent")
     assessments = [
         EvidenceAssessment(
             sufficient=False,

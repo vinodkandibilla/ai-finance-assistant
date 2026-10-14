@@ -1,12 +1,12 @@
 import pytest
 
-from ai_finance_assistant.workflow.builder import (
+from finassist.workflow.builder import (
     CLARIFY_RESPONSE,
     MARKET_QUOTE_UNAVAILABLE_RESPONSE,
     PORTFOLIO_ANALYSIS_RESPONSE,
     build_graph,
 )
-from ai_finance_assistant.workflow.state import FinanceIntent
+from finassist.workflow.state import FinanceIntent
 
 
 class FakeClassifier:
@@ -144,7 +144,7 @@ async def test_out_of_scope_stops_without_invoking_another_domain():
 
     from langgraph.graph import END, START, StateGraph
 
-    from ai_finance_assistant.workflow.state import FinanceAssistantState
+    from finassist.workflow.state import FinanceAssistantState
 
     def finance(state):
         return {
@@ -194,8 +194,8 @@ async def test_tax_classification_still_routes_without_a_tax_keyword():
 
 
 async def test_disabled_market_feature_returns_disabled_without_invoking_tool(monkeypatch):
-    from ai_finance_assistant.core.config import Settings
-    from ai_finance_assistant.workflow import builder
+    from finassist.core.config import Settings
+    from finassist.workflow import builder
 
     monkeypatch.setattr(
         builder, "get_settings", lambda: Settings(_env_file=None, market_quotes_enabled=False)

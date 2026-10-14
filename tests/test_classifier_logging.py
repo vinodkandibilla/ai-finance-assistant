@@ -6,7 +6,7 @@ import pytest
 from langchain_core.exceptions import OutputParserException
 from openai import APIError
 
-from ai_finance_assistant.workflow.classifier import (
+from finassist.workflow.classifier import (
     ClassificationOutputError,
     ClassificationProviderError,
     ClassificationTimeoutError,
@@ -52,10 +52,10 @@ class Model:
 )
 async def test_failure_logs_only_safe_category_and_elapsed_time(caplog, model, category, exception):
     classifier = LLMIntentClassifier(model, SECRET, timeout_seconds=0.01)
-    with caplog.at_level(logging.WARNING, logger="ai_finance_assistant.workflow.classifier"):
+    with caplog.at_level(logging.WARNING, logger="finassist.workflow.classifier"):
         with pytest.raises(exception) as raised:
             await classifier.classify(SECRET)
-    records = [r for r in caplog.records if r.name == "ai_finance_assistant.workflow.classifier"]
+    records = [r for r in caplog.records if r.name == "finassist.workflow.classifier"]
     assert len(records) == 1
     record = records[0]
     assert record.failure_category == category

@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
-from ai_finance_assistant.agents.finance_qa.schemas import QueryAnalysis
-from ai_finance_assistant.rag.models import RetrievedDocument
-from ai_finance_assistant.rag.tax_education import (
+from finassist.agents.finance_qa.schemas import QueryAnalysis
+from finassist.rag.models import RetrievedDocument
+from finassist.rag.tax_education import (
     TaxHybridRetriever,
     build_tax_metadata_filter,
     extract_tax_metadata,
@@ -160,7 +160,7 @@ async def test_tax_retriever_uses_query_decomposition_and_shared_result_model() 
 
 
 def test_build_tax_hybrid_vector_store_reuses_existing_collection(monkeypatch) -> None:
-    from ai_finance_assistant.rag import hybrid
+    from finassist.rag import hybrid
 
     class FakeClient:
         def __init__(self, *args, **kwargs) -> None:
@@ -196,7 +196,7 @@ def test_build_tax_hybrid_vector_store_reuses_existing_collection(monkeypatch) -
     monkeypatch.setattr(hybrid, "FastEmbedSparse", lambda model_name: object())
     monkeypatch.setattr(hybrid, "QdrantVectorStore", FakeVectorStore)
 
-    from ai_finance_assistant.rag.tax_education import build_tax_hybrid_vector_store
+    from finassist.rag.tax_education import build_tax_hybrid_vector_store
 
     store = build_tax_hybrid_vector_store()
 

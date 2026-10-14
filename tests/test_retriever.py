@@ -1,7 +1,7 @@
 from langchain_core.documents import Document
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-from ai_finance_assistant.rag.retriever import QdrantHybridRetriever, QdrantRetriever
+from finassist.rag.retriever import QdrantHybridRetriever, QdrantRetriever
 
 
 class FakeVectorStore:

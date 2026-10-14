@@ -5,13 +5,13 @@ from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from ai_finance_assistant.agents.tax_education.calculator_tools import CALCULATOR
-from ai_finance_assistant.agents.tax_education.schemas import TaxAgentResult
-from ai_finance_assistant.agents.tax_education.tax_calculation import (
+from finassist.agents.tax_education.calculator_tools import CALCULATOR
+from finassist.agents.tax_education.schemas import TaxAgentResult
+from finassist.agents.tax_education.tax_calculation import (
     THRESHOLDS,
     calculate_federal_income_tax,
 )
-from ai_finance_assistant.workflow.builder import build_graph
+from finassist.workflow.builder import build_graph
 from test_finance_autonomous_agent import call
 from test_tax_agent_graph import Classifier, make_agent
 
@@ -177,8 +177,8 @@ async def test_calculator_error_cannot_support_answer_and_can_be_repaired():
 async def test_api_exposes_structured_tax_calculation():
     from fastapi.testclient import TestClient
 
-    from ai_finance_assistant.api.query import get_query_graph
-    from ai_finance_assistant.main import create_app
+    from finassist.api.query import get_query_graph
+    from finassist.main import create_app
 
     agent, _, _ = make_agent(
         [call(CALCULATOR, INPUTS, "calc"), AIMessage(content="Done")],

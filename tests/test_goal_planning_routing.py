@@ -3,9 +3,9 @@ from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 
-from ai_finance_assistant.api.query import get_query_graph
-from ai_finance_assistant.main import create_app
-from ai_finance_assistant.workflow.builder import build_graph
+from finassist.api.query import get_query_graph
+from finassist.main import create_app
+from finassist.workflow.builder import build_graph
 from test_finance_autonomous_agent import call
 from test_goal_planning_agent import make_agent
 

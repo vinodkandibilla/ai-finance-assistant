@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock
 import pytest
 from mcp.types import CallToolResult, TextContent
 
-from ai_finance_assistant.agents.market_analysis.growth import (
+from finassist.agents.market_analysis.growth import (
     calculate_price_growth,
     compute_price_growth,
 )
-from ai_finance_assistant.agents.market_analysis.timeframe import resolve_timeframe
+from finassist.agents.market_analysis.timeframe import resolve_timeframe
 
 
 def response(text):

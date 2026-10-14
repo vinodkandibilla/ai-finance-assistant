@@ -4,8 +4,8 @@ import sqlite3
 
 import pytest
 
-from ai_finance_assistant.agents.portfolio_analysis import PortfolioStore
-from ai_finance_assistant.data.portfolio_store import PRICE_AS_OF_DATE
+from finassist.agents.portfolio_analysis import PortfolioStore
+from finassist.data.portfolio_store import PRICE_AS_OF_DATE
 
 
 @pytest.fixture
@@ -166,7 +166,7 @@ def test_profile_data_is_read_only_and_connections_are_closed(store):
 def test_frozen_october_9_closes_match_recorded_sources(store):
     import json
 
-    from ai_finance_assistant.data.paths import PORTFOLIO_PRICE_SNAPSHOT_PATH
+    from finassist.data.paths import PORTFOLIO_PRICE_SNAPSHOT_PATH
 
     path = PORTFOLIO_PRICE_SNAPSHOT_PATH
     reference = json.loads(path.read_text())

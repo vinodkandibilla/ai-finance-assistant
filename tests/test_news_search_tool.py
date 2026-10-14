@@ -4,8 +4,8 @@ import httpx
 import pytest
 from langchain_core.messages import ToolMessage
 
-from ai_finance_assistant.agents.news_synthesizer.tools import create_news_search_tool
-from ai_finance_assistant.core.config import Settings
+from finassist.agents.news_synthesizer.tools import create_news_search_tool
+from finassist.core.config import Settings
 
 
 def article(url="https://example.com/news?b=2&a=1", **extra):

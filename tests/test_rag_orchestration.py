@@ -1,6 +1,6 @@
 import pytest
 
-from ai_finance_assistant.rag.orchestration import (
+from finassist.rag.orchestration import (
     GenerationPolicy,
     generate_answer,
     route_evaluation,

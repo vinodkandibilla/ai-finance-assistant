@@ -9,13 +9,13 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 from pydantic import ValidationError
 
-from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
-from ai_finance_assistant.agents.finance_qa.graph import FinanceQaAgent
-from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
-from ai_finance_assistant.agents.finance_qa.schemas import FinanceAgentResult
-from ai_finance_assistant.agents.tax_education.config import TaxAgentSettings
-from ai_finance_assistant.agents.tax_education.schemas import TaxAgentResult
-from ai_finance_assistant.workflow.builder import build_graph
+from finassist.agents.finance_qa.config import FinanceAgentSettings
+from finassist.agents.finance_qa.graph import FinanceQaAgent
+from finassist.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
+from finassist.agents.finance_qa.schemas import FinanceAgentResult
+from finassist.agents.tax_education.config import TaxAgentSettings
+from finassist.agents.tax_education.schemas import TaxAgentResult
+from finassist.workflow.builder import build_graph
 from test_finance_autonomous_agent import Classifier, Reranker, Retriever, ScriptedModel, call
 from test_tax_agent_graph import Classifier as TaxClassifier
 from test_tax_agent_graph import make_agent

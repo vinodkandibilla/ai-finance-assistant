@@ -1,5 +1,5 @@
-from ai_finance_assistant.core.config import Settings
-from ai_finance_assistant.rag.qdrant import create_qdrant_client
+from finassist.core.config import Settings
+from finassist.rag.qdrant import create_qdrant_client
 
 
 def test_qdrant_defaults_to_local_disk_mode() -> None:
@@ -9,7 +9,7 @@ def test_qdrant_defaults_to_local_disk_mode() -> None:
 
 
 def test_local_qdrant_client_can_create_a_collection(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("ai_finance_assistant.rag.qdrant.LOCAL_QDRANT_PATH", tmp_path / "qdrant")
+    monkeypatch.setattr("finassist.rag.qdrant.LOCAL_QDRANT_PATH", tmp_path / "qdrant")
     client = create_qdrant_client(Settings(_env_file=None, qdrant_mode="local"))
     collection_name = "test_finance_knowledge"
 

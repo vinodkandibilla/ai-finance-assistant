@@ -4,7 +4,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 from typing_extensions import TypedDict
 
-from ai_finance_assistant.main import create_app, lifespan
+from finassist.main import create_app, lifespan
 
 
 class CheckpointState(TypedDict, total=False):
@@ -16,7 +16,7 @@ async def test_app_checkpoint_supports_async_interrupt_resume_and_restart(
 ) -> None:
     checkpoint_path = tmp_path / "checkpoints.sqlite"
     monkeypatch.setattr(
-        "ai_finance_assistant.main.get_settings",
+        "finassist.main.get_settings",
         lambda: type(
             "Settings", (), {"finance_checkpoint_path": str(checkpoint_path), "log_level": "INFO"}
         )(),

@@ -5,12 +5,12 @@ from httpx import ASGITransport, AsyncClient
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 
-from ai_finance_assistant.api.query import get_query_graph
-from ai_finance_assistant.data.portfolio_store import PortfolioStore
-from ai_finance_assistant.main import create_app
-from ai_finance_assistant.prompts import INTENT_ROUTER_SYSTEM_PROMPT
-from ai_finance_assistant.workflow.builder import build_graph
-from ai_finance_assistant.workflow.classifier import LLMIntentClassifier
+from finassist.api.query import get_query_graph
+from finassist.data.portfolio_store import PortfolioStore
+from finassist.main import create_app
+from finassist.prompts import INTENT_ROUTER_SYSTEM_PROMPT
+from finassist.workflow.builder import build_graph
+from finassist.workflow.classifier import LLMIntentClassifier
 from test_finance_autonomous_agent import call
 from test_portfolio_agent import make_agent
 
@@ -48,7 +48,7 @@ class ClassifierModel:
 async def test_documented_examples_retain_domain_routes(query, intent, handler, monkeypatch):
     # Scripted classification checks plumbing and prompt examples, not live-model accuracy.
     monkeypatch.setenv("MARKET_QUOTES_ENABLED", "true")
-    from ai_finance_assistant.core.config import get_settings
+    from finassist.core.config import get_settings
 
     get_settings.cache_clear()
     try:

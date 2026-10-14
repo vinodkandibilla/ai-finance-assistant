@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 import pytest
 from mcp.types import CallToolResult, TextContent
 
-from ai_finance_assistant.agents.market_analysis import cache as module
-from ai_finance_assistant.agents.market_analysis.cache import TTLS, MarketCache
+from finassist.agents.market_analysis import cache as module
+from finassist.agents.market_analysis.cache import TTLS, MarketCache
 
 
 def result(text="datetime;close\n2025-01-01;100", error=False):

@@ -1,7 +1,7 @@
 import pytest
 
-from ai_finance_assistant.agents.tax_education.tools import create_tax_rag_query_tool
-from ai_finance_assistant.rag.models import RetrievedDocument
+from finassist.agents.tax_education.tools import create_tax_rag_query_tool
+from finassist.rag.models import RetrievedDocument
 
 
 class Reranker:

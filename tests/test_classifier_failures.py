@@ -10,10 +10,10 @@ from openai import (
     RateLimitError,
 )
 
-from ai_finance_assistant.api.query import get_query_graph
-from ai_finance_assistant.main import create_app
-from ai_finance_assistant.workflow.builder import build_graph
-from ai_finance_assistant.workflow.classifier import LLMIntentClassifier
+from finassist.api.query import get_query_graph
+from finassist.main import create_app
+from finassist.workflow.builder import build_graph
+from finassist.workflow.classifier import LLMIntentClassifier
 
 
 class Model:
@@ -119,7 +119,7 @@ async def test_classifier_failure_never_invokes_domain_agent():
 
     from langchain_core.runnables import RunnableLambda
 
-    from ai_finance_assistant.workflow.classifier import ClassificationOutputError
+    from finassist.workflow.classifier import ClassificationOutputError
 
     calls = []
 
