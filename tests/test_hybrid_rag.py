@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from langchain_core.documents import Document
 
-from ai_finance_assistant.rag import hybrid
+from finassist.rag import hybrid
 
 
 def test_shared_client_reuses_populated_collection_without_loading_documents(monkeypatch, tmp_path) -> None:

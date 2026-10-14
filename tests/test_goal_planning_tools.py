@@ -1,6 +1,6 @@
 import pytest
 
-from ai_finance_assistant.agents.goal_planning.tools import (
+from finassist.agents.goal_planning.tools import (
     calculate_future_value,
     calculate_required_contribution,
     calculate_time_to_goal,

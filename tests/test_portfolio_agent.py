@@ -3,14 +3,14 @@ from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from ai_finance_assistant.agents.portfolio_analysis.agent import (
+from finassist.agents.portfolio_analysis.agent import (
     MAX_ITERATIONS,
     PortfolioAnalysisAgent,
     PortfolioAnalysisResult,
 )
-from ai_finance_assistant.agents.portfolio_analysis.authorization import UserContext
-from ai_finance_assistant.data.portfolio_store import PortfolioStore
-from ai_finance_assistant.workflow.builder import build_graph
+from finassist.agents.portfolio_analysis.authorization import UserContext
+from finassist.data.portfolio_store import PortfolioStore
+from finassist.workflow.builder import build_graph
 from test_finance_autonomous_agent import ScriptedModel, call
 
 
@@ -163,8 +163,8 @@ async def test_iteration_budget(store):
 async def test_api_context_and_metrics_on_same_thread(store):
     from httpx import ASGITransport, AsyncClient
 
-    from ai_finance_assistant.api.query import get_query_graph
-    from ai_finance_assistant.main import create_app
+    from finassist.api.query import get_query_graph
+    from finassist.main import create_app
 
     class Classifier:
         async def classify(self, query):

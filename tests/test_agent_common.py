@@ -1,7 +1,7 @@
 from langchain_core.messages import ToolMessage
 
-from ai_finance_assistant.agents.common.runtime import user_replies
-from ai_finance_assistant.agents.common.schemas import EvidenceResult
+from finassist.agents.common.runtime import user_replies
+from finassist.agents.common.schemas import EvidenceResult
 
 
 def test_clarification_metadata_distinguishes_user_replies_from_policy_guidance():

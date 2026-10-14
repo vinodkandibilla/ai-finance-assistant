@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
-from ai_finance_assistant.data.paths import FINANCE_PDF_PATH
-from ai_finance_assistant.main import create_app
+from finassist.data.paths import FINANCE_PDF_PATH
+from finassist.main import create_app
 
 
 def test_health_endpoint_returns_service_status() -> None:

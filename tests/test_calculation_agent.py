@@ -2,12 +2,12 @@ from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from ai_finance_assistant.agents.finance_qa.calculator_tools import CLARIFICATION
-from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
-from ai_finance_assistant.agents.finance_qa.graph import FinanceQaAgent
-from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
-from ai_finance_assistant.agents.finance_qa.schemas import FinanceAgentResult, FinanceDocument
-from ai_finance_assistant.workflow.builder import build_graph
+from finassist.agents.finance_qa.calculator_tools import CLARIFICATION
+from finassist.agents.finance_qa.config import FinanceAgentSettings
+from finassist.agents.finance_qa.graph import FinanceQaAgent
+from finassist.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
+from finassist.agents.finance_qa.schemas import FinanceAgentResult, FinanceDocument
+from finassist.workflow.builder import build_graph
 from test_finance_autonomous_agent import Classifier, Reranker, Retriever, ScriptedModel, call
 
 INPUTS = {"principal": "10000", "annual_rate": "6", "rate_units": "percent", "duration_years": "5"}
@@ -159,8 +159,8 @@ async def test_agent_repairs_validation_errors_after_clarification():
 async def test_partial_explanation_and_state_reach_api():
     from fastapi.testclient import TestClient
 
-    from ai_finance_assistant.api.query import get_query_graph
-    from ai_finance_assistant.main import create_app
+    from finassist.api.query import get_query_graph
+    from finassist.main import create_app
 
     m = model(
         [

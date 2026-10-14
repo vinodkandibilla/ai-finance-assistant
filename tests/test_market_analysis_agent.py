@@ -5,10 +5,10 @@ from langchain_core.messages import AIMessage
 from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 from pydantic import SecretStr
 
-from ai_finance_assistant.agents.market_analysis import agent as module
-from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgent
-from ai_finance_assistant.core.config import Settings
-from ai_finance_assistant.workflow.builder import build_graph
+from finassist.agents.market_analysis import agent as module
+from finassist.agents.market_analysis.agent import MarketAnalysisAgent
+from finassist.core.config import Settings
+from finassist.workflow.builder import build_graph
 
 
 class FakeModel:

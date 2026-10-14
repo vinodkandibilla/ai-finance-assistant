@@ -6,12 +6,12 @@ from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import ToolNode
 
-from ai_finance_assistant.agents.portfolio_analysis.authorization import UserContext
-from ai_finance_assistant.agents.portfolio_analysis.tools import PortfolioTools
-from ai_finance_assistant.api.query import get_query_graph
-from ai_finance_assistant.data.portfolio_store import PortfolioStore
-from ai_finance_assistant.main import create_app
-from ai_finance_assistant.workflow.builder import build_graph
+from finassist.agents.portfolio_analysis.authorization import UserContext
+from finassist.agents.portfolio_analysis.tools import PortfolioTools
+from finassist.api.query import get_query_graph
+from finassist.data.portfolio_store import PortfolioStore
+from finassist.main import create_app
+from finassist.workflow.builder import build_graph
 from test_finance_autonomous_agent import call
 from test_portfolio_agent import make_agent
 

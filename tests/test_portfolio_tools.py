@@ -2,13 +2,13 @@ import pytest
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 
-from ai_finance_assistant.agents.portfolio_analysis.authorization import UserContext
-from ai_finance_assistant.agents.portfolio_analysis.tools import (
+from finassist.agents.portfolio_analysis.authorization import UserContext
+from finassist.agents.portfolio_analysis.tools import (
     ConcentrationThresholds,
     PortfolioTools,
     calculate_portfolio,
 )
-from ai_finance_assistant.data.portfolio_store import PortfolioStore
+from finassist.data.portfolio_store import PortfolioStore
 
 
 def fixture_portfolio(cost=8):

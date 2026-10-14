@@ -1,8 +1,8 @@
 import pytest
 
-from ai_finance_assistant.agents.finance_qa.schemas import QueryAnalysis
-from ai_finance_assistant.agents.tax_education.query_analyzer import TaxQueryAnalyzer
-from ai_finance_assistant.rag.tax_education import TaxHybridRetriever, build_tax_metadata_filter
+from finassist.agents.finance_qa.schemas import QueryAnalysis
+from finassist.agents.tax_education.query_analyzer import TaxQueryAnalyzer
+from finassist.rag.tax_education import TaxHybridRetriever, build_tax_metadata_filter
 
 
 class StructuredLLM:

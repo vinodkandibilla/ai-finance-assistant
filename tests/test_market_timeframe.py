@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from ai_finance_assistant.agents.market_analysis.timeframe import resolve_timeframe
+from finassist.agents.market_analysis.timeframe import resolve_timeframe
 
 TODAY = date(2026, 10, 13)
 

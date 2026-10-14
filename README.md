@@ -10,7 +10,7 @@
 
 Ask an investing, US tax, savings-goal, or financial-news question in plain English. Separate tool-calling agents choose searches, assess retrieved evidence, request essential clarification, and return cited answers or evidence limitations. A shared runtime handles execution limits and API integration; domain RAG tools handle embeddings, Qdrant fusion, reranking, and citation packaging in one invocation.
 
-[Quick start](#quick-start) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Tax](#tax-education) · [Goal planning](#goal-planning-agent) · [News](#news-synthesizer-agent) · [Example queries](#example-queries) · [Configuration](#configuration) · [Storage and operations](#index-lifecycle-and-operations) · [Development](#development)
+[Quick start](#quick-start) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Tax](#tax-education) · [Goal planning](#goal-planning-agent) · [News](#news-synthesizer-agent) · [Portfolio](#portfolio-analysis-agent) · [Authorization](#simulated-portfolio-authorization) · [Layout](#repository-guide) · [Example queries](#example-queries) · [Configuration](#configuration) · [Storage and operations](#index-lifecycle-and-operations) · [Development](#development)
 
 ## Capabilities
 
@@ -24,9 +24,9 @@ Ask an investing, US tax, savings-goal, or financial-news question in plain Engl
 | Market quotes | “What is Apple's latest available stock price?” | Twelve Data MCP quotes with price, volume, and daily changes. |
 | Goal planning | “Can I reach $100,000 in five years saving $1,000 monthly?” | Tool-calling Goal Planning Agent with deterministic projections, clarification, and a three-iteration limit. |
 | News synthesis | “Give me the latest financial-market news.” | Tavily evidence, LLM coverage assessment, up to three searches, and verified citation provenance. |
-| Portfolio | Holdings analysis | Fixed demonstration response; holdings analysis is not implemented. |
+| Portfolio analysis | “Show my portfolio value and allocation.” | Model-selected deterministic tools over synthetic portfolios with frozen reference prices, simulated authorization, and checkpointed clarification. |
 
-The project is in active development. Finance, tax, market, and goal-planning agents are implemented, but the complete application is not production-ready. The operational limitations below describe the current code, including differences from the [Finance Agentic RAG coding prompt](resources/prompts/Finance_Agentic_RAG_Coding_Agent_Prompt.md).
+The project is in active development. Finance, tax, market, goal-planning, news, and portfolio agents are implemented, but the complete application is not production-ready. The operational limitations below describe the current code, including differences from the [Finance Agentic RAG coding prompt](resources/prompts/Finance_Agentic_RAG_Coding_Agent_Prompt.md).
 
 ## Documentation guide
 
@@ -81,7 +81,7 @@ Use the default router prompt in `core/config.py`; `.env.example` leaves it unse
 ### Run
 
 ```bash
-.venv/bin/python -m uvicorn ai_finance_assistant.main:app --reload
+.venv/bin/python -m uvicorn finassist.main:app --reload
 ```
 
 Open [Swagger UI](http://127.0.0.1:8000/docs) or [service health](http://127.0.0.1:8000/health).
@@ -242,7 +242,7 @@ flowchart TD
     Other --> Response
 ```
 
-Both agents inherit [`AutonomousEducationAgent`](src/ai_finance_assistant/agents/common/runtime.py). The shared runtime calls `langgraph.prebuilt.create_react_agent`, registers a domain RAG tool and a clarification tool (Finance QA additionally registers direct simple/compound calculators and a bounded calculation-clarification tool; Tax registers a direct federal ordinary-income tax calculator), and adapts message-based agent state to the API's query/result fields. Its one-node adapter does not prescribe analysis, search, evaluation, or retry steps.
+Both agents inherit [`AutonomousEducationAgent`](src/finassist/agents/common/runtime.py). The shared runtime calls `langgraph.prebuilt.create_react_agent`, registers a domain RAG tool and a clarification tool (Finance QA additionally registers direct simple/compound calculators and a bounded calculation-clarification tool; Tax registers a direct federal ordinary-income tax calculator), and adapts message-based agent state to the API's query/result fields. Its one-node adapter does not prescribe analysis, search, evaluation, or retry steps.
 
 The project pins LangChain `>=0.3,<0.4`. `create_react_agent` is compatible with that dependency family but emits deprecation warnings in installed LangGraph versions. Migration to LangChain 1.x `create_agent` has been deferred; no dependency upgrade is required for this implementation.
 
@@ -282,7 +282,7 @@ flowchart LR
 
 `finance_rag_query` and `tax_rag_query` include the whole pipeline when invoked standalone or through an agent. Embedding, fusion, and reranking are implementation steps inside the tool, not separately exposed model actions. The agent receives the ranked evidence after one tool invocation and decides whether another search is useful.
 
-Tool factories require a reranker dependency and accept `rerank_top_n` (default 5). Shared [`rag_tools.py`](src/ai_finance_assistant/agents/common/rag_tools.py) packages the results through [`EvidenceResult`](src/ai_finance_assistant/agents/common/schemas.py): `candidates`, `metadata_filters`, `citations`, and `errors`. Candidate records retain content, source metadata, and retrieval identifiers/scores when supplied. A reranking failure returns an error and no unranked evidence; empty retrieval skips reranking. Omitted lexical keywords default to the search question; an explicit empty keyword list disables that sparse query.
+Tool factories require a reranker dependency and accept `rerank_top_n` (default 5). Shared [`rag_tools.py`](src/finassist/agents/common/rag_tools.py) packages the results through [`EvidenceResult`](src/finassist/agents/common/schemas.py): `candidates`, `metadata_filters`, `citations`, and `errors`. Candidate records retain content, source metadata, and retrieval identifiers/scores when supplied. A reranking failure returns an error and no unranked evidence; empty retrieval skips reranking. Omitted lexical keywords default to the search question; an explicit empty keyword list disables that sparse query.
 
 Search limits count requested domain search calls, including failed calls. Recursion limits bound the agent loop; a separate configurable execution deadline covers active model/tool calls and final formatting, but does not bound exact provider token cost. Answers marked `answered` without retrieved evidence are rejected. Citation-list validation verifies retrieved source identifiers; it does not independently verify answer claims or inline citations.
 
@@ -294,7 +294,7 @@ Finance QA covers general investment education: stocks, bonds, ETFs, mutual fund
 
 Retirement accounts, tax and immigration topics, live prices, breaking news, personalized portfolio/planning requests, trades, and account actions are excluded from its education prompt. The agent reports `out_of_scope` for these requests and asks the user to submit a new question. It does not know other agent names or select a destination.
 
-The authoritative finance source is the bundled [Financial Education Handbook PDF](src/ai_finance_assistant/data/corpora/finance_qa/Financial_Education_Handbook_integrated.pdf). The companion DOCX is not loaded. Finance QA does not retrieve from the tax corpus or the web.
+The authoritative finance source is the bundled [Financial Education Handbook PDF](src/finassist/data/corpora/finance_qa/Financial_Education_Handbook_integrated.pdf). The companion DOCX is not loaded. Finance QA does not retrieve from the tax corpus or the web.
 
 Ingestion extracts every nonempty handbook page and chunks it with an **800-character target and 120-character overlap**. No keyword-based domain exclusions run during ingestion; query routing handles domain scope. This preserves mixed-topic pages and incidental tax or retirement mentions. Existing collections must be rebuilt to include previously excluded content.
 
@@ -353,7 +353,7 @@ During a pause, `/query` or `/query/resume` returns the pending `calculation` st
 
 A successful calculator result includes validated inputs, normalized annual rate, periods per year (compound only), applied defaults, formula/substitution, interest earned, final balance, rounding, and assumptions. The annual-APR example earns **USD 3,382.26** with final balance **USD 13,382.26**. The agent composes successful answer text from tool results and RAG evidence. Python attaches structured artifacts without formatting successful prose. Validation, unsupported-feature and calculation-limit errors return no numerical result for that attempt.
 
-Implementation: [`interest_calculation.py`](src/ai_finance_assistant/agents/finance_qa/interest_calculation.py) provides shared validation and Decimal arithmetic. `compound_interest.py` and `simple_interest.py` are thin wrappers. [`calculator_tools.py`](src/ai_finance_assistant/agents/finance_qa/calculator_tools.py) exposes direct calculators, bounded checkpointed clarification, and a structured output adapter. Tests cover direct calls, validation repair, defaults, mixed RAG/calculation, the third-reply boundary, and SQLite restart/resume.
+Implementation: [`interest_calculation.py`](src/finassist/agents/finance_qa/interest_calculation.py) provides shared validation and Decimal arithmetic. `compound_interest.py` and `simple_interest.py` are thin wrappers. [`calculator_tools.py`](src/finassist/agents/finance_qa/calculator_tools.py) exposes direct calculators, bounded checkpointed clarification, and a structured output adapter. Tests cover direct calls, validation repair, defaults, mixed RAG/calculation, the third-reply boundary, and SQLite restart/resume.
 
 ### Simple-interest calculator
 
@@ -432,9 +432,9 @@ result cannot support an answered projection. Validation errors can be repaired;
 timeouts and execution failures return safe errors. Scope changes terminate with
 `out_of_scope` rather than automatically invoking another agent.
 
-Implementation: [`agent.py`](src/ai_finance_assistant/agents/goal_planning/agent.py)
+Implementation: [`agent.py`](src/finassist/agents/goal_planning/agent.py)
 contains the prompt, tool loop, coverage check, checkpointed clarification, and hard
-stop. [`tools.py`](src/ai_finance_assistant/agents/goal_planning/tools.py) contains the
+stop. [`tools.py`](src/finassist/agents/goal_planning/tools.py) contains the
 four deterministic calculators. Tests cover calculator outputs, model-selected tool
 execution, clarification/resume, coverage checks, and the three-turn boundary using
 scripted models; they do not establish live LLM selection accuracy.
@@ -522,11 +522,11 @@ clarification/resume, and routing; they do not establish live provider or LLM ac
 
 ### Tax education
 
-Tax uses the same autonomous runtime as Finance QA, with its own prompt, [`TaxAgentSettings`](src/ai_finance_assistant/agents/tax_education/config.py), result schema, and `tax_rag_query` / `ask_tax_clarification` tools. Separate query-analysis, evidence-evaluation, and fixed retry nodes are no longer part of the active tax agent path.
+Tax uses the same autonomous runtime as Finance QA, with its own prompt, [`TaxAgentSettings`](src/finassist/agents/tax_education/config.py), result schema, and `tax_rag_query` / `ask_tax_clarification` tools. Separate query-analysis, evidence-evaluation, and fixed retry nodes are no longer part of the active tax agent path.
 
 The runtime binds metadata constraints to the original user question plus genuine clarification replies. The model can reformulate its search, but cannot replace that original context. The standalone tax tool accepts original `query` separately from optional `search_query`; explicit tax/filing-year mismatches are rejected before reranking. Filing status, forms, and other supported constraints are applied by the Qdrant metadata filter. Subtopic extraction is restricted to the selected topic to avoid conflicting filters such as `tax_brackets` plus an unrelated `filing_status` subtopic.
 
-Tax retrieval uses [the bundled IRS-oriented JSONL corpus](src/ai_finance_assistant/data/corpora/tax_education/irs_tax_2026_rag_corpus_expanded.jsonl), independently from the finance handbook. Its dense and BM25 vectors live in `tax_education_hybrid`. The companion tax PDF is a reference artifact, not a runtime source.
+Tax retrieval uses [the bundled IRS-oriented JSONL corpus](src/finassist/data/corpora/tax_education/irs_tax_2026_rag_corpus_expanded.jsonl), independently from the finance handbook. Its dense and BM25 vectors live in `tax_education_hybrid`. The companion tax PDF is a reference artifact, not a runtime source.
 
 The prompt uses the corpus scope, tax year **2026**, generally filed in **2027**, when no year is supplied. Explicit years override that default. For bracket questions, the prompt interprets unqualified income as taxable ordinary income and instructs the model to state the assumption; explicitly stated gross income or salary must not be silently treated as taxable income. These interpretation rules remain agent instructions; the direct calculator validates supplied taxable ordinary income and computes progressive tax deterministically.
 
@@ -553,7 +553,7 @@ The calculator applies each rate only to its income slice using Decimal with 50-
 
 Taxable income already reflects deductions; none are subtracted again. This is a rate-schedule estimate before credits, withholding and estimated payments, not the final amount payable. It excludes state/local/payroll taxes, preferential capital gains/dividends, AMT and surtaxes. The agent must clarify unsupported requested features before simplifying, and must ask for taxable income when the user explicitly supplies gross income or salary. It must not invent a calculated amount after tool failure.
 
-Implementation: [`tax_calculation.py`](src/ai_finance_assistant/agents/tax_education/tax_calculation.py), [`calculator_tools.py`](src/ai_finance_assistant/agents/tax_education/calculator_tools.py), and domain instructions in `tax_education/graph.py`. Tests cover the sample, all filing statuses and thresholds, validation, direct RAG/calculation, error repair and resumable clarification.
+Implementation: [`tax_calculation.py`](src/finassist/agents/tax_education/tax_calculation.py), [`calculator_tools.py`](src/finassist/agents/tax_education/calculator_tools.py), and domain instructions in `tax_education/graph.py`. Tests cover the sample, all filing statuses and thresholds, validation, direct RAG/calculation, error repair and resumable clarification.
 
 ### Market quotes and historical data
 
@@ -637,6 +637,143 @@ The existing `calculate_price_growth` tool also accepts an array of symbols; no 
 MCP calls to the same history API run sequentially across assets. Concurrency is used only for independent calls to different APIs: a single-asset historical baseline and current quote can be fetched together. Comparisons use a shared requested window and the latest common start/end observation dates within the 14-day endpoint lookup windows. Comparisons ending today use daily closes on or before yesterday, avoiding mixing live and closing prices. If common dates or an asset's prices are unavailable, no comparison is calculated. Each history request remains capped at 15 records.
 
 The deterministic response includes starting/ending prices, currency when available, absolute price change, percentage growth, direction, and percentage-point deltas relative to the first asset, plus each asset's formula. These are local-currency price returns excluding dividends and FX changes. Direction describes endpoint movement, not volatility or an inferred intra-period trend. Quarter references and differing fiscal calendars require explicit shared from/to dates; company fiscal calendars are not inferred.
+
+## Portfolio Analysis Agent
+
+`PortfolioAnalysisAgent` follows the Goal Planning model-directed tool pattern. The LLM
+selects customer or manager tools, requests additional evidence, and interprets deterministic
+results. It has a six-model-turn budget, a 60-second execution deadline and a recursion limit.
+Clarification uses the existing checkpointed `/query/resume` endpoint without rerouting.
+Successful tool payloads are preserved in `calculation` or `calculations`; multiple comparison
+rankings remain separate. No RAG or external price provider is used by this agent.
+
+`POST /query` accepts optional `customer_id`, `manager_id`, and `user_role`
+(`individual_customer` or `portfolio_manager`). These are requested scope only; simulated runtime identity controls access.
+For example, submit `{"query": "Show my portfolio value and allocation", "customer_id": "C001"}`
+or ask to compare customers with `manager_id: "PM001"`. Runtime identity resolves
+“my portfolio” for customers and “my customers” for managers. Only genuinely missing
+or ambiguous scope is clarified.
+The application owns and closes the in-memory portfolio store through its lifespan.
+
+Profile-alignment interpretation retrieves both metrics and the stored customer profile,
+without changing the profile or issuing an official suitability determination. The agent
+excludes optimization, automatic trading, buy/sell recommendations and agent-to-agent calls.
+Tests use scripted model decisions and real SQLite tools; they do not establish live-model
+accuracy. Run `pytest -q tests/test_portfolio_agent.py tests/test_portfolio_tools.py`.
+
+The existing `portfolio` intent selects `portfolio_analysis_node`; no parallel route is
+introduced. Requests such as "Analyze my portfolio", portfolio allocation/performance,
+manager concentration screening, and "What percentage of my portfolio is Apple?" stay
+in portfolio even without identity context. The agent clarifies customer or manager scope
+through `/query/resume`. Apple quotes remain market requests, ETF definitions remain
+Finance Q&A, and latest Apple news remains News Synthesizer. Routing contract and API
+resume tests are in `tests/test_portfolio_routing.py` and use scripted classification.
+
+## Simulated portfolio authorization
+
+The default demo actor is `PM001` with role `PORTFOLIO_MANAGER`, defined in
+`core/config.py`. Override it in the server environment or `.env` (restart to change it):
+
+```dotenv
+PORTFOLIO_SIMULATED_USER_ID=PM001
+PORTFOLIO_SIMULATED_USER_ROLE=PORTFOLIO_MANAGER
+```
+
+For a customer use `CUST001` (or existing dataset ID `C001`) and role `CUSTOMER`.
+`CUST001`–`CUST025` are aliases for `C001`–`C025`; the seed identifiers remain unchanged.
+Override both fields when switching actors. Without identity, portfolio access is
+denied; other domains remain available. This models a trusted application actor for demo
+purposes, not real authentication. All clients of this server share its configured actor.
+
+`UserContext` is immutable. Application lifespan supplies it through
+`app.state.portfolio_user_context` and the query dependency passes it in LangGraph runtime
+configuration; it is not an LLM tool argument or a request-body identity. Tests may inject
+a context or bind one when constructing `PortfolioAnalysisAgent`/`PortfolioTools`.
+Never accept simulated identity directly from arbitrary client input.
+
+Customers can read only their own portfolio/profile, with no manager operations. Managers
+can read, screen and compare only assigned customers; a comparison containing even one
+unauthorized customer is rejected as a whole. Missing IDs default to the current customer
+or manager where appropriate. Name lookup searches only authorized customers and reports
+ambiguity for clarification. Denials return `ACCESS_DENIED` without portfolio contents or
+internal database details. Resume checks the stored thread identity against the current
+application identity. Request `customer_id`, `manager_id` and `user_role` cannot grant access.
+
+Run `pytest -q tests/test_portfolio_authorization.py` for access, defaults, ambiguity,
+identity spoofing and resume-ownership checks. No OAuth, JWT, passwords or login UI is added.
+
+Portfolio MVP acceptance coverage in `tests/test_portfolio_mvp_e2e.py` exercises the HTTP
+API, existing router, agent and actual authorized SQLite/calculation tools together.
+It pins portfolio totals, holding/sector/asset-class allocations, gains and losses,
+concentration flags, manager rankings and unchanged stored profiles. A simple valuation
+uses one retrieval tool and finishes; multiple manager rankings preserve each result.
+Name lookup alone cannot support an answered financial analysis.
+
+The portfolio feature uses exactly two identity roles, one deterministic in-memory dataset
+(5 managers, 25 customers), and fixed historical reference prices. It adds no RAG, PostgreSQL,
+external market-data dependency, agent-to-agent calls or trading/optimization capabilities.
+The existing education agents retain their own RAG dependencies. Model decisions and
+narratives are mocked in automated acceptance tests: numerical payloads and authorization
+are verified, but live model tool selection, narrative accuracy and compliance with the
+instruction not to recalculate are not established by these tests.
+
+## Synthetic portfolio MVP data layer
+
+`agents.portfolio_analysis.PortfolioStore` owns a seeded SQLite `:memory:` database.
+The portfolio router uses a model-directed agent backed by this store.
+Use `with PortfolioStore() as store:` to close the connection automatically. Construct
+and use a store on the same thread. Each instance starts with identical data and loses
+its data when closed; it does not share the persistent clarification checkpoint database.
+
+The four tables are `portfolio_managers`, `customers`, `portfolio_holdings`, and
+`market_prices`. They contain 5 managers (`PM001`–`PM005`), 25 customers
+(`C001`–`C025`), and 5–8 holdings per customer. Every manager has five deliberately
+contrasting portfolios: diversified moderate, single-stock concentrated, technology
+concentrated, conservative bond-heavy, and diversified aggressive equity. Costs produce
+substantial gains, losses, and mixed winners/losers. Quantity scales by manager number
+to provide different portfolio sizes without random initialization.
+
+Names, emails, portfolios and costs are **synthetic test data**. Prices are frozen USD
+closing reference quotes for `2026-10-09`, collected once from Yahoo Finance and Stock
+Analysis. They are embedded fixtures, not live quotes; there is no runtime price provider.
+Each symbol's close and source URL are recorded in
+[`portfolio_price_snapshot_2026-10-09.json`](src/finassist/data/portfolio/price_snapshot_2026-10-09.json).
+Fictional quantities and average costs are deterministically rescaled to those closes
+(to eight decimal places) to preserve the designed allocations and gains/losses. Stored risk profiles are pre-established fixtures dated `2025-12-01`; the
+store exposes retrieval only and sets SQLite to read-only after seeding.
+
+Retrieval methods: `get_managers()`, `get_customers(manager_id=None)`,
+`get_customer(customer_id)`, `get_holdings(customer_id)`, and
+`get_market_prices(symbols=None)`. Results have stable ordering. Missing identifiers
+return `None` for a single customer or an empty list for collection lookups. The store's
+`data_source` is `synthetic_test_data`. Authorization is enforced by portfolio tools using simulated application identity; no login is implemented.
+
+Run focused checks with `pytest -q tests/test_portfolio_store.py`.
+
+`PortfolioTools(store, thresholds=None, user_context=None)` provides five async LangChain tools through
+`as_tools()`: `get_customer_portfolio` (combined retrieval, allocation, performance,
+and concentration), `get_customer_investment_profile`, `screen_manager_portfolios`,
+`compare_manager_portfolios`, and authorized name lookup `resolve_portfolio_customer`.
+The async wrappers preserve SQLite's same-thread
+contract when executed by LangGraph. The underlying methods are also callable directly.
+
+Configure concentration in `ConcentrationThresholds` in `portfolio_analysis/tools.py`:
+defaults flag a holding strictly above 30% or a sector strictly above 50%. Calculations
+use decimal arithmetic before display rounding. Invalid cost basis leaves affected
+gain metrics unavailable; missing valuation data prevents partial portfolio totals.
+Performance means unrealized gain/loss at the synthetic snapshot, not historical returns.
+Gainers and losers rank by monetary gain/loss. Sector labels are instrument-level groups,
+including broad-market and fixed-income groups, without ETF constituent look-through.
+
+Manager comparison accepts an optional customer subset and ranks by holding-weight HHI
+(descending concentration or ascending diversification) or net monetary unrealized gain/loss
+(ascending, largest losses first). Diversification also reports holding, sector and
+asset-class counts and effective holding count (`1 / HHI`); these are descriptive metrics,
+not a risk score. Screening selects all portfolios, concentrated portfolios, or portfolios
+with net unrealized losses. Unusable portfolios are explicitly returned in
+`excluded_portfolios`. No tool modifies the stored investment profile or invokes another
+agent. Run tool tests with `pytest -q tests/test_portfolio_tools.py`.
+
 
 ## Example queries
 
@@ -795,13 +932,15 @@ curl -X POST http://127.0.0.1:8000/query/resume \
 
 ## Configuration
 
-Application settings load from `.env` and environment variables through [`core/config.py`](src/ai_finance_assistant/core/config.py).
+Application settings load from `.env` and environment variables through [`core/config.py`](src/finassist/core/config.py).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `OPENAI_API_KEY` | Unset | Required provider credential. |
 | `ROUTER_TIMEOUT_SECONDS` | `10.0` | Total async classification deadline, including at most one provider retry and structured validation; expiration returns HTTP 504. |
-| `OPENAI_MODEL` | `gpt-4o-mini` | Parent classifier and autonomous tax model. |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Parent classifier and tax, market, goal-planning, news, and portfolio models. |
+| `PORTFOLIO_SIMULATED_USER_ID` | `PM001` | Server-configured demo actor; restart after changing. |
+| `PORTFOLIO_SIMULATED_USER_ROLE` | `PORTFOLIO_MANAGER` | Exactly `PORTFOLIO_MANAGER` or `CUSTOMER`; request scope cannot override identity. |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | Dense embeddings for both domains. |
 | `INTENT_ROUTER_SYSTEM_PROMPT` | Built-in eight-intent prompt | Optional routing override. |
 | `FINANCE_QUERY_ANALYSIS_MODEL` | `gpt-4o-mini` | Finance tool-calling model used for reasoning and structured completion. |
@@ -822,7 +961,7 @@ Application settings load from `.env` and environment variables through [`core/c
 | `MARKET_AGENT_TIMEOUT_SECONDS` | `30` | Complete market request timeout. |
 | `QUOTE_CACHE_TTL_SECONDS` | `86400` | Quote cache lifetime. |
 
-Finance retrieval settings come from [`FinanceAgentSettings`](src/ai_finance_assistant/agents/finance_qa/config.py). These tuning variables must be **exported into the process environment**; that settings class does not load `.env` itself.
+Finance retrieval settings come from [`FinanceAgentSettings`](src/finassist/agents/finance_qa/config.py). These tuning variables must be **exported into the process environment**; that settings class does not load `.env` itself.
 
 | Variable | Default |
 | --- | --- |
@@ -856,7 +995,7 @@ Example:
 export FINANCE_DENSE_TOP_K=5
 export FINANCE_AGENT_MAX_SEARCHES=4
 export TAX_AGENT_MAX_SEARCHES=4
-.venv/bin/python -m uvicorn ai_finance_assistant.main:app --reload
+.venv/bin/python -m uvicorn finassist.main:app --reload
 ```
 
 `QDRANT_COLLECTION` is a generic setting and does not select either active domain collection. The API passes the same configured Qdrant client to both domains. Standalone tax helpers without an injected client use local storage.
@@ -901,11 +1040,12 @@ To refresh Finance QA after changing sources or embedding settings, stop the API
 | `.cache/finance_agent_checkpoints.sqlite` | Async workflow checkpoints, including clarification state |
 | `.cache/twelvedata-mcp` | Local Twelve Data MCP server and isolated environment |
 | `.env` | Local credentials and application configuration |
+| Portfolio SQLite `:memory:` | Seeded once at application startup; read-only afterward, discarded at shutdown and deterministically recreated on restart |
 
 For a stable local run, omit `--reload` and use one worker:
 
 ```bash
-.venv/bin/python -m uvicorn ai_finance_assistant.main:app --host 127.0.0.1 --port 8000
+.venv/bin/python -m uvicorn finassist.main:app --host 127.0.0.1 --port 8000
 ```
 
 Server-mode Qdrant is configurable, but multiworker operation, checkpoint coordination, and quote-cache writes have not been validated as a deployment setup. `/health` is a lightweight liveness endpoint, not a readiness check for retrieval, SQLite, or providers.
@@ -921,7 +1061,7 @@ Server-mode Qdrant is configurable, but multiworker operation, checkpoint coordi
 | Quote remains unchanged | Check the 24-hour cache TTL. |
 | Finance returns `insufficient` | Check collection point count, indexed source version, and evidence coverage; a matching passage may not cover the full question. |
 
-OpenAI receives queries and retrieved context, and receives corpus chunks during dense indexing. FastEmbed computes BM25 sparse vectors locally; Qdrant ranks sparse matches. Cross-encoder scoring runs locally. Alpha Vantage receives requested symbols on cache misses. Checkpoints persist workflow state, including user query and retrieved content; retention and cleanup are not implemented. Keep credentials in the ignored `.env` or environment and exclude private financial records from the corpus.
+OpenAI receives queries and retrieved context, and receives corpus chunks during dense indexing. FastEmbed computes BM25 sparse vectors locally; Qdrant ranks sparse matches. Cross-encoder scoring runs locally. Twelve Data receives market-data requests through MCP; Tavily receives news-search requests. Portfolio tools use local fixed data without external requests. Checkpoints persist workflow state, including user query and retrieved content; retention and cleanup are not implemented. Keep credentials in the ignored `.env` or environment and exclude private financial records from the corpus.
 
 ## Repository guide
 
@@ -933,7 +1073,7 @@ and the assets are included in built wheels.
 
 ```text
 ai-finance-assistant/
-├── src/ai_finance_assistant/
+├── src/finassist/
 │   ├── agents/          # Domain agents and shared agent runtime
 │   ├── api/             # FastAPI query, resume and health endpoints
 │   ├── core/            # Typed settings and logging
@@ -962,38 +1102,43 @@ in this restructuring. Dependencies remain authoritative in `pyproject.toml`, an
 configuration stays in typed settings plus environment variables. Shared helpers
 stay with their owning domains instead of introducing a generic `utils/` folder.
 
-Imports formerly under `ai_finance_assistant.graph` now use
-`ai_finance_assistant.workflow`. Portfolio storage is now
-`ai_finance_assistant.data.portfolio_store`. Existing populated Qdrant collections
+The Python import package is `finassist`; the distribution name remains
+`ai-finance-assistant`. Start the API with `python -m uvicorn finassist.main:app`.
+Generated `src/ai_finance_assistant.egg-info/` is packaging metadata, not source;
+do not edit it manually. Parent routing uses `finassist.workflow`, and portfolio
+storage uses `finassist.data.portfolio_store`. Existing populated Qdrant collections
 are not rebuilt by this change; they can retain old source-path metadata until an
 explicit reindex. New ingestion uses the relocated corpus paths.
 
 | Module | Responsibility |
 | --- | --- |
-| [`main.py`](src/ai_finance_assistant/main.py) | FastAPI app and async checkpoint lifespan. |
-| [`api/query.py`](src/ai_finance_assistant/api/query.py) | Query/resume contracts and dependency wiring. |
-| [`workflow/builder.py`](src/ai_finance_assistant/workflow/builder.py) | Initial routing and domain graphs; each agent completion ends the request. |
-| [`data/paths.py`](src/ai_finance_assistant/data/paths.py) | Package-relative corpus and portfolio reference paths. |
-| [`data/portfolio_store.py`](src/ai_finance_assistant/data/portfolio_store.py) | Deterministic in-memory SQLite portfolio dataset and retrieval. |
-| [`agents/common/runtime.py`](src/ai_finance_assistant/agents/common/runtime.py) | Autonomous agent creation, budgets, clarification artifacts, API adapter, and output checks. |
-| [`agents/common/schemas.py`](src/ai_finance_assistant/agents/common/schemas.py) | Shared result, evidence, state, and domain intent contracts. |
-| [`agents/common/rag_tools.py`](src/ai_finance_assistant/agents/common/rag_tools.py) | Shared reranking/result packaging and domain citation formatting. |
-| [`agents/finance_qa/graph.py`](src/ai_finance_assistant/agents/finance_qa/graph.py) | Finance prompt and domain policy. |
-| [`agents/finance_qa/tools.py`](src/ai_finance_assistant/agents/finance_qa/tools.py) | Complete finance RAG tool. |
-| [`agents/finance_qa/corpus_index.py`](src/ai_finance_assistant/agents/finance_qa/corpus_index.py) | Complete nonempty-page ingestion and citation metadata. |
-| [`agents/finance_qa/retrieval.py`](src/ai_finance_assistant/agents/finance_qa/retrieval.py) | Finance index creation/reuse/empty recovery and hybrid retrieval. |
-| [`agents/finance_qa/reranker.py`](src/ai_finance_assistant/agents/finance_qa/reranker.py) | Local cross-encoder implementation reused by both domains. |
-| [`agents/tax_education/graph.py`](src/ai_finance_assistant/agents/tax_education/graph.py) | Tax prompt, search-context binding, and clarification policy. |
-| [`agents/tax_education/tools.py`](src/ai_finance_assistant/agents/tax_education/tools.py) | Complete tax RAG tool with year validation. |
-| [`rag/tax_education.py`](src/ai_finance_assistant/rag/tax_education.py) | Tax corpus loading, metadata extraction, and retriever adapter. |
-| [`rag/retriever.py`](src/ai_finance_assistant/rag/retriever.py) | Shared dense/BM25 prefetch and Qdrant RRF search. |
-| [`rag/qdrant.py`](src/ai_finance_assistant/rag/qdrant.py) | Shared embedded/server Qdrant client. |
-| [`agents/market_analysis/agent.py`](src/ai_finance_assistant/agents/market_analysis/agent.py) | Twelve Data MCP market agent. |
-| [`agents/goal_planning/agent.py`](src/ai_finance_assistant/agents/goal_planning/agent.py) | Goal tool selection, clarification, sufficiency checks, and three-turn hard stop. |
-| [`agents/goal_planning/tools.py`](src/ai_finance_assistant/agents/goal_planning/tools.py) | Four deterministic savings-goal calculators. |
-| [`agents/news_synthesizer/agent.py`](src/ai_finance_assistant/agents/news_synthesizer/agent.py) | News acquisition graph, semantic assessment, synthesis, and citation validation. |
-| [`agents/news_synthesizer/tools.py`](src/ai_finance_assistant/agents/news_synthesizer/tools.py) | Timeframe-aware Tavily search and stable evidence IDs. |
-| [`agents/news_synthesizer/schemas.py`](src/ai_finance_assistant/agents/news_synthesizer/schemas.py) | Structured news evidence, claims, and coverage assessments. |
+| [`main.py`](src/finassist/main.py) | FastAPI app and async checkpoint lifespan. |
+| [`api/query.py`](src/finassist/api/query.py) | Query/resume contracts and dependency wiring. |
+| [`workflow/builder.py`](src/finassist/workflow/builder.py) | Initial routing and domain graphs; each agent completion ends the request. |
+| [`data/paths.py`](src/finassist/data/paths.py) | Package-relative corpus and portfolio reference paths. |
+| [`data/portfolio_store.py`](src/finassist/data/portfolio_store.py) | Deterministic in-memory SQLite portfolio dataset and retrieval. |
+| [`agents/portfolio_analysis/agent.py`](src/finassist/agents/portfolio_analysis/agent.py) | Model-directed analysis, clarification, budgets, and result validation. |
+| [`agents/portfolio_analysis/tools.py`](src/finassist/agents/portfolio_analysis/tools.py) | Authorized retrieval, deterministic calculations, screening, comparisons, and scoped name lookup. |
+| [`agents/portfolio_analysis/authorization.py`](src/finassist/agents/portfolio_analysis/authorization.py) | Immutable simulated identity and application-level denial responses. |
+| [`agents/common/runtime.py`](src/finassist/agents/common/runtime.py) | Autonomous agent creation, budgets, clarification artifacts, API adapter, and output checks. |
+| [`agents/common/schemas.py`](src/finassist/agents/common/schemas.py) | Shared result, evidence, state, and domain intent contracts. |
+| [`agents/common/rag_tools.py`](src/finassist/agents/common/rag_tools.py) | Shared reranking/result packaging and domain citation formatting. |
+| [`agents/finance_qa/graph.py`](src/finassist/agents/finance_qa/graph.py) | Finance prompt and domain policy. |
+| [`agents/finance_qa/tools.py`](src/finassist/agents/finance_qa/tools.py) | Complete finance RAG tool. |
+| [`agents/finance_qa/corpus_index.py`](src/finassist/agents/finance_qa/corpus_index.py) | Complete nonempty-page ingestion and citation metadata. |
+| [`agents/finance_qa/retrieval.py`](src/finassist/agents/finance_qa/retrieval.py) | Finance index creation/reuse/empty recovery and hybrid retrieval. |
+| [`agents/finance_qa/reranker.py`](src/finassist/agents/finance_qa/reranker.py) | Local cross-encoder implementation reused by both domains. |
+| [`agents/tax_education/graph.py`](src/finassist/agents/tax_education/graph.py) | Tax prompt, search-context binding, and clarification policy. |
+| [`agents/tax_education/tools.py`](src/finassist/agents/tax_education/tools.py) | Complete tax RAG tool with year validation. |
+| [`rag/tax_education.py`](src/finassist/rag/tax_education.py) | Tax corpus loading, metadata extraction, and retriever adapter. |
+| [`rag/retriever.py`](src/finassist/rag/retriever.py) | Shared dense/BM25 prefetch and Qdrant RRF search. |
+| [`rag/qdrant.py`](src/finassist/rag/qdrant.py) | Shared embedded/server Qdrant client. |
+| [`agents/market_analysis/agent.py`](src/finassist/agents/market_analysis/agent.py) | Twelve Data MCP market agent. |
+| [`agents/goal_planning/agent.py`](src/finassist/agents/goal_planning/agent.py) | Goal tool selection, clarification, sufficiency checks, and three-turn hard stop. |
+| [`agents/goal_planning/tools.py`](src/finassist/agents/goal_planning/tools.py) | Four deterministic savings-goal calculators. |
+| [`agents/news_synthesizer/agent.py`](src/finassist/agents/news_synthesizer/agent.py) | News acquisition graph, semantic assessment, synthesis, and citation validation. |
+| [`agents/news_synthesizer/tools.py`](src/finassist/agents/news_synthesizer/tools.py) | Timeframe-aware Tavily search and stable evidence IDs. |
+| [`agents/news_synthesizer/schemas.py`](src/finassist/agents/news_synthesizer/schemas.py) | Structured news evidence, claims, and coverage assessments. |
 
 Finance/tax evaluator modules and the finance query analyzer remain for legacy/shared helper paths and tests. They are not separate decision nodes in either active autonomous agent. Direct tax retriever calls without a prepared plan can still invoke its analyzer fallback; the tax RAG tool supplies its plan explicitly.
 
@@ -1007,69 +1152,12 @@ pytest -q
 ruff check .
 ruff format --check .
 mypy src
-pytest --cov=ai_finance_assistant --cov-report=term-missing
+pytest --cov=finassist --cov-report=term-missing
 ```
 
 Tests cover model-selected search plans, search budgets, evidence-presence guards, citation filtering, tax-year preservation, mismatched-year rejection, clarification/resume, scope-change termination without invoking another domain, and repeated-filing-status prevention. Tool tests cover standalone retrieval-to-reranking order, selected-evidence citations, and controlled reranking failures. Retrieval/index tests cover RRF construction, schema compatibility, collection reuse, and empty-collection recovery. Async checkpoint tests verify persistence across connection restarts.
 
-Most tests use mocked models and embeddings; passing tests does not establish factual answer accuracy or corpus coverage. Selected live finance and tax requests have been checked, including compound interest and bracket clarification/resume. The ten examples above are usage examples, not a claim that every query has been evaluated live. Coverage has a configured 80% minimum.
-
-## Synthetic portfolio MVP data layer
-
-`agents.portfolio_analysis.PortfolioStore` owns a seeded SQLite `:memory:` database.
-The portfolio router uses a model-directed agent backed by this store.
-Use `with PortfolioStore() as store:` to close the connection automatically. Construct
-and use a store on the same thread. Each instance starts with identical data and loses
-its data when closed; it does not share the persistent clarification checkpoint database.
-
-The four tables are `portfolio_managers`, `customers`, `portfolio_holdings`, and
-`market_prices`. They contain 5 managers (`PM001`–`PM005`), 25 customers
-(`C001`–`C025`), and 5–8 holdings per customer. Every manager has five deliberately
-contrasting portfolios: diversified moderate, single-stock concentrated, technology
-concentrated, conservative bond-heavy, and diversified aggressive equity. Costs produce
-substantial gains, losses, and mixed winners/losers. Quantity scales by manager number
-to provide different portfolio sizes without random initialization.
-
-Names, emails, portfolios and costs are **synthetic test data**. Prices are frozen USD
-closing reference quotes for `2026-10-09`, collected once from Yahoo Finance and Stock
-Analysis. They are embedded fixtures, not live quotes; there is no runtime price provider.
-Each symbol's close and source URL are recorded in
-[`portfolio_price_snapshot_2026-10-09.json`](src/ai_finance_assistant/data/portfolio/price_snapshot_2026-10-09.json).
-Fictional quantities and average costs are deterministically rescaled to those closes
-(to eight decimal places) to preserve the designed allocations and gains/losses. Stored risk profiles are pre-established fixtures dated `2025-12-01`; the
-store exposes retrieval only and sets SQLite to read-only after seeding.
-
-Retrieval methods: `get_managers()`, `get_customers(manager_id=None)`,
-`get_customer(customer_id)`, `get_holdings(customer_id)`, and
-`get_market_prices(symbols=None)`. Results have stable ordering. Missing identifiers
-return `None` for a single customer or an empty list for collection lookups. The store's
-`data_source` is `synthetic_test_data`. Authorization is enforced by portfolio tools using simulated application identity; no login is implemented.
-
-Run focused checks with `pytest -q tests/test_portfolio_store.py`.
-
-`PortfolioTools(store, thresholds=None, user_context=None)` provides five async LangChain tools through
-`as_tools()`: `get_customer_portfolio` (combined retrieval, allocation, performance,
-and concentration), `get_customer_investment_profile`, `screen_manager_portfolios`,
-`compare_manager_portfolios`, and authorized name lookup `resolve_portfolio_customer`.
-The async wrappers preserve SQLite's same-thread
-contract when executed by LangGraph. The underlying methods are also callable directly.
-
-Configure concentration in `ConcentrationThresholds` in `portfolio_analysis/tools.py`:
-defaults flag a holding strictly above 30% or a sector strictly above 50%. Calculations
-use decimal arithmetic before display rounding. Invalid cost basis leaves affected
-gain metrics unavailable; missing valuation data prevents partial portfolio totals.
-Performance means unrealized gain/loss at the synthetic snapshot, not historical returns.
-Gainers and losers rank by monetary gain/loss. Sector labels are instrument-level groups,
-including broad-market and fixed-income groups, without ETF constituent look-through.
-
-Manager comparison accepts an optional customer subset and ranks by holding-weight HHI
-(descending concentration or ascending diversification) or net monetary unrealized gain/loss
-(ascending, largest losses first). Diversification also reports holding, sector and
-asset-class counts and effective holding count (`1 / HHI`); these are descriptive metrics,
-not a risk score. Screening selects all portfolios, concentrated portfolios, or portfolios
-with net unrealized losses. Unusable portfolios are explicitly returned in
-`excluded_portfolios`. No tool modifies the stored investment profile or invokes another
-agent. Run tool tests with `pytest -q tests/test_portfolio_tools.py`.
+Most tests use mocked models and embeddings; passing tests does not establish factual answer accuracy or corpus coverage. Selected live finance and tax requests have been checked, including compound interest and bracket clarification/resume. The query tables above are usage examples, not a claim that every query has been evaluated live. Coverage has a configured 80% minimum.
 
 ## Current limitations and next steps
 
@@ -1089,80 +1177,3 @@ Use the [issue tracker](https://github.com/vinodkandibilla/ai-finance-assistant/
 ## License
 
 This repository currently has no license file. Reuse and redistribution terms have not been specified.
-
-## Portfolio Analysis Agent
-
-`PortfolioAnalysisAgent` follows the Goal Planning model-directed tool pattern. The LLM
-selects customer or manager tools, requests additional evidence, and interprets deterministic
-results. It has a six-model-turn budget, a 60-second execution deadline and a recursion limit.
-Clarification uses the existing checkpointed `/query/resume` endpoint without rerouting.
-Successful tool payloads are preserved in `calculation` or `calculations`; multiple comparison
-rankings remain separate. No RAG or external price provider is used by this agent.
-
-`POST /query` accepts optional `customer_id`, `manager_id`, and `user_role`
-(`individual_customer` or `portfolio_manager`). These are requested scope only; simulated runtime identity controls access.
-For example, submit `{"query": "Show my portfolio value and allocation", "customer_id": "C001"}`
-or ask to compare customers with `manager_id: "PM001"`. Missing identifiers are clarified.
-The application owns and closes the in-memory portfolio store through its lifespan.
-
-Profile-alignment interpretation retrieves both metrics and the stored customer profile,
-without changing the profile or issuing an official suitability determination. The agent
-excludes optimization, automatic trading, buy/sell recommendations and agent-to-agent calls.
-Tests use scripted model decisions and real SQLite tools; they do not establish live-model
-accuracy. Run `pytest -q tests/test_portfolio_agent.py tests/test_portfolio_tools.py`.
-
-The existing `portfolio` intent selects `portfolio_analysis_node`; no parallel route is
-introduced. Requests such as "Analyze my portfolio", portfolio allocation/performance,
-manager concentration screening, and "What percentage of my portfolio is Apple?" stay
-in portfolio even without identity context. The agent clarifies customer or manager scope
-through `/query/resume`. Apple quotes remain market requests, ETF definitions remain
-Finance Q&A, and latest Apple news remains News Synthesizer. Routing contract and API
-resume tests are in `tests/test_portfolio_routing.py` and use scripted classification.
-
-## Simulated portfolio authorization
-
-The default demo actor is `PM001` with role `PORTFOLIO_MANAGER`, defined in
-`core/config.py`. Override it in the server environment or `.env` (restart to change it):
-
-```dotenv
-PORTFOLIO_SIMULATED_USER_ID=PM001
-PORTFOLIO_SIMULATED_USER_ROLE=PORTFOLIO_MANAGER
-```
-
-For a customer use `CUST001` (or existing dataset ID `C001`) and role `CUSTOMER`.
-`CUST001`–`CUST025` are aliases for `C001`–`C025`; the seed identifiers remain unchanged.
-Override both fields when switching actors. Without identity, portfolio access is
-denied; other domains remain available. This models a trusted application actor for demo
-purposes, not real authentication. All clients of this server share its configured actor.
-
-`UserContext` is immutable. Application lifespan supplies it through
-`app.state.portfolio_user_context` and the query dependency passes it in LangGraph runtime
-configuration; it is not an LLM tool argument or a request-body identity. Tests may inject
-a context or bind one when constructing `PortfolioAnalysisAgent`/`PortfolioTools`.
-Never accept simulated identity directly from arbitrary client input.
-
-Customers can read only their own portfolio/profile, with no manager operations. Managers
-can read, screen and compare only assigned customers; a comparison containing even one
-unauthorized customer is rejected as a whole. Missing IDs default to the current customer
-or manager where appropriate. Name lookup searches only authorized customers and reports
-ambiguity for clarification. Denials return `ACCESS_DENIED` without portfolio contents or
-internal database details. Resume checks the stored thread identity against the current
-application identity. Request `customer_id`, `manager_id` and `user_role` cannot grant access.
-
-Run `pytest -q tests/test_portfolio_authorization.py` for access, defaults, ambiguity,
-identity spoofing and resume-ownership checks. No OAuth, JWT, passwords or login UI is added.
-
-Portfolio MVP acceptance coverage in `tests/test_portfolio_mvp_e2e.py` exercises the HTTP
-API, existing router, agent and actual authorized SQLite/calculation tools together.
-It pins portfolio totals, holding/sector/asset-class allocations, gains and losses,
-concentration flags, manager rankings and unchanged stored profiles. A simple valuation
-uses one retrieval tool and finishes; multiple manager rankings preserve each result.
-Name lookup alone cannot support an answered financial analysis.
-
-The portfolio feature uses exactly two identity roles, one deterministic in-memory dataset
-(5 managers, 25 customers), and fixed historical reference prices. It adds no RAG, PostgreSQL,
-external market-data dependency, agent-to-agent calls or trading/optimization capabilities.
-The existing education agents retain their own RAG dependencies. Model decisions and
-narratives are mocked in automated acceptance tests: numerical payloads and authorization
-are verified, but live model tool selection, narrative accuracy and compliance with the
-instruction not to recalculate are not established by these tests.

@@ -6,11 +6,11 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 from pydantic import Field
 
-from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
-from ai_finance_assistant.agents.finance_qa.graph import FinanceQaAgent
-from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
-from ai_finance_assistant.agents.finance_qa.schemas import FinanceAgentResult, FinanceDocument
-from ai_finance_assistant.workflow.builder import build_graph
+from finassist.agents.finance_qa.config import FinanceAgentSettings
+from finassist.agents.finance_qa.graph import FinanceQaAgent
+from finassist.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
+from finassist.agents.finance_qa.schemas import FinanceAgentResult, FinanceDocument
+from finassist.workflow.builder import build_graph
 
 
 class ScriptedModel(BaseChatModel):

@@ -1,6 +1,6 @@
 from langgraph.types import Command
 
-from ai_finance_assistant.agents.finance_qa.calculator_tools import create_calculation_tools
+from finassist.agents.finance_qa.calculator_tools import create_calculation_tools
 from test_calculation_agent import INPUTS, clarification, graph, model
 from test_finance_autonomous_agent import call
 

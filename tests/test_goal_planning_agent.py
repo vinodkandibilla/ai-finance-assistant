@@ -6,8 +6,8 @@ from langchain_core.runnables import RunnableLambda
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from ai_finance_assistant.agents.goal_planning import GoalPlanningAgent
-from ai_finance_assistant.agents.goal_planning.agent import GoalPlanningResult
+from finassist.agents.goal_planning import GoalPlanningAgent
+from finassist.agents.goal_planning.agent import GoalPlanningResult
 from test_finance_autonomous_agent import ScriptedModel, call
 
 

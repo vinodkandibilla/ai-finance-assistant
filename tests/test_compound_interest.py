@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from ai_finance_assistant.agents.finance_qa.compound_interest import calculate
+from finassist.agents.finance_qa.compound_interest import calculate
 
 BASE = {"principal": "10000", "annual_rate": "6", "rate_units": "percent", "duration_years": "5"}
 

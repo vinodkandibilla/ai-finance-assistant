@@ -1,9 +1,9 @@
 import pytest
 
-from ai_finance_assistant.agents.finance_qa.schemas import ContextEvaluation as FinanceEvaluation
-from ai_finance_assistant.agents.tax_education.evaluator import TaxContextEvaluator
-from ai_finance_assistant.rag.evaluation import ContextEvaluation
-from ai_finance_assistant.rag.models import RetrievedDocument
+from finassist.agents.finance_qa.schemas import ContextEvaluation as FinanceEvaluation
+from finassist.agents.tax_education.evaluator import TaxContextEvaluator
+from finassist.rag.evaluation import ContextEvaluation
+from finassist.rag.models import RetrievedDocument
 
 
 class FakeLLM:

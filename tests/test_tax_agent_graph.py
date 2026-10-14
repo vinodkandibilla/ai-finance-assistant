@@ -2,11 +2,11 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from ai_finance_assistant.agents.tax_education.config import TaxAgentSettings
-from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
-from ai_finance_assistant.agents.tax_education.schemas import TaxAgentResult
-from ai_finance_assistant.rag.models import RetrievedDocument
-from ai_finance_assistant.workflow.builder import build_graph
+from finassist.agents.tax_education.config import TaxAgentSettings
+from finassist.agents.tax_education.graph import TaxEducationAgent
+from finassist.agents.tax_education.schemas import TaxAgentResult
+from finassist.rag.models import RetrievedDocument
+from finassist.workflow.builder import build_graph
 from test_finance_autonomous_agent import ScriptedModel, call
 
 

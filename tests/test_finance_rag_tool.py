@@ -1,8 +1,8 @@
 import pytest
 
-from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
-from ai_finance_assistant.agents.finance_qa.schemas import FinanceDocument
-from ai_finance_assistant.agents.finance_qa.tools import create_finance_rag_query_tool
+from finassist.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
+from finassist.agents.finance_qa.schemas import FinanceDocument
+from finassist.agents.finance_qa.tools import create_finance_rag_query_tool
 
 
 class Reranker:
