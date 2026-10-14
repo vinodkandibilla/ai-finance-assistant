@@ -12,7 +12,7 @@ from typing import Any
 from mcp import ClientSession
 
 from ai_finance_assistant.agents.market_analysis.cache import market_cache
-from ai_finance_assistant.graph.state import FinanceAssistantState
+from ai_finance_assistant.workflow.state import FinanceAssistantState
 
 MAX_COMPARISON_ASSETS = 4
 RATE_LIMIT_RESPONSE = (

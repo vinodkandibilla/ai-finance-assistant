@@ -8,7 +8,8 @@ from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 
-from ai_finance_assistant.agents.finance_qa.config import FINANCE_PDF_PATH, FinanceAgentSettings
+from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
+from ai_finance_assistant.data.paths import FINANCE_PDF_PATH
 
 
 def load_finance_corpus(

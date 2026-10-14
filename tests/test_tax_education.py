@@ -3,14 +3,14 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
+from ai_finance_assistant.agents.finance_qa.schemas import QueryAnalysis
+from ai_finance_assistant.rag.models import RetrievedDocument
 from ai_finance_assistant.rag.tax_education import (
     TaxHybridRetriever,
     build_tax_metadata_filter,
     extract_tax_metadata,
     load_tax_documents,
 )
-from ai_finance_assistant.rag.models import RetrievedDocument
-from ai_finance_assistant.agents.finance_qa.schemas import QueryAnalysis
 
 
 def test_load_tax_documents_creates_langchain_documents(tmp_path) -> None:

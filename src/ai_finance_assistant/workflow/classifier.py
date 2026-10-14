@@ -10,7 +10,7 @@ from openai import APIError, APITimeoutError
 from pydantic import BaseModel, ValidationError
 
 from ai_finance_assistant.core.config import Settings, get_settings
-from ai_finance_assistant.graph.state import FinanceIntent
+from ai_finance_assistant.workflow.state import FinanceIntent
 
 logger = logging.getLogger(__name__)
 

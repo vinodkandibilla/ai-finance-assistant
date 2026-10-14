@@ -18,7 +18,7 @@ RISK_PROFILE_LAST_UPDATED = "2025-12-01"
 DATA_SOURCE = "synthetic_test_data"
 
 # symbol, asset type, sector, frozen October 9 close in USD.
-# Source URLs and observed reference values: resources/portfolio_price_snapshot_2026-10-09.json
+# Source URLs and observed reference values: data/portfolio/price_snapshot_2026-10-09.json
 INSTRUMENTS = (
     ("AAPL", "stock", "Technology", 336.64),
     ("MSFT", "stock", "Technology", 535.07),

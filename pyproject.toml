@@ -43,6 +43,15 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+ai_finance_assistant = [
+    "data/corpora/finance_qa/*.pdf",
+    "data/corpora/finance_qa/*.docx",
+    "data/corpora/tax_education/*.pdf",
+    "data/corpora/tax_education/*.jsonl",
+    "data/portfolio/*.json",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-config --strict-markers"

@@ -15,7 +15,7 @@ from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMet
 from ai_finance_assistant.agents.finance_qa.schemas import FinanceAgentResult
 from ai_finance_assistant.agents.tax_education.config import TaxAgentSettings
 from ai_finance_assistant.agents.tax_education.schemas import TaxAgentResult
-from ai_finance_assistant.graph.builder import build_graph
+from ai_finance_assistant.workflow.builder import build_graph
 from test_finance_autonomous_agent import Classifier, Reranker, Retriever, ScriptedModel, call
 from test_tax_agent_graph import Classifier as TaxClassifier
 from test_tax_agent_graph import make_agent

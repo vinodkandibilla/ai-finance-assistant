@@ -12,8 +12,8 @@ from ai_finance_assistant.agents.news_synthesizer import NewsSynthesizerAgent
 from ai_finance_assistant.agents.portfolio_analysis.agent import PortfolioAnalysisAgent
 from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
-from ai_finance_assistant.graph.classifier import IntentClassifier
-from ai_finance_assistant.graph.state import FinanceAssistantState
+from ai_finance_assistant.workflow.classifier import IntentClassifier
+from ai_finance_assistant.workflow.state import FinanceAssistantState
 
 type FinanceAssistantGraph = CompiledStateGraph[
     FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from ai_finance_assistant.agents.finance_qa.config import FINANCE_PDF_PATH
+from ai_finance_assistant.data.paths import FINANCE_PDF_PATH
 from ai_finance_assistant.main import create_app
 
 

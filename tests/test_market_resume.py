@@ -3,8 +3,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
 from ai_finance_assistant.api.query import get_query_graph
-from ai_finance_assistant.graph.builder import build_graph
 from ai_finance_assistant.main import create_app
+from ai_finance_assistant.workflow.builder import build_graph
 
 
 class Classifier:

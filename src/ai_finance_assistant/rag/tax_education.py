@@ -13,14 +13,16 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import FieldCondition, Filter, MatchAny, MatchValue
 
 from ai_finance_assistant.agents.tax_education.query_analyzer import TaxQueryAnalyzer
+from ai_finance_assistant.data.paths import TAX_CORPUS_PATH
 from ai_finance_assistant.rag.hybrid import (
     build_hybrid_vector_store as _build_hybrid_vector_store,
+)
+from ai_finance_assistant.rag.hybrid import (
     get_hybrid_retriever,
 )
 from ai_finance_assistant.rag.models import RetrievedDocument
 from ai_finance_assistant.rag.retriever import QdrantHybridRetriever
 
-TAX_CORPUS_PATH = Path(__file__).resolve().parent / "tax-education" / "irs_tax_2026_rag_corpus_expanded.jsonl"
 TAX_METADATA_FIELDS = (
     "tax_year",
     "filing_year",

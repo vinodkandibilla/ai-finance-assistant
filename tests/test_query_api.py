@@ -5,13 +5,13 @@ from fastapi.testclient import TestClient
 from ai_finance_assistant.api import query as query_api
 from ai_finance_assistant.api.query import get_query_graph
 from ai_finance_assistant.core.config import Settings
-from ai_finance_assistant.graph.builder import (
+from ai_finance_assistant.main import create_app
+from ai_finance_assistant.workflow.builder import (
     CLARIFY_RESPONSE,
     MARKET_QUOTE_UNAVAILABLE_RESPONSE,
     PORTFOLIO_ANALYSIS_RESPONSE,
     build_graph,
 )
-from ai_finance_assistant.main import create_app
 
 
 class FakeClassifier:

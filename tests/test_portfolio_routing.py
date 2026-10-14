@@ -5,12 +5,12 @@ from httpx import ASGITransport, AsyncClient
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 
-from ai_finance_assistant.agents.portfolio_analysis.store import PortfolioStore
 from ai_finance_assistant.api.query import get_query_graph
-from ai_finance_assistant.graph.builder import build_graph
-from ai_finance_assistant.graph.classifier import LLMIntentClassifier
+from ai_finance_assistant.data.portfolio_store import PortfolioStore
 from ai_finance_assistant.main import create_app
 from ai_finance_assistant.prompts import INTENT_ROUTER_SYSTEM_PROMPT
+from ai_finance_assistant.workflow.builder import build_graph
+from ai_finance_assistant.workflow.classifier import LLMIntentClassifier
 from test_finance_autonomous_agent import call
 from test_portfolio_agent import make_agent
 

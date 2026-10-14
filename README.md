@@ -294,7 +294,7 @@ Finance QA covers general investment education: stocks, bonds, ETFs, mutual fund
 
 Retirement accounts, tax and immigration topics, live prices, breaking news, personalized portfolio/planning requests, trades, and account actions are excluded from its education prompt. The agent reports `out_of_scope` for these requests and asks the user to submit a new question. It does not know other agent names or select a destination.
 
-The authoritative finance source is the bundled [Financial Education Handbook PDF](src/ai_finance_assistant/rag/finance-qa/Financial_Education_Handbook_integrated.pdf). The companion DOCX is not loaded. Finance QA does not retrieve from the tax corpus or the web.
+The authoritative finance source is the bundled [Financial Education Handbook PDF](src/ai_finance_assistant/data/corpora/finance_qa/Financial_Education_Handbook_integrated.pdf). The companion DOCX is not loaded. Finance QA does not retrieve from the tax corpus or the web.
 
 Ingestion extracts every nonempty handbook page and chunks it with an **800-character target and 120-character overlap**. No keyword-based domain exclusions run during ingestion; query routing handles domain scope. This preserves mixed-topic pages and incidental tax or retirement mentions. Existing collections must be rebuilt to include previously excluded content.
 
@@ -526,7 +526,7 @@ Tax uses the same autonomous runtime as Finance QA, with its own prompt, [`TaxAg
 
 The runtime binds metadata constraints to the original user question plus genuine clarification replies. The model can reformulate its search, but cannot replace that original context. The standalone tax tool accepts original `query` separately from optional `search_query`; explicit tax/filing-year mismatches are rejected before reranking. Filing status, forms, and other supported constraints are applied by the Qdrant metadata filter. Subtopic extraction is restricted to the selected topic to avoid conflicting filters such as `tax_brackets` plus an unrelated `filing_status` subtopic.
 
-Tax retrieval uses [the bundled IRS-oriented JSONL corpus](src/ai_finance_assistant/rag/tax-education/irs_tax_2026_rag_corpus_expanded.jsonl), independently from the finance handbook. Its dense and BM25 vectors live in `tax_education_hybrid`. The companion tax PDF is a reference artifact, not a runtime source.
+Tax retrieval uses [the bundled IRS-oriented JSONL corpus](src/ai_finance_assistant/data/corpora/tax_education/irs_tax_2026_rag_corpus_expanded.jsonl), independently from the finance handbook. Its dense and BM25 vectors live in `tax_education_hybrid`. The companion tax PDF is a reference artifact, not a runtime source.
 
 The prompt uses the corpus scope, tax year **2026**, generally filed in **2027**, when no year is supplied. Explicit years override that default. For bracket questions, the prompt interprets unqualified income as taxable ordinary income and instructs the model to state the assumption; explicitly stated gross income or salary must not be silently treated as taxable income. These interpretation rules remain agent instructions; the direct calculator validates supplied taxable ordinary income and computes progressive tax deterministically.
 
@@ -925,11 +925,56 @@ OpenAI receives queries and retrieved context, and receives corpus chunks during
 
 ## Repository guide
 
+The project retains an importable Python package under `src/`. Parent routing lives
+in `workflow/`; agent-specific graphs, tools and policies remain inside `agents/`.
+`data/` owns deterministic portfolio storage, bundled corpora and the frozen price
+snapshot, while `rag/` contains retrieval code. Dataset paths are package-relative
+and the assets are included in built wheels.
+
+```text
+ai-finance-assistant/
+├── src/ai_finance_assistant/
+│   ├── agents/          # Domain agents and shared agent runtime
+│   ├── api/             # FastAPI query, resume and health endpoints
+│   ├── core/            # Typed settings and logging
+│   ├── data/
+│   │   ├── corpora/     # Finance and tax source documents
+│   │   ├── portfolio/   # Frozen price reference and provenance
+│   │   ├── paths.py
+│   │   └── portfolio_store.py
+│   ├── integrations/    # Existing integration package
+│   ├── prompts/         # Centralized system prompts
+│   ├── providers/       # Existing provider package
+│   ├── rag/             # Retrieval, indexing and evidence models
+│   ├── workflow/        # Parent intent classifier, state and graph builder
+│   └── main.py          # Application startup and lifecycle
+├── resources/           # Development/reference prompts
+├── scripts/
+├── tests/
+├── pyproject.toml
+└── README.md
+```
+
+The next iteration will add the web app as a consumer of the existing API. Its
+implementation and framework will determine whether it belongs in a Python
+`web_app/` package or a separate frontend directory; no empty UI package is added
+in this restructuring. Dependencies remain authoritative in `pyproject.toml`, and
+configuration stays in typed settings plus environment variables. Shared helpers
+stay with their owning domains instead of introducing a generic `utils/` folder.
+
+Imports formerly under `ai_finance_assistant.graph` now use
+`ai_finance_assistant.workflow`. Portfolio storage is now
+`ai_finance_assistant.data.portfolio_store`. Existing populated Qdrant collections
+are not rebuilt by this change; they can retain old source-path metadata until an
+explicit reindex. New ingestion uses the relocated corpus paths.
+
 | Module | Responsibility |
 | --- | --- |
 | [`main.py`](src/ai_finance_assistant/main.py) | FastAPI app and async checkpoint lifespan. |
 | [`api/query.py`](src/ai_finance_assistant/api/query.py) | Query/resume contracts and dependency wiring. |
-| [`graph/builder.py`](src/ai_finance_assistant/graph/builder.py) | Initial routing and domain graphs; each agent completion ends the request. |
+| [`workflow/builder.py`](src/ai_finance_assistant/workflow/builder.py) | Initial routing and domain graphs; each agent completion ends the request. |
+| [`data/paths.py`](src/ai_finance_assistant/data/paths.py) | Package-relative corpus and portfolio reference paths. |
+| [`data/portfolio_store.py`](src/ai_finance_assistant/data/portfolio_store.py) | Deterministic in-memory SQLite portfolio dataset and retrieval. |
 | [`agents/common/runtime.py`](src/ai_finance_assistant/agents/common/runtime.py) | Autonomous agent creation, budgets, clarification artifacts, API adapter, and output checks. |
 | [`agents/common/schemas.py`](src/ai_finance_assistant/agents/common/schemas.py) | Shared result, evidence, state, and domain intent contracts. |
 | [`agents/common/rag_tools.py`](src/ai_finance_assistant/agents/common/rag_tools.py) | Shared reranking/result packaging and domain citation formatting. |
@@ -989,7 +1034,7 @@ Names, emails, portfolios and costs are **synthetic test data**. Prices are froz
 closing reference quotes for `2026-10-09`, collected once from Yahoo Finance and Stock
 Analysis. They are embedded fixtures, not live quotes; there is no runtime price provider.
 Each symbol's close and source URL are recorded in
-[`portfolio_price_snapshot_2026-10-09.json`](resources/portfolio_price_snapshot_2026-10-09.json).
+[`portfolio_price_snapshot_2026-10-09.json`](src/ai_finance_assistant/data/portfolio/price_snapshot_2026-10-09.json).
 Fictional quantities and average costs are deterministically rescaled to those closes
 (to eight decimal places) to preserve the designed allocations and gains/losses. Stored risk profiles are pre-established fixtures dated `2025-12-01`; the
 store exposes retrieval only and sets SQLite to read-only after seeding.
