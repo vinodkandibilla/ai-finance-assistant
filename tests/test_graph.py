@@ -3,7 +3,6 @@ import pytest
 from ai_finance_assistant.graph.builder import (
     CLARIFY_RESPONSE,
     MARKET_QUOTE_UNAVAILABLE_RESPONSE,
-    NEWS_RESPONSE,
     PORTFOLIO_ANALYSIS_RESPONSE,
     build_graph,
 )
@@ -88,7 +87,8 @@ async def test_graph_routes_news_intent_to_news_synthesizer_node() -> None:
     )
 
     assert result["intent"] == "news"
-    assert result["answer"] == NEWS_RESPONSE
+    assert result["answer"] == "News synthesizer agent is not configured."
+    assert result["status"] == "error"
 
 
 async def test_graph_routes_tax_intent_to_tax_education_node() -> None:
@@ -122,11 +122,12 @@ async def test_graph_routes_generic_market_query_to_clarify_node() -> None:
     assert result["answer"] == CLARIFY_RESPONSE
 
 
-async def test_graph_routes_generic_news_query_to_clarify_node() -> None:
+async def test_graph_routes_generic_news_query_to_news_node() -> None:
     result = await build_graph(FakeClassifier("news")).ainvoke({"query": "top news"})
 
     assert result["intent"] == "news"
-    assert result["answer"] == CLARIFY_RESPONSE
+    assert result["executed_handler"] == "news_synthesizer_node"
+    assert result["status"] == "error"
 
 
 async def test_graph_routes_generic_or_incomplete_query_to_clarify_node() -> None:

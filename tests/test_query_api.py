@@ -8,7 +8,6 @@ from ai_finance_assistant.core.config import Settings
 from ai_finance_assistant.graph.builder import (
     CLARIFY_RESPONSE,
     MARKET_QUOTE_UNAVAILABLE_RESPONSE,
-    NEWS_RESPONSE,
     PORTFOLIO_ANALYSIS_RESPONSE,
     build_graph,
 )
@@ -175,7 +174,8 @@ def test_query_endpoint_routes_news_intent() -> None:
         "classified_intent": "news",
         "executed_handler": "news_synthesizer_node",
         "intent": "news",
-        "answer": NEWS_RESPONSE,
+        "answer": "News synthesizer agent is not configured.",
+        "status": "error",
     }
 
 
@@ -240,7 +240,7 @@ def test_query_endpoint_routes_generic_market_query_to_clarify() -> None:
     }
 
 
-def test_query_endpoint_routes_generic_news_query_to_clarify() -> None:
+def test_query_endpoint_routes_generic_news_query_to_news_node() -> None:
     app = create_app()
     app.dependency_overrides[get_query_graph] = lambda: build_graph(FakeClassifier("news"))
     client = TestClient(app)
@@ -253,9 +253,10 @@ def test_query_endpoint_routes_generic_news_query_to_clarify() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "classified_intent": "news",
-        "executed_handler": "clarify_node",
+        "executed_handler": "news_synthesizer_node",
         "intent": "news",
-        "answer": CLARIFY_RESPONSE,
+        "answer": "News synthesizer agent is not configured.",
+        "status": "error",
     }
 
 

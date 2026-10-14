@@ -8,9 +8,9 @@
 ![Qdrant](https://img.shields.io/badge/Vector_database-Qdrant-DC244C)
 ![Status](https://img.shields.io/badge/Status-active_development-blue)
 
-Ask an investing, US tax, or savings-goal question in plain English. Separate tool-calling agents choose searches, assess retrieved evidence, request essential clarification, and return cited answers or evidence limitations. A shared runtime handles execution limits and API integration; domain RAG tools handle embeddings, Qdrant fusion, reranking, and citation packaging in one invocation.
+Ask an investing, US tax, savings-goal, or financial-news question in plain English. Separate tool-calling agents choose searches, assess retrieved evidence, request essential clarification, and return cited answers or evidence limitations. A shared runtime handles execution limits and API integration; domain RAG tools handle embeddings, Qdrant fusion, reranking, and citation packaging in one invocation.
 
-[Quick start](#quick-start) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Tax](#tax-education) · [Goal planning](#goal-planning-agent) · [Example queries](#example-queries) · [Configuration](#configuration) · [Storage and operations](#index-lifecycle-and-operations) · [Development](#development)
+[Quick start](#quick-start) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Tax](#tax-education) · [Goal planning](#goal-planning-agent) · [News](#news-synthesizer-agent) · [Example queries](#example-queries) · [Configuration](#configuration) · [Storage and operations](#index-lifecycle-and-operations) · [Development](#development)
 
 ## Capabilities
 
@@ -23,7 +23,8 @@ Ask an investing, US tax, or savings-goal question in plain English. Separate to
 | US tax education | “Explain capital gains for tax year 2026.” | Autonomous tax agent with original-question metadata constraints and a hybrid RAG tool. |
 | Market quotes | “What is Apple's latest available stock price?” | Twelve Data MCP quotes with price, volume, and daily changes. |
 | Goal planning | “Can I reach $100,000 in five years saving $1,000 monthly?” | Tool-calling Goal Planning Agent with deterministic projections, clarification, and a three-iteration limit. |
-| Portfolio, news | Holdings analysis, news summaries | Fixed demonstration responses; these integrations are not implemented. |
+| News synthesis | “Give me the latest financial-market news.” | Tavily evidence, LLM coverage assessment, up to three searches, and verified citation provenance. |
+| Portfolio | Holdings analysis | Fixed demonstration response; holdings analysis is not implemented. |
 
 The project is in active development. Finance, tax, market, and goal-planning agents are implemented, but the complete application is not production-ready. The operational limitations below describe the current code, including differences from the [Finance Agentic RAG coding prompt](resources/prompts/Finance_Agentic_RAG_Coding_Agent_Prompt.md).
 
@@ -216,6 +217,8 @@ flowchart TD
     Router --> Goals[GoalPlanningAgent]
     Goals --> GoalTools[Four deterministic goal calculators]
     GoalTools --> Goals
+    Router --> News[NewsSynthesizerAgent]
+    News --> NewsSearch[Tavily evidence and bounded assessment loop]
     Router --> Other[Market tool or demonstration handlers]
     Finance --> Runtime[Shared autonomous runtime]
     Tax --> Runtime
@@ -436,6 +439,85 @@ four deterministic calculators. Tests cover calculator outputs, model-selected t
 execution, clarification/resume, coverage checks, and the three-turn boundary using
 scripted models; they do not establish live LLM selection accuracy.
 
+## News Synthesizer Agent
+
+### Design and evidence acquisition
+
+Requests follow `User → Intent Router → news_synthesizer_node → NewsSynthesizerAgent`.
+The router selects the news domain; the agent's LLM interprets scope and timeframe,
+chooses the initial search query, assesses coverage, and synthesizes the response.
+Apple news and semiconductor-sector developments belong to news; current AAPL
+quotes and historical prices remain with Market Analysis.
+
+```mermaid
+flowchart TD
+    NewsRequest[News request] --> Understand[LLM understands scope and timeframe]
+    Understand --> Clarify[Clarify essential missing scope]
+    Clarify --> Resume[Checkpointed user reply]
+    Resume --> Understand
+    Understand --> Search[Tavily search: up to 3 results]
+    Search --> Assess[LLM assesses accumulated evidence]
+    Assess -->|Sufficient| Synthesize[LLM synthesizes supported claims]
+    Assess -->|Incomplete and fewer than 3 searches| Focus[LLM supplies focused query]
+    Focus --> Search
+    Assess -->|3 searches used or no useful query| Partial[Synthesize available evidence and disclose gaps]
+    Synthesize --> Cite[Python validates IDs and resolves trusted URLs]
+    Partial --> Cite
+```
+
+After every successful search, structured `EvidenceAssessment` returns `sufficient`,
+`missing_aspects`, and `next_search_query`. Graph code enforces `MAX_SEARCHES = 3`;
+sufficient evidence stops acquisition immediately. Searches run sequentially and
+return at most three results each, so a request retrieves at most nine result records,
+which may repeat. Empty or failed searches stop acquisition with an evidence limitation
+or safe error. Active execution has a 60-second timeout and a recursion limit.
+
+### Timeframes, synthesis, and citations
+
+The LLM selects rolling `day`, `week`, `month`, or `year` filters. The default is the
+past week when no timeframe is supplied. Calendar periods such as today or last
+calendar month use explicit `start_date` and `end_date` in `YYYY-MM-DD` format.
+The agent receives the current date in America/Phoenix; focused searches preserve
+the selected timeframe. Invalid or reversed date ranges are rejected before retrieval.
+Publication dates may be missing; a search filter alone does not prove when an article
+was published. Date interpretation and relevance remain model-assessed.
+
+`NewsEvidence` preserves title, source, exact Tavily URL, optional publication date,
+and content. Execution-local IDs (`E1`, `E2`, …) identify evidence; a repeated URL keeps
+its ID. The synthesis prompt receives labeled evidence blocks rather than source URLs.
+The LLM returns claims with evidence IDs and distinguishes reported facts from interpretation.
+Python resolves links from retrieved evidence, rejects unknown IDs or conflicting URL
+mappings, and omits claims containing generated links. Material claims require citation IDs.
+The answer contains inline source links; `citations` separately contains the referenced URLs.
+These checks establish citation provenance; substantive claim support remains LLM-assessed.
+
+When evidence remains incomplete, the agent can return a cited partial summary with
+`status="insufficient"` and a “Could not establish” explanation. It does not invent
+missing information or use model memory as evidence for current-news claims.
+No news vector database, ingestion pipeline, caching, or alternative agent framework is used.
+
+### Setup, clarification, and logs
+
+Set `TAVILY_API_KEY` in `.env` and restart the application. `TAVILY_TIMEOUT_SECONDS`
+defaults to 15 seconds per provider request. The existing OpenAI model supplies reasoning,
+assessment, and synthesis. News retrieval uses the existing `httpx` dependency.
+
+“Give me the latest news” may need a topic clarification. Reply through `/query/resume`
+using the returned `thread_id`; the original request is preserved and the router is not
+rerun. A scoped request such as “Give me the latest financial-market news” can search directly.
+
+```json
+{
+  "thread_id": "<thread_id from the clarification response>",
+  "reply": "Financial markets over the past week."
+}
+```
+
+With `LOG_LEVEL=INFO`, `[News Evidence]` logs show search counts, assessment outcomes,
+remaining budget, early stopping, and the three-search hard stop. Logs omit search queries
+and article content. Mocked tests cover retrieval, budget enforcement, citation checks,
+clarification/resume, and routing; they do not establish live provider or LLM accuracy.
+
 ## Other agents and retrieval
 
 ### Tax education
@@ -617,6 +699,27 @@ For the simple zero-return cases, query 1 requires **$1,666.67 monthly**, query 
 **100 months**, and query 4 projects **$60,000**, leaving a **$40,000 shortfall**.
 These are deterministic results for the stated defaults, not guaranteed investment outcomes.
 
+### Eight news queries
+
+These examples cover company, broad market, sector, timeframe, clarification, and
+multipart synthesis. Search choices and sufficiency depend on the LLM and available
+Tavily evidence; they are intended behaviors, not guaranteed outcomes.
+
+| # | User query | Intended behavior |
+| --- | --- | --- |
+| 1 | Summarize the latest Apple news and its potential significance for investors. | Company search; cite reported facts and label evidence-based interpretation. |
+| 2 | Give me the latest financial-market news. | Direct news routing; default to the past week and stop when coverage is sufficient. |
+| 3 | What recent news is affecting semiconductor stocks? | Sector search; synthesize relevant developments across retrieved articles. |
+| 4 | What financial-market news was reported today? | Use today's explicit date boundaries; acknowledge missing publication dates or coverage. |
+| 5 | Summarize NVIDIA news from the past month. | Use a rolling month filter and preserve it in any focused follow-up search. |
+| 6 | What major financial-market news was reported last calendar month? | Resolve the previous month's first and last dates using the supplied current date. |
+| 7 | Summarize Federal Reserve news from September 1 through September 30, 2026. | Use explicit date bounds; report only what retrieved evidence supports. |
+| 8 | Give me the latest news. | Ask for essential topic scope if needed; resume the same request with “Financial markets.” |
+
+For a multipart request, try “Summarize NVIDIA's recent earnings-related news and
+reported outlook.” Missing outlook coverage can trigger a focused search; acquisition
+stops as soon as sufficient or after three searches, with unresolved gaps disclosed.
+
 ### Five finance queries
 
 | # | Query | Intended behavior |
@@ -679,6 +782,8 @@ Application settings load from `.env` and environment variables through [`core/c
 | `MARKET_QUOTES_ENABLED` | `true` | Enables Twelve Data market quotes. |
 | `MARKET_CACHE_MAX_ENTRIES` | `100` | Positive entry capacity for the shared process-local TTL/LRU market cache; restart after changing. |
 | `TWELVE_DATA_API_KEY` | Unset | Key for the local Twelve Data MCP server. |
+| `TAVILY_API_KEY` | Unset | Credential for the News Synthesizer Agent's Tavily retrieval tool. |
+| `TAVILY_TIMEOUT_SECONDS` | `15` | Timeout for a Tavily search; retrieves up to three results per search; timeframe is model-selected, defaulting to the past week. |
 | `TWELVE_DATA_MCP_COMMAND` | `.cache/twelvedata-mcp/.venv/bin/python` | Local MCP executable. |
 | `TWELVE_DATA_MCP_ARGS` | `[".cache/twelvedata-mcp/src/server.py"]` | MCP arguments as a JSON array. |
 | `MARKET_AGENT_TIMEOUT_SECONDS` | `30` | Complete market request timeout. |
@@ -808,6 +913,9 @@ OpenAI receives queries and retrieved context, and receives corpus chunks during
 | [`agents/market_analysis/agent.py`](src/ai_finance_assistant/agents/market_analysis/agent.py) | Twelve Data MCP market agent. |
 | [`agents/goal_planning/agent.py`](src/ai_finance_assistant/agents/goal_planning/agent.py) | Goal tool selection, clarification, sufficiency checks, and three-turn hard stop. |
 | [`agents/goal_planning/tools.py`](src/ai_finance_assistant/agents/goal_planning/tools.py) | Four deterministic savings-goal calculators. |
+| [`agents/news_synthesizer/agent.py`](src/ai_finance_assistant/agents/news_synthesizer/agent.py) | News acquisition graph, semantic assessment, synthesis, and citation validation. |
+| [`agents/news_synthesizer/tools.py`](src/ai_finance_assistant/agents/news_synthesizer/tools.py) | Timeframe-aware Tavily search and stable evidence IDs. |
+| [`agents/news_synthesizer/schemas.py`](src/ai_finance_assistant/agents/news_synthesizer/schemas.py) | Structured news evidence, claims, and coverage assessments. |
 
 Finance/tax evaluator modules and the finance query analyzer remain for legacy/shared helper paths and tests. They are not separate decision nodes in either active autonomous agent. Direct tax retriever calls without a prepared plan can still invoke its analyzer fallback; the tax RAG tool supplies its plan explicitly.
 
@@ -835,7 +943,7 @@ Most tests use mocked models and embeddings; passing tests does not establish fa
 - Evaluate model-driven search, clarification, and scope decisions across representative questions. Search budgets constrain calls but do not guarantee an optimal plan.
 - Validate claims and inline citations, beyond retrieved-source membership and evidence presence.
 - Active finance/tax execution deadlines are implemented. Full request deadlines covering initialization/checkpoint persistence, stage latency/token metrics, and consistent initialization/API error mapping remain deferred. Independent dense/sparse failure recovery is not implemented; some backend errors appear as empty retrieval.
-- Replace demo portfolio and news handlers with real integrations; support explicit mixed-intent aggregation if needed.
+- Replace the demo portfolio handler with real holdings analysis; support explicit mixed-intent aggregation if needed.
 - Migrate to LangChain 1.x `create_agent` after a dependency compatibility review; remove legacy settings/components after remaining consumers are migrated.
 - Add authentication, rate limiting, checkpoint cleanup, and validated multiworker storage behavior before production deployment. Test data packaging before distributing installed artifacts.
 
