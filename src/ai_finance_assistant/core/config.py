@@ -8,6 +8,10 @@ from ai_finance_assistant.prompts import INTENT_ROUTER_SYSTEM_PROMPT
 
 
 class Settings(BaseSettings):
+    portfolio_simulated_user_id: str | None = Field(default="PM001", min_length=1, max_length=100)
+    portfolio_simulated_user_role: Literal["PORTFOLIO_MANAGER", "CUSTOMER"] | None = (
+        "PORTFOLIO_MANAGER"
+    )
     app_env: Literal["local", "test", "staging", "production"] = "local"
     log_level: str = "INFO"
     openai_api_key: SecretStr | None = None

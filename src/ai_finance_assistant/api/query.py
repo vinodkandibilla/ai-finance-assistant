@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from langchain_openai import ChatOpenAI
@@ -15,6 +15,9 @@ from ai_finance_assistant.agents.finance_qa.retrieval import FinanceHybridRetrie
 from ai_finance_assistant.agents.goal_planning import GoalPlanningAgent
 from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgent
 from ai_finance_assistant.agents.news_synthesizer import NewsSynthesizerAgent
+from ai_finance_assistant.agents.portfolio_analysis.agent import PortfolioAnalysisAgent
+from ai_finance_assistant.agents.portfolio_analysis.authorization import UserContext
+from ai_finance_assistant.agents.portfolio_analysis.store import PortfolioStore
 from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.graph.builder import FinanceAssistantGraph, build_graph
@@ -28,6 +31,9 @@ router = APIRouter(tags=["assistant"])
 
 class QueryRequest(BaseModel):
     query: str = Field(min_length=1, max_length=4000)
+    user_role: Literal["portfolio_manager", "individual_customer"] | None = None
+    customer_id: str | None = Field(default=None, min_length=1, max_length=100)
+    manager_id: str | None = Field(default=None, min_length=1, max_length=100)
 
     @field_validator("query", mode="before")
     @classmethod
@@ -52,9 +58,19 @@ async def get_query_checkpointer(request: Request) -> AsyncSqliteSaver:
     return request.app.state.query_checkpointer
 
 
+async def get_portfolio_store(request: Request) -> PortfolioStore:
+    return request.app.state.portfolio_store
+
+
+async def get_simulated_user_context(request: Request) -> UserContext | None:
+    # Set by application/test setup, never taken from body, headers or query text.
+    return getattr(request.app.state, "portfolio_user_context", None)
+
+
 @lru_cache
 def get_query_graph(
     checkpointer: Annotated[AsyncSqliteSaver | None, Depends(get_query_checkpointer)] = None,
+    portfolio_store: Annotated[PortfolioStore | None, Depends(get_portfolio_store)] = None,
 ):
     settings = get_settings()
     if settings.openai_api_key is None:
@@ -109,6 +125,9 @@ def get_query_graph(
         finance_agent=finance_agent,
         goal_agent=GoalPlanningAgent(llm=llm),
         news_agent=NewsSynthesizerAgent(llm=llm, settings=settings),
+        portfolio_agent=PortfolioAnalysisAgent(llm=llm, store=portfolio_store)
+        if portfolio_store is not None
+        else None,
         tax_agent=TaxEducationAgent(
             retriever=tax_retriever,
             llm=llm,
@@ -122,13 +141,24 @@ def get_query_graph(
 async def query_assistant(
     request: QueryRequest,
     graph: Annotated[FinanceAssistantGraph, Depends(get_query_graph)],
+    user_context: Annotated[UserContext | None, Depends(get_simulated_user_context)] = None,
 ) -> QueryResponse:
     import uuid
 
     thread_id = str(uuid.uuid4())
     result = await graph.ainvoke(
-        {"query": request.query, "thread_id": thread_id},
-        config={"configurable": {"thread_id": thread_id}},
+        {
+            "query": request.query,
+            "thread_id": thread_id,
+            "portfolio_user_context": user_context.model_dump() if user_context else None,
+            **request.model_dump(exclude_none=True, exclude={"query"}),
+        },
+        config={
+            "configurable": {
+                "thread_id": thread_id,
+                "portfolio_user_context": user_context.model_dump() if user_context else None,
+            }
+        },
     )
     interrupt_payload = await _get_interrupt_payload(graph, thread_id, result)
     status = "clarification" if interrupt_payload else result.get("status")
@@ -172,12 +202,19 @@ class ResumeRequest(BaseModel):
 async def resume_query(
     request: ResumeRequest,
     graph: Annotated[FinanceAssistantGraph, Depends(get_query_graph)],
+    user_context: Annotated[UserContext | None, Depends(get_simulated_user_context)] = None,
 ) -> QueryResponse:
     from langgraph.types import Command
 
+    identity = user_context.model_dump() if user_context else None
+    snapshot = await graph.aget_state({"configurable": {"thread_id": request.thread_id}})
+    if snapshot.values.get("portfolio_user_context") != identity:
+        raise HTTPException(status_code=403, detail="You do not have access to this query thread.")
     result = await graph.ainvoke(
         Command(resume=request.reply),
-        config={"configurable": {"thread_id": request.thread_id}},
+        config={
+            "configurable": {"thread_id": request.thread_id, "portfolio_user_context": identity}
+        },
     )
     interrupt_payload = await _get_interrupt_payload(graph, request.thread_id, result)
     status = "clarification" if interrupt_payload else result.get("status")
