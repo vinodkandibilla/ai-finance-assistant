@@ -699,6 +699,39 @@ For the simple zero-return cases, query 1 requires **$1,666.67 monthly**, query 
 **100 months**, and query 4 projects **$60,000**, leaving a **$40,000 shortfall**.
 These are deterministic results for the stated defaults, not guaranteed investment outcomes.
 
+### Ten portfolio-analysis queries
+
+These scenarios balance customer analysis, manager analysis, clarification, and denied
+access. Tool choices are intended behavior: the LLM selects capabilities, while Python
+owns retrieval, calculations, and authorization. All portfolios and costs are synthetic;
+prices are frozen October 9, 2026 closing references, not live quotes.
+
+Set `PORTFOLIO_SIMULATED_USER_ID` and `PORTFOLIO_SIMULATED_USER_ROLE` in `.env` for
+each scenario and restart the server when switching actors. Customer rows use role
+`CUSTOMER`; manager rows use `PORTFOLIO_MANAGER`. The default actor is manager `PM001`.
+Request-body scope and query text cannot switch the simulated identity.
+
+| # | Simulated actor | User query | Intended tool or behavior |
+| --- | --- | --- | --- |
+| 1 | Customer `C001` | Show me my current portfolio value and allocation across holdings, sectors, and asset classes. | One `get_customer_portfolio` call using the current customer; value **$69,500**, including **$25,000** in bond ETFs. No identity clarification needed. |
+| 2 | Customer `C002` | Analyze my diversification and concentration risk across holdings and sectors. | `get_customer_portfolio`; AAPL is **88.59%** of value, above the strict **30%** holding threshold. Contrast with diversified C001 when testing separately. |
+| 3 | Customer `C003` | How is my portfolio performing? Show my biggest gainers and losers and overall unrealized gain or loss. | `get_customer_portfolio`; net unrealized gain **$9,100**. NVDA is the largest monetary gainer (**$12,000**); MSFT is the largest loser (**−$5,000**). Explain unrealized snapshot performance, not historical return. |
+| 4 | Customer `C001` | Does my portfolio appear aligned with my stored risk profile and investment horizon? | Retrieve portfolio metrics and `get_customer_investment_profile`; interpret the stored moderate profile and **10-year** horizon without changing the profile or issuing an official suitability determination. |
+| 5 | Customer `C001` | Show me customer C002's portfolio and investment profile. | Deterministic `ACCESS_DENIED`; neither portfolio nor profile data is returned. |
+| 6 | Manager `PM001` | Which of my customers have more than 30% in one holding or more than 50% in one sector? | `screen_manager_portfolios` using the current manager; identifies **C002, C003, C004**. C003 has **94.12%** in the Technology instrument group. |
+| 7 | Manager `PM001` | Compare my customers' portfolios and identify highest concentration, lowest diversification, and largest unrealized losses. | `compare_manager_portfolios` for the requested rankings; **C002** has highest holding HHI/lowest holding diversification; **C004** has the largest net unrealized loss (**−$11,900**). Preserve each ranking. |
+| 8 | Manager `PM001` | What percentage of customer C001's portfolio is VTI? | `get_customer_portfolio` for an assigned customer; VTI allocation is **28.78%**. Use the returned percentage rather than LLM arithmetic. |
+| 9 | Manager `PM001` | Analyze Synthetic Customer's portfolio. | `resolve_portfolio_customer` finds multiple authorized matches; ask which of **C001–C005** through checkpointed clarification. Reply `C001` using `/query/resume` to continue without rerouting. |
+| 10 | Manager `PM001` | Compare C001 and C020, including their investment profiles. | Deterministic `ACCESS_DENIED`: C020 belongs to PM004. Reject a mixed-authority comparison as a whole; do not expose C020's data. |
+
+Submit each query to `POST /query`. For a paused scenario, send the returned `thread_id`
+and your `reply` to `POST /query/resume`. Simple valuation needs one retrieval call;
+profile context and multiple rankings may need several. Name lookup alone does not
+support a financial answer. These examples are acceptance scenarios, not claims of
+live-model validation; automated coverage uses scripted models and real SQLite tools in
+`tests/test_portfolio_mvp_e2e.py`, `tests/test_portfolio_authorization.py`, and
+`tests/test_portfolio_routing.py`.
+
 ### Eight news queries
 
 These examples cover company, broad market, sector, timeframe, clarification, and
@@ -936,6 +969,63 @@ Tests cover model-selected search plans, search budgets, evidence-presence guard
 
 Most tests use mocked models and embeddings; passing tests does not establish factual answer accuracy or corpus coverage. Selected live finance and tax requests have been checked, including compound interest and bracket clarification/resume. The ten examples above are usage examples, not a claim that every query has been evaluated live. Coverage has a configured 80% minimum.
 
+## Synthetic portfolio MVP data layer
+
+`agents.portfolio_analysis.PortfolioStore` owns a seeded SQLite `:memory:` database.
+The portfolio router uses a model-directed agent backed by this store.
+Use `with PortfolioStore() as store:` to close the connection automatically. Construct
+and use a store on the same thread. Each instance starts with identical data and loses
+its data when closed; it does not share the persistent clarification checkpoint database.
+
+The four tables are `portfolio_managers`, `customers`, `portfolio_holdings`, and
+`market_prices`. They contain 5 managers (`PM001`–`PM005`), 25 customers
+(`C001`–`C025`), and 5–8 holdings per customer. Every manager has five deliberately
+contrasting portfolios: diversified moderate, single-stock concentrated, technology
+concentrated, conservative bond-heavy, and diversified aggressive equity. Costs produce
+substantial gains, losses, and mixed winners/losers. Quantity scales by manager number
+to provide different portfolio sizes without random initialization.
+
+Names, emails, portfolios and costs are **synthetic test data**. Prices are frozen USD
+closing reference quotes for `2026-10-09`, collected once from Yahoo Finance and Stock
+Analysis. They are embedded fixtures, not live quotes; there is no runtime price provider.
+Each symbol's close and source URL are recorded in
+[`portfolio_price_snapshot_2026-10-09.json`](resources/portfolio_price_snapshot_2026-10-09.json).
+Fictional quantities and average costs are deterministically rescaled to those closes
+(to eight decimal places) to preserve the designed allocations and gains/losses. Stored risk profiles are pre-established fixtures dated `2025-12-01`; the
+store exposes retrieval only and sets SQLite to read-only after seeding.
+
+Retrieval methods: `get_managers()`, `get_customers(manager_id=None)`,
+`get_customer(customer_id)`, `get_holdings(customer_id)`, and
+`get_market_prices(symbols=None)`. Results have stable ordering. Missing identifiers
+return `None` for a single customer or an empty list for collection lookups. The store's
+`data_source` is `synthetic_test_data`. Authorization is enforced by portfolio tools using simulated application identity; no login is implemented.
+
+Run focused checks with `pytest -q tests/test_portfolio_store.py`.
+
+`PortfolioTools(store, thresholds=None, user_context=None)` provides five async LangChain tools through
+`as_tools()`: `get_customer_portfolio` (combined retrieval, allocation, performance,
+and concentration), `get_customer_investment_profile`, `screen_manager_portfolios`,
+`compare_manager_portfolios`, and authorized name lookup `resolve_portfolio_customer`.
+The async wrappers preserve SQLite's same-thread
+contract when executed by LangGraph. The underlying methods are also callable directly.
+
+Configure concentration in `ConcentrationThresholds` in `portfolio_analysis/tools.py`:
+defaults flag a holding strictly above 30% or a sector strictly above 50%. Calculations
+use decimal arithmetic before display rounding. Invalid cost basis leaves affected
+gain metrics unavailable; missing valuation data prevents partial portfolio totals.
+Performance means unrealized gain/loss at the synthetic snapshot, not historical returns.
+Gainers and losers rank by monetary gain/loss. Sector labels are instrument-level groups,
+including broad-market and fixed-income groups, without ETF constituent look-through.
+
+Manager comparison accepts an optional customer subset and ranks by holding-weight HHI
+(descending concentration or ascending diversification) or net monetary unrealized gain/loss
+(ascending, largest losses first). Diversification also reports holding, sector and
+asset-class counts and effective holding count (`1 / HHI`); these are descriptive metrics,
+not a risk score. Screening selects all portfolios, concentrated portfolios, or portfolios
+with net unrealized losses. Unusable portfolios are explicitly returned in
+`excluded_portfolios`. No tool modifies the stored investment profile or invokes another
+agent. Run tool tests with `pytest -q tests/test_portfolio_tools.py`.
+
 ## Current limitations and next steps
 
 - Add corpus fingerprints, coordinated index versioning, partial-ingestion recovery, and an explicit rebuild CLI. A populated collection can remain stale or incomplete.
@@ -943,7 +1033,7 @@ Most tests use mocked models and embeddings; passing tests does not establish fa
 - Evaluate model-driven search, clarification, and scope decisions across representative questions. Search budgets constrain calls but do not guarantee an optimal plan.
 - Validate claims and inline citations, beyond retrieved-source membership and evidence presence.
 - Active finance/tax execution deadlines are implemented. Full request deadlines covering initialization/checkpoint persistence, stage latency/token metrics, and consistent initialization/API error mapping remain deferred. Independent dense/sparse failure recovery is not implemented; some backend errors appear as empty retrieval.
-- Replace the demo portfolio handler with real holdings analysis; support explicit mixed-intent aggregation if needed.
+- Portfolio analysis currently uses synthetic holdings with frozen reference prices; real authentication remains deferred.
 - Migrate to LangChain 1.x `create_agent` after a dependency compatibility review; remove legacy settings/components after remaining consumers are migrated.
 - Add authentication, rate limiting, checkpoint cleanup, and validated multiworker storage behavior before production deployment. Test data packaging before distributing installed artifacts.
 
@@ -954,3 +1044,80 @@ Use the [issue tracker](https://github.com/vinodkandibilla/ai-finance-assistant/
 ## License
 
 This repository currently has no license file. Reuse and redistribution terms have not been specified.
+
+## Portfolio Analysis Agent
+
+`PortfolioAnalysisAgent` follows the Goal Planning model-directed tool pattern. The LLM
+selects customer or manager tools, requests additional evidence, and interprets deterministic
+results. It has a six-model-turn budget, a 60-second execution deadline and a recursion limit.
+Clarification uses the existing checkpointed `/query/resume` endpoint without rerouting.
+Successful tool payloads are preserved in `calculation` or `calculations`; multiple comparison
+rankings remain separate. No RAG or external price provider is used by this agent.
+
+`POST /query` accepts optional `customer_id`, `manager_id`, and `user_role`
+(`individual_customer` or `portfolio_manager`). These are requested scope only; simulated runtime identity controls access.
+For example, submit `{"query": "Show my portfolio value and allocation", "customer_id": "C001"}`
+or ask to compare customers with `manager_id: "PM001"`. Missing identifiers are clarified.
+The application owns and closes the in-memory portfolio store through its lifespan.
+
+Profile-alignment interpretation retrieves both metrics and the stored customer profile,
+without changing the profile or issuing an official suitability determination. The agent
+excludes optimization, automatic trading, buy/sell recommendations and agent-to-agent calls.
+Tests use scripted model decisions and real SQLite tools; they do not establish live-model
+accuracy. Run `pytest -q tests/test_portfolio_agent.py tests/test_portfolio_tools.py`.
+
+The existing `portfolio` intent selects `portfolio_analysis_node`; no parallel route is
+introduced. Requests such as "Analyze my portfolio", portfolio allocation/performance,
+manager concentration screening, and "What percentage of my portfolio is Apple?" stay
+in portfolio even without identity context. The agent clarifies customer or manager scope
+through `/query/resume`. Apple quotes remain market requests, ETF definitions remain
+Finance Q&A, and latest Apple news remains News Synthesizer. Routing contract and API
+resume tests are in `tests/test_portfolio_routing.py` and use scripted classification.
+
+## Simulated portfolio authorization
+
+The default demo actor is `PM001` with role `PORTFOLIO_MANAGER`, defined in
+`core/config.py`. Override it in the server environment or `.env` (restart to change it):
+
+```dotenv
+PORTFOLIO_SIMULATED_USER_ID=PM001
+PORTFOLIO_SIMULATED_USER_ROLE=PORTFOLIO_MANAGER
+```
+
+For a customer use `CUST001` (or existing dataset ID `C001`) and role `CUSTOMER`.
+`CUST001`–`CUST025` are aliases for `C001`–`C025`; the seed identifiers remain unchanged.
+Override both fields when switching actors. Without identity, portfolio access is
+denied; other domains remain available. This models a trusted application actor for demo
+purposes, not real authentication. All clients of this server share its configured actor.
+
+`UserContext` is immutable. Application lifespan supplies it through
+`app.state.portfolio_user_context` and the query dependency passes it in LangGraph runtime
+configuration; it is not an LLM tool argument or a request-body identity. Tests may inject
+a context or bind one when constructing `PortfolioAnalysisAgent`/`PortfolioTools`.
+Never accept simulated identity directly from arbitrary client input.
+
+Customers can read only their own portfolio/profile, with no manager operations. Managers
+can read, screen and compare only assigned customers; a comparison containing even one
+unauthorized customer is rejected as a whole. Missing IDs default to the current customer
+or manager where appropriate. Name lookup searches only authorized customers and reports
+ambiguity for clarification. Denials return `ACCESS_DENIED` without portfolio contents or
+internal database details. Resume checks the stored thread identity against the current
+application identity. Request `customer_id`, `manager_id` and `user_role` cannot grant access.
+
+Run `pytest -q tests/test_portfolio_authorization.py` for access, defaults, ambiguity,
+identity spoofing and resume-ownership checks. No OAuth, JWT, passwords or login UI is added.
+
+Portfolio MVP acceptance coverage in `tests/test_portfolio_mvp_e2e.py` exercises the HTTP
+API, existing router, agent and actual authorized SQLite/calculation tools together.
+It pins portfolio totals, holding/sector/asset-class allocations, gains and losses,
+concentration flags, manager rankings and unchanged stored profiles. A simple valuation
+uses one retrieval tool and finishes; multiple manager rankings preserve each result.
+Name lookup alone cannot support an answered financial analysis.
+
+The portfolio feature uses exactly two identity roles, one deterministic in-memory dataset
+(5 managers, 25 customers), and fixed historical reference prices. It adds no RAG, PostgreSQL,
+external market-data dependency, agent-to-agent calls or trading/optimization capabilities.
+The existing education agents retain their own RAG dependencies. Model decisions and
+narratives are mocked in automated acceptance tests: numerical payloads and authorization
+are verified, but live model tool selection, narrative accuracy and compliance with the
+instruction not to recalculate are not established by these tests.

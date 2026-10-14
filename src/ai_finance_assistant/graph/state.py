@@ -25,6 +25,10 @@ ExecutedHandler = Literal[
 
 
 class FinanceAssistantState(TypedDict, total=False):
+    portfolio_user_context: dict[str, str] | None
+    customer_id: str
+    manager_id: str
+    user_role: str
     query: str
     intent: FinanceIntent
     classified_intent: FinanceIntent

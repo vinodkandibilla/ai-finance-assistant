@@ -64,6 +64,7 @@ def test_query_endpoint_routes_portfolio_intent() -> None:
         "executed_handler": "portfolio_analysis_node",
         "intent": "portfolio",
         "answer": PORTFOLIO_ANALYSIS_RESPONSE,
+        "status": "error",
     }
 
 

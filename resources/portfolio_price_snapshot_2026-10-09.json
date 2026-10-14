@@ -1,0 +1,84 @@
+{
+  "as_of_date": "2026-10-09",
+  "currency": "USD",
+  "price_type": "close (not dividend-adjusted close)",
+  "retrieved_on": "2026-10-14",
+  "usage": "Frozen reference prices for synthetic test portfolios. No runtime retrieval.",
+  "prices": [
+    {
+      "symbol": "AAPL",
+      "close": 336.64,
+      "source_url": "https://finance.yahoo.com/quote/AAPL/history/"
+    },
+    {
+      "symbol": "MSFT",
+      "close": 535.07,
+      "source_url": "https://finance.yahoo.com/quote/MSFT/history/?ltr=1"
+    },
+    {
+      "symbol": "NVDA",
+      "close": 229.28,
+      "source_url": "https://finance.yahoo.com/quote/NVDA/history/"
+    },
+    {
+      "symbol": "JPM",
+      "close": 332.99,
+      "source_url": "https://stockanalysis.com/stocks/jpm/history/"
+    },
+    {
+      "symbol": "JNJ",
+      "close": 261.44,
+      "source_url": "https://stockanalysis.com/stocks/jnj/history/"
+    },
+    {
+      "symbol": "XOM",
+      "close": 168.94,
+      "source_url": "https://finance.yahoo.com/quote/XOM/history/?p=XOM"
+    },
+    {
+      "symbol": "PG",
+      "close": 151.23,
+      "source_url": "https://stockanalysis.com/stocks/pg/history/"
+    },
+    {
+      "symbol": "VTI",
+      "close": 381.94,
+      "source_url": "https://finance.yahoo.com/quote/VTI/history/?p=VTI"
+    },
+    {
+      "symbol": "VXUS",
+      "close": 84.82,
+      "source_url": "https://stockanalysis.com/etf/vxus/history/"
+    },
+    {
+      "symbol": "XLK",
+      "close": 198.78,
+      "source_url": "https://stockanalysis.com/etf/xlk/history/"
+    },
+    {
+      "symbol": "XLF",
+      "close": 54.73,
+      "source_url": "https://finance.yahoo.com/quote/XLF/history/"
+    },
+    {
+      "symbol": "XLV",
+      "close": 170.81,
+      "source_url": "https://finance.yahoo.com/quote/XLV/history/"
+    },
+    {
+      "symbol": "BND",
+      "close": 70.22,
+      "source_url": "https://finance.yahoo.com/quote/BND/history/?p=BND"
+    },
+    {
+      "symbol": "AGG",
+      "close": 94.59,
+      "source_url": "https://stockanalysis.com/etf/agg/history/"
+    },
+    {
+      "symbol": "SHY",
+      "close": 81.2,
+      "source_url": "https://stockanalysis.com/etf/shy/history/"
+    }
+  ]
+}

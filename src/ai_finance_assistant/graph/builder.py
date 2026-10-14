@@ -9,6 +9,7 @@ from ai_finance_assistant.agents.finance_qa import FinanceQaAgent
 from ai_finance_assistant.agents.goal_planning import GoalPlanningAgent
 from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgent
 from ai_finance_assistant.agents.news_synthesizer import NewsSynthesizerAgent
+from ai_finance_assistant.agents.portfolio_analysis.agent import PortfolioAnalysisAgent
 from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.graph.classifier import IntentClassifier
@@ -18,9 +19,7 @@ type FinanceAssistantGraph = CompiledStateGraph[
     FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState
 ]
 
-PORTFOLIO_ANALYSIS_RESPONSE = (
-    "Your portfolio is risk free and balanced. (Placeholder only; no holdings were analyzed.)"
-)
+PORTFOLIO_ANALYSIS_RESPONSE = "Portfolio analysis agent is not configured."
 MARKET_QUOTE_UNAVAILABLE_RESPONSE = (
     "I couldn't retrieve a current quote. Check the ticker and try again later."
 )
@@ -139,6 +138,7 @@ def build_graph(
     tax_agent: TaxEducationAgent | None = None,
     goal_agent: GoalPlanningAgent | None = None,
     news_agent: NewsSynthesizerAgent | None = None,
+    portfolio_agent: PortfolioAnalysisAgent | None = None,
     checkpointer: object | None = None,
 ) -> FinanceAssistantGraph:
     async def classify_node(state: FinanceAssistantState) -> FinanceAssistantState:
@@ -175,7 +175,9 @@ def build_graph(
     )
     workflow.add_node(
         "portfolio_analysis_node",
-        RunnableLambda(lambda state: {**portfolio_analysis_node(state), "status": "answered"}),
+        portfolio_agent.graph
+        if portfolio_agent is not None
+        else RunnableLambda(lambda state: {**portfolio_analysis_node(state), "status": "error"}),
     )
     workflow.add_node("market_analysis_node", build_clarification_graph(market_analysis_handler))
     workflow.add_node(
