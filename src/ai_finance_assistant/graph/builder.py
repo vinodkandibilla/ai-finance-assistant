@@ -8,6 +8,7 @@ from ai_finance_assistant.agents.common.clarification import build_clarification
 from ai_finance_assistant.agents.finance_qa import FinanceQaAgent
 from ai_finance_assistant.agents.goal_planning import GoalPlanningAgent
 from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgent
+from ai_finance_assistant.agents.news_synthesizer import NewsSynthesizerAgent
 from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.graph.classifier import IntentClassifier
@@ -22,12 +23,6 @@ PORTFOLIO_ANALYSIS_RESPONSE = (
 )
 MARKET_QUOTE_UNAVAILABLE_RESPONSE = (
     "I couldn't retrieve a current quote. Check the ticker and try again later."
-)
-NEWS_RESPONSE = (
-    "**Model Releases:** Google unveiled its next-generation frontier model, "
-    "**Gemini 4 Argon**, featuring advanced reasoning and a 1-million-token output "
-    "limit aimed at heavy-duty workloads like coding, knowledge work, and "
-    "cybersecurity defense"
 )
 CLARIFY_RESPONSE = (
     "I need a few more details to answer accurately. Please share the specific ticker, "
@@ -61,11 +56,6 @@ def _is_generic_query(intent: str | None, query: str | None) -> bool:
             "price of stock",
             "what is the price",
             "market price",
-        ),
-        "news": (
-            "top news",
-            "latest news",
-            "news today",
         ),
         "tax": (
             "tax details",
@@ -117,8 +107,6 @@ def _route_intent(
             return "clarify_node"
         return "goals_node"
     if intent == "news":
-        if _is_generic_query(intent, state.get("query")):
-            return "clarify_node"
         return "news_synthesizer_node"
     if intent == "tax":
         return "tax_education_node"
@@ -133,10 +121,6 @@ def portfolio_analysis_node(_: FinanceAssistantState) -> FinanceAssistantState:
 
 def finance_qa_node(_: FinanceAssistantState) -> FinanceAssistantState:
     return {"answer": ""}
-
-
-def news_synthesizer_node(_: FinanceAssistantState) -> FinanceAssistantState:
-    return {"answer": NEWS_RESPONSE}
 
 
 def clarify_node(_: FinanceAssistantState) -> FinanceAssistantState:
@@ -154,6 +138,7 @@ def build_graph(
     finance_agent: FinanceQaAgent | None = None,
     tax_agent: TaxEducationAgent | None = None,
     goal_agent: GoalPlanningAgent | None = None,
+    news_agent: NewsSynthesizerAgent | None = None,
     checkpointer: object | None = None,
 ) -> FinanceAssistantGraph:
     async def classify_node(state: FinanceAssistantState) -> FinanceAssistantState:
@@ -177,6 +162,9 @@ def build_graph(
     def unavailable_goal_node(_: FinanceAssistantState) -> FinanceAssistantState:
         return {"answer": "Goal planning agent is not configured.", "status": "error"}
 
+    def unavailable_news_node(_: FinanceAssistantState) -> FinanceAssistantState:
+        return {"answer": "News synthesizer agent is not configured.", "status": "error"}
+
     workflow: StateGraph[
         FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState
     ] = StateGraph(FinanceAssistantState)
@@ -196,7 +184,7 @@ def build_graph(
     )
     workflow.add_node(
         "news_synthesizer_node",
-        RunnableLambda(lambda state: {**news_synthesizer_node(state), "status": "answered"}),
+        news_agent.graph if news_agent is not None else RunnableLambda(unavailable_news_node),
     )
     workflow.add_node(
         "tax_education_node",

@@ -14,6 +14,7 @@ from ai_finance_assistant.agents.finance_qa.reranker import FinanceCrossEncoderR
 from ai_finance_assistant.agents.finance_qa.retrieval import FinanceHybridRetriever
 from ai_finance_assistant.agents.goal_planning import GoalPlanningAgent
 from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgent
+from ai_finance_assistant.agents.news_synthesizer import NewsSynthesizerAgent
 from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.graph.builder import FinanceAssistantGraph, build_graph
@@ -107,6 +108,7 @@ def get_query_graph(
         market_agent=MarketAnalysisAgent(llm=llm, settings=settings),
         finance_agent=finance_agent,
         goal_agent=GoalPlanningAgent(llm=llm),
+        news_agent=NewsSynthesizerAgent(llm=llm, settings=settings),
         tax_agent=TaxEducationAgent(
             retriever=tax_retriever,
             llm=llm,

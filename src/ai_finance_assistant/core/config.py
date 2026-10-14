@@ -4,6 +4,8 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from ai_finance_assistant.prompts import INTENT_ROUTER_SYSTEM_PROMPT
+
 
 class Settings(BaseSettings):
     app_env: Literal["local", "test", "staging", "production"] = "local"
@@ -20,45 +22,13 @@ class Settings(BaseSettings):
     market_quotes_enabled: bool = True
     market_cache_max_entries: int = Field(default=100, gt=0)
     twelve_data_api_key: SecretStr | None = None
+    tavily_api_key: SecretStr | None = None
+    tavily_timeout_seconds: float = Field(default=15.0, gt=0, allow_inf_nan=False)
     twelve_data_mcp_command: str = ".cache/twelvedata-mcp/.venv/bin/python"
     twelve_data_mcp_args: list[str] = [".cache/twelvedata-mcp/src/server.py"]
     market_agent_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     intent_router_system_prompt: str = Field(
-        default=(
-            "Choose exactly one intent by the requested task, in the priority order below; "
-            "do not answer. Incidental tax, retirement, deduction, or account mentions "
-            "do not determine intent. "
-            "tax: IRS/tax education, treatment, filing status, deductions, credits, planning, "
-            "or retirement-account rules (Roth/Traditional/SEP/SIMPLE IRA, 401(k), 403(b), "
-            "similar plans), including eligibility, contributions/limits, withdrawals/"
-            "distributions, conversions, definitions, and comparisons of those rules. "
-            "finance_qa: general investing concepts, securities, funds/ETFs, benchmarks, "
-            "options mechanics, compounding explanations and single-principal "
-            "simple/compound-interest "
-            "calculations, diversification, and risk; tax/retirement "
-            "background alone does not exclude it. "
-            "portfolio: analysis of personal holdings, allocation, concentration, or performance. "
-            "market: current prices, quotes, volume, and daily change for stocks, ETFs "
-            "(including AAPL and QQQ), forex, or crypto; company names and missing or "
-            "ambiguous symbols are resolved by the market agent. "
-            "Historical prices and time-series windows, including weekly/daily data and "
-            "calendar or fiscal quarters, also route to market; that agent owns timeframe "
-            "clarification. Single-asset price growth, returns, or percentage changes over "
-            "a horizon and cross-asset price-performance comparisons also route to market. "
-            "goals: personal savings targets and planning with regular monthly contributions, "
-            "including projected savings, contributions needed, time to reach a target, "
-            "and whether a savings plan can meet a deadline. Route all such requests to goals; "
-            "the goal agent chooses its own tools. Also savings targets, future values, or "
-            "planning calculations, except tax-advantaged account rules and single-principal "
-            "simple/compound-interest calculations (finance_qa). "
-            "news: current AI/tech/market/industry news summaries or breaking news. "
-            "clarify: domain unclear (e.g. 'Which is better?') or the market cases above. "
-            "Identifiable tax/finance_qa/goals requests stay in that domain despite missing "
-            "income, filing status, year, comparands, target, deadline, contribution, "
-            "or other details; their agents clarify. "
-            "Examples: 'What will be my tax bracket?' -> tax; 'Compare two ETFs' -> finance_qa. "
-            "other: outside these categories."
-        ),
+        default=INTENT_ROUTER_SYSTEM_PROMPT,
         min_length=1,
     )
     qdrant_mode: Literal["local", "server"] = "local"

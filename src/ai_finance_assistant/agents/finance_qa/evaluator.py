@@ -6,6 +6,7 @@ import re
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from ai_finance_assistant.agents.finance_qa.schemas import ContextEvaluation, FinanceDocument
+from ai_finance_assistant.prompts import FINANCE_QA_EVALUATION_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -52,18 +53,7 @@ class FinanceContextEvaluator:
             for document in documents
         )
         prompt = [
-            SystemMessage(
-                content=(
-                    "Evaluate whether the combined passages fully support an educational answer "
-                    "to the investment question at the level of detail actually requested. "
-                    "For 'What is X?', a direct definition and basic characteristics are enough; "
-                    "Require examples, trading mechanics, risks, or comparisons only when asked. "
-                    "For comparisons and multipart questions, require evidence for each part. "
-                    "Ignore unrelated passages when relevant evidence is present. "
-                    "Judge coverage, not just relevance. Do not answer. Return sufficient, "
-                    "missing concepts, a reason, and focused search queries."
-                )
-            ),
+            SystemMessage(content=FINANCE_QA_EVALUATION_PROMPT),
             HumanMessage(content=f"Question: {query}\n\nPassages:\n{context}"),
         ]
         try:
