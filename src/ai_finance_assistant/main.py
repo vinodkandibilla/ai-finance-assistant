@@ -7,13 +7,13 @@ from fastapi.responses import JSONResponse
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from ai_finance_assistant.agents.portfolio_analysis.authorization import UserContext
-from ai_finance_assistant.agents.portfolio_analysis.store import PortfolioStore
 from ai_finance_assistant.api.health import router as health_router
 from ai_finance_assistant.api.query import get_query_graph
 from ai_finance_assistant.api.query import router as query_router
 from ai_finance_assistant.core.config import get_settings
 from ai_finance_assistant.core.logging import configure_logging
-from ai_finance_assistant.graph.classifier import (
+from ai_finance_assistant.data.portfolio_store import PortfolioStore
+from ai_finance_assistant.workflow.classifier import (
     ClassificationOutputError,
     ClassificationProviderError,
     ClassificationTimeoutError,

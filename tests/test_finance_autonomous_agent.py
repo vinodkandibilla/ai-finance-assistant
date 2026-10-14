@@ -10,7 +10,7 @@ from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
 from ai_finance_assistant.agents.finance_qa.graph import FinanceQaAgent
 from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
 from ai_finance_assistant.agents.finance_qa.schemas import FinanceAgentResult, FinanceDocument
-from ai_finance_assistant.graph.builder import build_graph
+from ai_finance_assistant.workflow.builder import build_graph
 
 
 class ScriptedModel(BaseChatModel):

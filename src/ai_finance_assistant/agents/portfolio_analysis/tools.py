@@ -11,7 +11,7 @@ from ai_finance_assistant.agents.portfolio_analysis.authorization import UserCon
 from ai_finance_assistant.agents.portfolio_analysis.authorization import (
     customer_id as normalize_customer_id,
 )
-from ai_finance_assistant.agents.portfolio_analysis.store import PRICE_BASIS, PortfolioStore
+from ai_finance_assistant.data.portfolio_store import PRICE_BASIS, PortfolioStore
 
 RankBy = Literal["concentration", "diversification", "unrealized_loss"]
 Screen = Literal["all", "concentrated", "unrealized_losses"]

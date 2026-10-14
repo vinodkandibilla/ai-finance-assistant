@@ -11,7 +11,7 @@ from ai_finance_assistant.agents.tax_education.tax_calculation import (
     THRESHOLDS,
     calculate_federal_income_tax,
 )
-from ai_finance_assistant.graph.builder import build_graph
+from ai_finance_assistant.workflow.builder import build_graph
 from test_finance_autonomous_agent import call
 from test_tax_agent_graph import Classifier, make_agent
 

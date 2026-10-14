@@ -7,7 +7,7 @@ from ai_finance_assistant.agents.finance_qa.config import FinanceAgentSettings
 from ai_finance_assistant.agents.finance_qa.graph import FinanceQaAgent
 from ai_finance_assistant.agents.finance_qa.metadata_extractor import FinanceMetadataExtractor
 from ai_finance_assistant.agents.finance_qa.schemas import FinanceAgentResult, FinanceDocument
-from ai_finance_assistant.graph.builder import build_graph
+from ai_finance_assistant.workflow.builder import build_graph
 from test_finance_autonomous_agent import Classifier, Reranker, Retriever, ScriptedModel, call
 
 INPUTS = {"principal": "10000", "annual_rate": "6", "rate_units": "percent", "duration_years": "5"}

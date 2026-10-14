@@ -1,17 +1,5 @@
-from pathlib import Path
-
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-FINANCE_PDF_PATH = (
-    PROJECT_ROOT
-    / "src"
-    / "ai_finance_assistant"
-    / "rag"
-    / "finance-qa"
-    / "Financial_Education_Handbook_integrated.pdf"
-)
 
 
 class FinanceAgentSettings(BaseSettings):

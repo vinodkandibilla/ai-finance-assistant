@@ -24,7 +24,7 @@ from ai_finance_assistant.agents.market_analysis.timeframe import (
     resolve_market_timeframe,
 )
 from ai_finance_assistant.core.config import Settings
-from ai_finance_assistant.graph.state import FinanceAssistantState
+from ai_finance_assistant.workflow.state import FinanceAssistantState
 
 ALLOWED_TOOLS = frozenset({"get_quote", "search_symbol", "get_time_series"})
 UNAVAILABLE = "I couldn't retrieve a market quote. Please try again later."

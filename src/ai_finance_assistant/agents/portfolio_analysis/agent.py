@@ -17,8 +17,8 @@ from pydantic import Field
 from ai_finance_assistant.agents.common.clarification import clarification_reply
 from ai_finance_assistant.agents.common.schemas import AgentResult, AgentState
 from ai_finance_assistant.agents.portfolio_analysis.authorization import UserContext, denied
-from ai_finance_assistant.agents.portfolio_analysis.store import PortfolioStore
 from ai_finance_assistant.agents.portfolio_analysis.tools import PortfolioTools
+from ai_finance_assistant.data.portfolio_store import PortfolioStore
 from ai_finance_assistant.prompts import PORTFOLIO_ANALYSIS_AGENT_PROMPT as AGENT_PROMPT
 
 TOOL_GUIDANCE = "Use deterministic tool results; never recalculate metrics."

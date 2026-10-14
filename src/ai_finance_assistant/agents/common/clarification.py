@@ -6,7 +6,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import interrupt
 
-from ai_finance_assistant.graph.state import FinanceAssistantState
+from ai_finance_assistant.workflow.state import FinanceAssistantState
 
 
 def clarification_reply(question: str) -> str:

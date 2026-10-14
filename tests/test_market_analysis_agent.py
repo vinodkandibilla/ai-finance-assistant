@@ -8,7 +8,7 @@ from pydantic import SecretStr
 from ai_finance_assistant.agents.market_analysis import agent as module
 from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgent
 from ai_finance_assistant.core.config import Settings
-from ai_finance_assistant.graph.builder import build_graph
+from ai_finance_assistant.workflow.builder import build_graph
 
 
 class FakeModel:

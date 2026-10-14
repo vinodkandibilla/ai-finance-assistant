@@ -9,8 +9,8 @@ from ai_finance_assistant.agents.portfolio_analysis.agent import (
     PortfolioAnalysisResult,
 )
 from ai_finance_assistant.agents.portfolio_analysis.authorization import UserContext
-from ai_finance_assistant.agents.portfolio_analysis.store import PortfolioStore
-from ai_finance_assistant.graph.builder import build_graph
+from ai_finance_assistant.data.portfolio_store import PortfolioStore
+from ai_finance_assistant.workflow.builder import build_graph
 from test_finance_autonomous_agent import ScriptedModel, call
 
 

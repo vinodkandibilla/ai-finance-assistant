@@ -17,14 +17,14 @@ from ai_finance_assistant.agents.market_analysis.agent import MarketAnalysisAgen
 from ai_finance_assistant.agents.news_synthesizer import NewsSynthesizerAgent
 from ai_finance_assistant.agents.portfolio_analysis.agent import PortfolioAnalysisAgent
 from ai_finance_assistant.agents.portfolio_analysis.authorization import UserContext
-from ai_finance_assistant.agents.portfolio_analysis.store import PortfolioStore
 from ai_finance_assistant.agents.tax_education.graph import TaxEducationAgent
 from ai_finance_assistant.core.config import get_settings
-from ai_finance_assistant.graph.builder import FinanceAssistantGraph, build_graph
-from ai_finance_assistant.graph.classifier import IntentClassifier, create_intent_classifier
-from ai_finance_assistant.graph.state import ExecutedHandler, FinanceIntent
+from ai_finance_assistant.data.portfolio_store import PortfolioStore
 from ai_finance_assistant.rag.qdrant import get_qdrant_client
 from ai_finance_assistant.rag.tax_education import get_tax_retriever
+from ai_finance_assistant.workflow.builder import FinanceAssistantGraph, build_graph
+from ai_finance_assistant.workflow.classifier import IntentClassifier, create_intent_classifier
+from ai_finance_assistant.workflow.state import ExecutedHandler, FinanceIntent
 
 router = APIRouter(tags=["assistant"])
 
