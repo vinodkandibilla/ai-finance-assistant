@@ -76,7 +76,8 @@ async def test_model_directs_searches_without_changing_original_year():
 
 async def test_answer_without_search_is_rejected():
     agent, retriever, _ = make_agent(
-        [AIMessage(content="Unsupported")], TaxAgentResult(status="answered", answer="Unsupported")
+        [AIMessage(content="Unsupported"), AIMessage(content="Still unsupported")],
+        TaxAgentResult(status="answered", answer="Unsupported"),
     )
     result = await agent.graph.ainvoke({"query": "What is a deduction?"})
     assert result["status"] == "insufficient"
@@ -256,3 +257,32 @@ async def test_out_of_scope_instruction_does_not_create_another_interrupt():
     assert result["status"] == "out_of_scope"
     assert not result.get("__interrupt__")
     assert result["citations"] == []
+
+
+async def test_skipped_retrieval_gets_one_bounded_recovery_turn():
+    agent, retriever, model = make_agent(
+        [
+            AIMessage(content="Unsupported initial explanation"),
+            call("tax_rag_query", {"query": "short-term long-term capital gains"}, "recovery"),
+            AIMessage(content="Evidence-backed explanation"),
+        ],
+        TaxAgentResult(status="answered", answer="Evidence-backed explanation"),
+    )
+    result = await agent.graph.ainvoke(
+        {"query": "Explain short-term versus long-term capital gains."}
+    )
+    assert result["status"] == "answered"
+    assert result["citations"] == ["MFJ brackets"]
+    assert len(retriever.calls) == 1
+    assert any("no tool was called" in str(m.content) for m in model.seen[1])
+
+
+async def test_out_of_scope_does_not_trigger_retrieval_recovery():
+    agent, retriever, model = make_agent(
+        [AIMessage(content="Outside tax scope")],
+        TaxAgentResult(status="out_of_scope", answer="Outside tax scope"),
+    )
+    result = await agent.graph.ainvoke({"query": "What is the weather?"})
+    assert result["status"] == "out_of_scope"
+    assert not retriever.calls
+    assert len(model.seen) == 1

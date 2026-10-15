@@ -3,7 +3,6 @@
 import re
 
 from finassist.agents.common.rag_tools import tax_citations as _citations
-from finassist.prompts import TAX_EDUCATION_AGENT_PROMPT as AGENT_PROMPT
 from finassist.agents.common.runtime import AgentPolicy, AutonomousEducationAgent
 from finassist.agents.tax_education.calculator_tools import (
     calculate_federal_ordinary_income_tax,
@@ -12,8 +11,8 @@ from finassist.agents.tax_education.calculator_tools import (
 from finassist.agents.tax_education.config import TaxAgentSettings
 from finassist.agents.tax_education.schemas import TaxAgentResult
 from finassist.agents.tax_education.tools import create_tax_rag_query_tool
+from finassist.prompts import TAX_EDUCATION_AGENT_PROMPT as AGENT_PROMPT
 from finassist.rag.tax_education import extract_tax_metadata
-
 
 
 class TaxEducationAgent(AutonomousEducationAgent):
@@ -21,6 +20,7 @@ class TaxEducationAgent(AutonomousEducationAgent):
         settings = settings or TaxAgentSettings()
         policy = AgentPolicy(
             intent="tax",
+            recover_skipped_retrieval=True,
             label="Tax",
             name="tax_education_agent",
             prompt=AGENT_PROMPT,

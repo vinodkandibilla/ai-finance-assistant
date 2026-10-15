@@ -13,7 +13,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from finassist.agents.market_analysis.cache import market_cache
-from finassist.prompts import MARKET_AGENT_SYSTEM_PROMPT
+from finassist.agents.market_analysis.chart_data import chart_observation
 from finassist.agents.market_analysis.growth import (
     RATE_LIMIT_RESPONSE,
     calculate_price_growth,
@@ -24,6 +24,7 @@ from finassist.agents.market_analysis.timeframe import (
     resolve_market_timeframe,
 )
 from finassist.core.config import Settings
+from finassist.prompts import MARKET_AGENT_SYSTEM_PROMPT
 from finassist.workflow.state import FinanceAssistantState
 
 ALLOWED_TOOLS = frozenset({"get_quote", "search_symbol", "get_time_series"})
@@ -126,6 +127,7 @@ class MarketAnalysisAgent:
         messages = [SystemMessage(MARKET_AGENT_SYSTEM_PROMPT), HumanMessage(state["query"])]
         timeframe: dict[str, object] | None = None
         retrieved_data = False
+        observations: list[dict[str, Any]] = []
         for _ in range(5):
             response = await model.ainvoke(messages)
             messages.append(response)
@@ -135,7 +137,24 @@ class MarketAnalysisAgent:
                     return {"answer": UNAVAILABLE, "status": "error"}
                 if not retrieved_data:
                     return {"answer": answer, "clarification_question": answer, "status": "clarify"}
-                return {"answer": answer, "status": "answered"}
+                for observation in observations:
+                    quote = next(
+                        (
+                            item
+                            for item in observations
+                            if item["interval"] == "quote"
+                            and item["symbol"] == observation["symbol"]
+                        ),
+                        {},
+                    )
+                    for field in ("currency", "exchange"):
+                        if not observation.get(field) and quote.get(field):
+                            observation[field] = quote[field]
+                return {
+                    "answer": answer,
+                    "status": "answered",
+                    **({"calculations": observations} if observations else {}),
+                }
             growth_calls = [
                 call for call in response.tool_calls if call["name"] == "calculate_price_growth"
             ]
@@ -152,6 +171,7 @@ class MarketAnalysisAgent:
                         str(timeframe["as_of"]),
                     )
             for call in response.tool_calls:
+                result = None
                 if call["name"] == "resolve_market_timeframe":
                     timeframe = await resolve_market_timeframe.ainvoke({"request": state["query"]})
                     if timeframe["status"] == "clarify":
@@ -205,5 +225,14 @@ class MarketAnalysisAgent:
                         return {"answer": RATE_LIMIT_RESPONSE, "status": "error"}
                     retrieved_data = retrieved_data or call["name"] == "get_quote"
                     payload = json.dumps(result.model_dump(mode="json"))
+                if call["name"] in {"get_quote", "get_time_series"} and result is not None:
+                    observation = chart_observation(
+                        result,
+                        tool=call["name"],
+                        symbol=str(call["args"].get("symbol", "")),
+                        interval=str(arguments.get("interval", "1day")),
+                    )
+                    if observation:
+                        observations.append(observation)
                 messages.append(ToolMessage(content=payload, tool_call_id=call["id"]))
         return {"answer": UNAVAILABLE, "status": "error"}

@@ -1,0 +1,29 @@
+[theme]
+base = "light"
+primaryColor = "#0F766E"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F5F9"
+textColor = "#10243A"
+linkColor = "#1D4ED8"
+linkUnderline = true
+font = "sans serif"
+baseFontSize = 16
+baseRadius = "0.75rem"
+borderColor = "#CBD5E1"
+showWidgetBorder = true
+
+[theme.sidebar]
+backgroundColor = "#F1F5F9"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#10243A"
+primaryColor = "#0F766E"
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "viewer"
+
+[server]
+fileWatcherType = "poll"
+runOnSave = true
