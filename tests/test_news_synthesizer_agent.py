@@ -381,3 +381,41 @@ async def test_focused_search_preserves_requested_calendar_dates():
         ("initial", "2026-09-01", "2026-09-30"),
         ("focused outlook", "2026-09-01", "2026-09-30"),
     ]
+
+
+async def test_news_runtime_logs_safe_exception_category(caplog):
+    from unittest.mock import AsyncMock
+
+    agent, _, _ = make_agent([])
+    agent.agent = AsyncMock()
+    agent.agent.ainvoke.side_effect = RuntimeError("private-provider-error-sentinel")
+    with caplog.at_level("ERROR", logger="finassist.agents.news_synthesizer.agent"):
+        result = await agent.ainvoke({"query": "Recent technology stocks and interest rates news"})
+    assert result["status"] == "error"
+    assert "category=RuntimeError" in caplog.text
+    assert "private-provider-error-sentinel" not in caplog.text
+
+
+async def test_article_cards_expose_only_grounded_reporting_metadata():
+    final = NewsAgentResult(
+        status="answered",
+        claims=[
+            NewsClaim(text="Reported development.", evidence_ids=["E1"]),
+            NewsClaim(text="A possible implication.", evidence_ids=["E1"], kind="interpretation"),
+        ],
+    )
+    agent, _, _ = make_agent(
+        [call("search_financial_news", {"query": "earnings news"}, "search")],
+        final=final,
+        batches=[evidence()],
+    )
+    result = await agent.ainvoke({"query": "Recent earnings news"})
+    articles = result["calculations"][0]["articles"]
+    assert len(articles) == 1
+    assert articles[0] == {
+        "title": "Report",
+        "url": "https://example.com/story?b=2&a=1",
+        "publisher": "Example",
+        "published_at": None,
+        "summary": "Reported development.",
+    }

@@ -10,6 +10,8 @@ font = "sans serif"
 baseFontSize = 16
 baseRadius = "0.75rem"
 borderColor = "#CBD5E1"
+dataframeHeaderBackgroundColor = "#153E75"
+dataframeHeaderTextColor = "#FFFFFF"
 showWidgetBorder = true
 
 [theme.sidebar]

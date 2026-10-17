@@ -325,6 +325,30 @@ Launch from the repository root to load this configuration. Restart Streamlit af
 dependency changes or if imported modules remain stale. Provider keys belong in
 backend configuration, never UI code or committed files.
 
+Historical extrema in Market chat use `calculate_price_extrema` after timeframe resolution.
+The tool computes minima/maxima from provider daily bars using decimal arithmetic, returns
+all tied dates and structured `market_price_extrema` output, and supports open/high/low/close.
+Highest defaults to high; lowest defaults to low. Requests are limited to 100 calendar days.
+Results describe returned observations and explicitly leave full trading-session coverage
+unverified; no prices or missing sessions are synthesized. No new HTTP route is required.
+
+The Portfolio landing page automatically requests the current application identity's
+portfolio through `POST /query`. For a customer it requests their own snapshot; for a
+portfolio manager it requests all assigned customer snapshots. The server supplies the
+simulated identity (default PM001); the frontend does not supply identity credentials or
+read SQLite. Returned names identify customers in the selector. Backend snapshots remain
+synthetic, frozen historical data. Refresh portfolios reloads the displayed snapshot;
+changing simulated identity on the server requires refreshing the page's portfolio data.
+No login or new portfolio HTTP endpoint is introduced.
+
+The News workspace provides manual topic/period searches through `POST /query`.
+The News agent includes validated article metadata in `calculations` entries with
+`type: news_articles`. Cards use retrieved titles, exact URLs, supplied publisher/date,
+and grounded reported facts; interpretation claims are excluded from card summaries.
+Missing dates are labeled unavailable. Failed searches retain prior results with their
+retrieval timestamp. “Ask about this” prefills an editable question with article context
+without sending it. There is no automatic feed, personalized news, or new endpoint.
+
 ### Validation and troubleshooting
 
 Install the `dev` extra, then run offline checks:

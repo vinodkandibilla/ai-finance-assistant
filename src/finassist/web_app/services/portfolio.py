@@ -22,11 +22,13 @@ class PortfolioSnapshot(BaseModel):
     model_config = ConfigDict(strict=True, extra="ignore", allow_inf_nan=False)
     status: str
     customer_id: str
+    customer_name: str | None = None
     data_source: str
     price_basis: str
     portfolio_value: float = Field(gt=0)
     holdings: list[Holding] = Field(min_length=1)
     manager_id: str | None = None
+    concentration: dict[str, object] = Field(default_factory=dict)
     performance_complete: bool = False
     cost_basis: float | None = Field(default=None, gt=0)
     unrealized_gain_loss: float | None = None
@@ -129,3 +131,38 @@ def sample_snapshot() -> PortfolioSnapshot:
             ],
         }
     )
+
+
+def fetch_current_portfolios() -> QueryResponse:
+    """Use server-provided identity; no frontend identity or store access."""
+    from finassist.web_app.config import WebSettings
+    from finassist.web_app.services.api_client import FinanceApiClient
+    from finassist.web_app.services.models import QueryRequest
+
+    query = (
+        "Load my portfolio landing dashboard using the trusted application identity. "
+        "If I am an individual customer, retrieve my own complete portfolio snapshot. "
+        "If I am a portfolio manager, retrieve and compare all customer portfolios assigned "
+        "to me, with customer names and holdings. Do not screen or omit customers based on "
+        "concentration. Include any excluded portfolios and reasons when data is unavailable. "
+        "Do not ask me for my ID when application identity supplies it. "
+        "Use portfolio tools and return their structured calculations; do not invent data."
+    )
+    with FinanceApiClient(WebSettings.from_environment()) as client:
+        return client.query(QueryRequest(query=query))
+
+
+def performance_label(snapshot: PortfolioSnapshot) -> str:
+    """Describe holding-level unrealized results; mixed is not a net-return label."""
+    gains = [holding.unrealized_gain_loss for holding in snapshot.holdings]
+    if not snapshot.performance_complete or any(value is None for value in gains):
+        return "Unavailable"
+    positive = any(value is not None and value > 0 for value in gains)
+    negative = any(value is not None and value < 0 for value in gains)
+    if positive and negative:
+        return "Mixed"
+    if positive:
+        return "Gains"
+    if negative:
+        return "Losses"
+    return "Unchanged"

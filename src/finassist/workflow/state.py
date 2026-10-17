@@ -33,6 +33,7 @@ class FinanceAssistantState(TypedDict, total=False):
     intent: FinanceIntent
     classified_intent: FinanceIntent
     executed_handler: ExecutedHandler
+    standalone_greeting: bool
     answer: str
     user_query: str
     search_query: str

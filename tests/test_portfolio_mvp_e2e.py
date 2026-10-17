@@ -190,7 +190,7 @@ async def test_name_lookup_alone_is_not_financial_evidence(store):
         UserContext(user_id="PM001", role="PORTFOLIO_MANAGER"),
         "Tell me the value of Customer 1",
         [
-            call("resolve_portfolio_customer", {"name": "Customer 1:"}, "name"),
+            call("resolve_portfolio_customer", {"name": "James:"}, "name"),
             AIMessage(content="An unsupported value"),
         ],
     )

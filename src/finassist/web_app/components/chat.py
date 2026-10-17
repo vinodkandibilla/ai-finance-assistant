@@ -42,6 +42,34 @@ class ChatState:
     pending_request: QueryRequest | ResumeRequest | None = None
 
 
+def _explain_previous_error(state: ChatState, text: str) -> bool:
+    """Explain a known application failure without inventing a provider diagnosis."""
+    if state.thread_id or text.strip().lower().rstrip("?.! ") not in {
+        "why",
+        "why did it fail",
+        "why the error",
+        "what went wrong",
+    }:
+        return False
+    previous = state.messages[-1] if state.messages else None
+    if not previous or not previous.response or previous.response.status != "error":
+        return False
+    state.messages.extend(
+        [
+            Message("user", text.strip()),
+            Message(
+                "assistant",
+                "The previous request returned a backend error. "
+                f"The API reported: {previous.response.answer}\n\n"
+                "It did not supply a detailed cause, so I cannot confirm why it failed. "
+                "Try the full original question again, including the topic and timeframe "
+                "when relevant.",
+            ),
+        ]
+    )
+    return True
+
+
 def _send(state: ChatState, request: QueryRequest | ResumeRequest) -> None:
     st.session_state["scroll_to_latest_turn"] = True
     try:
@@ -170,21 +198,22 @@ def _conversational_screen(page: str, *, heading: str) -> None:
     if "conversation" not in st.session_state:
         st.session_state["conversation"] = ChatState()
     state: ChatState = st.session_state["conversation"]
-    title, action = st.columns([1, 0.15], vertical_alignment="center")
-    with title:
-        st.subheader(heading)
-    with action:
-        reset_chat = st.button(
-            "",
-            icon=":material/edit_square:",
-            help="New chat — clears this conversation",
-            type="tertiary",
-            key="new_chat",
+    with st.container(key="finpilot_chat_header", gap="xsmall"):
+        title, action = st.columns([1, 0.15], vertical_alignment="center")
+        with title:
+            st.subheader(heading)
+        with action:
+            reset_chat = st.button(
+                "",
+                icon=":material/edit_square:",
+                help="New chat — clears this conversation",
+                type="tertiary",
+                key="new_chat",
+            )
+        st.caption(
+            "Ask about finance, portfolios, markets, goals, news, or US taxes. "
+            "Your chat stays available as you switch pages and isn’t saved permanently."
         )
-    st.caption(
-        "Ask about finance, portfolios, markets, goals, news, or US taxes. "
-        "Your chat stays available as you switch pages and isn’t saved permanently."
-    )
     if reset_chat:
         has_draft = any(
             bool(st.session_state[key])
@@ -283,6 +312,10 @@ def _conversational_screen(page: str, *, heading: str) -> None:
     if queued is not None and not state.thread_id and state.failed_request is None:
         text = queued
     if text is not None:
+        if _explain_previous_error(state, text):
+            st.session_state["scroll_to_latest_turn"] = True
+            _rerun_chat()
+            return
         try:
             request: QueryRequest | ResumeRequest = (
                 ResumeRequest(thread_id=state.thread_id, reply=text)

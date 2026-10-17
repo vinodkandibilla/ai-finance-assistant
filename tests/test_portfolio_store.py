@@ -85,7 +85,7 @@ def test_seed_is_identical_across_independent_instances(store):
     # Pin representative fixture values, not just equality between two executions.
     assert store.get_customer("C001") == {
         "customer_id": "C001",
-        "customer_name": "Synthetic Customer 1: Diversified moderate",
+        "customer_name": "James: Diversified moderate",
         "manager_id": "PM001",
         "risk_profile": "moderate",
         "investment_horizon_years": 10,

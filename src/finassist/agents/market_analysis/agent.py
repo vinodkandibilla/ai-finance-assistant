@@ -14,6 +14,7 @@ from mcp.client.stdio import stdio_client
 
 from finassist.agents.market_analysis.cache import market_cache
 from finassist.agents.market_analysis.chart_data import chart_observation
+from finassist.agents.market_analysis.extrema import calculate_price_extrema
 from finassist.agents.market_analysis.growth import (
     RATE_LIMIT_RESPONSE,
     calculate_price_growth,
@@ -126,6 +127,26 @@ class MarketAnalysisAgent:
                 },
             }
         )
+        descriptors.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "calculate_price_extrema",
+                    "description": "Compute a historical minimum/maximum from provider history. "
+                    "Resolve the symbol and call resolve_market_timeframe first. "
+                    "Never supply prices.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {"type": "string"},
+                            "operation": {"type": "string", "enum": ["min", "max"]},
+                            "field": {"type": "string", "enum": ["open", "high", "low", "close"]},
+                        },
+                        "required": ["symbol", "operation"],
+                    },
+                },
+            }
+        )
         available = {item["function"]["name"] for item in descriptors}
         if "get_quote" not in available:
             return {"answer": UNAVAILABLE, "status": "error"}
@@ -188,6 +209,19 @@ class MarketAnalysisAgent:
                             "status": "clarify",
                         }
                     payload = json.dumps(timeframe)
+                elif call["name"] == "calculate_price_extrema":
+                    if timeframe is None or "start_date" not in timeframe["parameters"]:
+                        payload = '{"error": "Resolve a date-bounded historical window first."}'
+                    elif "get_time_series" not in available:
+                        payload = '{"error": "Historical MCP data is unavailable."}'
+                    else:
+                        return await calculate_price_extrema(
+                            session,
+                            call["args"]["symbol"],
+                            cast(dict[str, Any], timeframe["parameters"]),
+                            call["args"]["operation"],
+                            call["args"].get("field"),
+                        )
                 elif call["name"] == "calculate_price_growth":
                     if timeframe is None or "start_date" not in cast(
                         dict[str, Any], timeframe["parameters"]

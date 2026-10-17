@@ -5,7 +5,6 @@ import httpx
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from finassist.web_app.components.chat import ChatState, Message
 from finassist.web_app.components.portfolio import allocation_chart
 from finassist.web_app.services.models import QueryResponse
 from finassist.web_app.services.portfolio import sample_snapshot, snapshots
@@ -75,16 +74,13 @@ def test_api_dashboard_and_missing_performance(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(httpx.Client, "send", lambda *a, **k: pytest.fail("No automatic API calls"))
     app = AppTest.from_file(str(APP), default_timeout=10)
     response = QueryResponse(intent="portfolio", answer="Snapshot", calculation=payload())
-    app.session_state["conversation"] = ChatState(
-        messages=[Message("assistant", "Snapshot", response)]
-    )
+    app.session_state["portfolio_landing_response"] = response
     app.run().switch_page("views/portfolio.py").run()
     assert not app.exception
     assert any(m.value == "$100,000.00" for m in app.metric)
     assert len(app.get("plotly_chart")) == 3
     assert any("Performance is not shown" in item.value for item in app.info)
     assert any("2026-10-09" in item.value for item in app.caption)
-    assert any("Backend synthetic" in item.value for item in app.info)
 
 
 def test_empty_and_explicit_sample(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -98,10 +94,7 @@ def test_empty_and_explicit_sample(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not app.exception
     assert not app.metric
     assert any("No adequate" in item.value for item in app.info)
-    app.radio[0].set_value("Synthetic sample").run()
-    assert not app.exception
-    assert any("UI SAMPLE ONLY" in item.value for item in app.warning)
-    assert len(app.get("plotly_chart")) == 3
+    assert not any(radio.label == "Dashboard data" for radio in app.radio)
 
 
 def test_scope_fields_are_sent_over_query(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -153,14 +146,14 @@ def test_comparison_selection_and_performance(monkeypatch: pytest.MonkeyPatch) -
         calculations=[{"status": "success", "portfolios": [first, payload("C2")]}],
     )
     app = AppTest.from_file(str(APP), default_timeout=10)
-    app.session_state["conversation"] = ChatState(
-        messages=[Message("assistant", "Comparison", response)]
-    )
+    app.session_state["portfolio_landing_response"] = response
     app.run().switch_page("views/portfolio.py").run()
     assert not app.exception
     assert any(m.value == "$20,000.00" for m in app.metric)
-    assert len(app.get("plotly_chart")) == 4
-    next(s for s in app.selectbox if s.label == "Customer snapshot").select("C2").run()
+    assert len(app.get("plotly_chart")) == 3
+    app.button(key="portfolio_customer_C2").click().run()
+    assert not any(b.key == "portfolio_customer_C2" for b in app.button)
+    assert app.button(key="portfolio_customer_C1").label == "C1"
     assert not app.exception
     assert not any(m.value == "$20,000.00" for m in app.metric)
     assert any("Performance is not shown" in item.value for item in app.info)
@@ -170,3 +163,130 @@ def test_unrecognized_provenance_is_not_used() -> None:
     data = payload()
     data["data_source"] = "live"
     assert snapshots(QueryResponse(intent="portfolio", answer="", calculation=data)) == []
+
+
+@pytest.mark.parametrize("manager", [True, False])
+def test_landing_loads_identity_scoped_portfolios_without_refresh_button(monkeypatch, manager):
+    calls = []
+    first = {**payload("C1"), "customer_name": "Demo customer one"}
+    second = {**payload("C2"), "customer_name": "Demo customer two"}
+    response = QueryResponse(
+        intent="portfolio",
+        answer="Loaded",
+        calculation=(
+            {"status": "success", "manager_id": "PM001", "portfolios": [first, second]}
+            if manager
+            else first
+        ),
+    )
+
+    def fetch():
+        calls.append(True)
+        return response
+
+    monkeypatch.setattr("finassist.web_app.components.portfolio.fetch_current_portfolios", fetch)
+    app = AppTest.from_file(str(APP), default_timeout=10).run()
+    app.switch_page("views/portfolio.py").run()
+    assert not app.exception
+    assert len(calls) == 1
+    assert any(
+        s.value == ("Your customers" if manager else "Your portfolio") for s in app.subheader
+    )
+    if manager:
+        assert not any(b.key == "portfolio_customer_C1" for b in app.button)
+        assert app.button(key="portfolio_customer_C2").label == "C2"
+        assert app.session_state["portfolio_selected_customer"] == "C1"
+    assert not any(b.key == "refresh_portfolio_landing" for b in app.button)
+    app.run()
+    assert len(calls) == 1
+    assert not app.exception
+
+
+def test_portfolio_landing_request_uses_server_identity_only(monkeypatch):
+    from finassist.web_app.services.portfolio import fetch_current_portfolios
+
+    requests = []
+
+    def send(client, request, **kwargs):
+        requests.append((request.url.path, json.loads(request.content)))
+        return httpx.Response(
+            200, request=request, json={"intent": "portfolio", "answer": "Loaded"}
+        )
+
+    monkeypatch.setattr(httpx.Client, "send", send)
+    fetch_current_portfolios()
+    assert requests[0][0] == "/query"
+    assert set(requests[0][1]) == {"query"}
+    assert "trusted application identity" in requests[0][1]["query"]
+    assert "assigned" in requests[0][1]["query"]
+
+
+def test_customer_directory_search_and_detail_tabs(monkeypatch):
+    response = QueryResponse(
+        intent="portfolio",
+        answer="Loaded",
+        calculation={
+            "status": "success",
+            "manager_id": "PM001",
+            "portfolios": [
+                {**payload("C1"), "customer_name": "Alex Demo"},
+                {**payload("C2"), "customer_name": "Jordan Demo"},
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        "finassist.web_app.components.portfolio.fetch_current_portfolios", lambda: response
+    )
+    app = AppTest.from_file(str(APP), default_timeout=10).run()
+    app.switch_page("views/portfolio.py").run()
+    assert [tab.label for tab in app.tabs] == ["Summary", "Positions", "Allocation"]
+    app.text_input(key="portfolio_customer_search").input("jordan").run()
+    assert not app.exception
+    assert not any(button.key == "portfolio_customer_C2" for button in app.button)
+    assert not any(button.key == "portfolio_customer_C1" for button in app.button)
+    assert app.session_state["portfolio_selected_customer"] == "C2"
+    assert any(h.value == "C2 - Jordan Demo" for h in app.subheader)
+    app.text_input(key="portfolio_customer_search").input("unmatched").run()
+    assert any("No customers match" in item.value for item in app.info)
+    assert not app.exception
+
+
+def test_performance_cards_show_losses_and_backend_concentration_flag():
+    data = payload()
+    data.update(
+        performance_complete=True,
+        cost_basis=120000,
+        unrealized_gain_loss=-20000,
+        unrealized_gain_loss_pct=-20000 / 120000 * 100,
+        concentration={"is_concentrated": True},
+    )
+    app = AppTest.from_file(str(APP), default_timeout=10)
+    app.session_state["portfolio_landing_response"] = QueryResponse(
+        intent="portfolio", answer="Loaded", calculation=data
+    )
+    app.run().switch_page("views/portfolio.py").run()
+    assert not app.exception
+    values = {metric.label: metric.value for metric in app.metric}
+    assert values["Unrealized gain / loss (USD)"] == "$-20,000.00"
+    assert values["Unrealized gain / loss (%)"] == "-16.67%"
+    assert values["Concentration"] == "Flagged"
+
+
+@pytest.mark.parametrize(
+    "gains,expected",
+    [
+        ([10, 20, 0], "Gains"),
+        ([-10, -20, 0], "Losses"),
+        ([10, -20, 0], "Mixed"),
+        ([0, 0, 0], "Unchanged"),
+        ([10, None, 0], "Unavailable"),
+    ],
+)
+def test_performance_label_uses_holdings_not_scenario_text(gains, expected):
+    from finassist.web_app.services.portfolio import performance_label
+
+    snapshot = sample_snapshot()
+    snapshot.performance_complete = True
+    for holding, gain in zip(snapshot.holdings, gains, strict=True):
+        holding.unrealized_gain_loss = gain
+    assert performance_label(snapshot) == expected

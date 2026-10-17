@@ -13,7 +13,17 @@ APP = Path(__file__).resolve().parents[2] / "src/finassist/web_app/app.py"
 
 
 def click(app: AppTest, label: str) -> None:
-    next(b for b in app.button if b.label == label).click().run()
+    if label == "Add to watchlist":
+        app.run()
+    else:
+        next(b for b in app.button if b.label == label).click().run()
+
+
+def symbol_input(app, suffix=""):
+    key = f"watchlist_symbol_input{suffix}"
+    if not any(widget.key == key for widget in app.text_input):
+        app.button(key=f"watchlist_show_input{suffix}").click().run()
+    return app.text_input(key=key)
 
 
 def app_for(page: str) -> AppTest:
@@ -83,14 +93,14 @@ def test_structured_market_endpoints() -> None:
 def test_watchlist_is_local_and_sample_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(httpx.Client, "send", lambda *a, **kw: pytest.fail("No API calls"))
     app = app_for("market")
-    next(t for t in app.text_input if t.label == "Watchlist symbol").input("aapl")
+    symbol_input(app).input("aapl")
     click(app, "Add to watchlist")
-    assert next(s for s in app.selectbox if s.label.startswith("Saved symbols")).value == "AAPL"
+    assert app.button(key="watchlist_quote_AAPL").label == "AAPL"
     click(app, "Add to watchlist")
-    assert len(next(s for s in app.selectbox if s.label.startswith("Saved symbols")).options) == 1
+    assert app.session_state["market_watchlist"] == ["AAPL"]
     assert not app.get("plotly_chart")
     assert any("No validated OHLC" in item.value for item in app.info)
-    click(app, "Remove selected symbol")
+    app.button(key="watchlist_remove_AAPL").click().run()
     assert any("watchlist is empty" in i.value for i in app.info)
     assert not app.exception
 
@@ -99,7 +109,7 @@ def test_watchlist_is_local_and_sample_explicit(monkeypatch: pytest.MonkeyPatch)
     "page,action",
     [
         ("goals", "Ask AI about this scenario"),
-        ("news", "Get news summary"),
+        ("news", "Search news"),
     ],
 )
 def test_showcase_requests_use_query(
@@ -116,13 +126,13 @@ def test_showcase_requests_use_query(
     if page == "market":
         next(t for t in app.text_input if t.label == "Stock symbol or company").input("Apple")
     elif page == "news":
-        next(t for t in app.text_input if t.label == "News topic").input("Banking")
+        next(t for t in app.text_input if t.label == "Search topic").input("Banking")
     click(app, action)
     assert not app.exception
     assert len(calls) == 1
     assert calls[0][0] == "/query"
     assert set(calls[0][1]) == {"query"}
-    assert len(app.chat_message) == 2
+    assert len(app.chat_message) == (0 if page == "news" else 2)
     app.run()
     assert len(calls) == 1
 
@@ -152,9 +162,8 @@ def test_news_source_metadata_limits(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     app.run().switch_page("views/news.py").run()
     assert not app.exception
-    assert len(app.get("link_button")) == 2
-    assert any("Publication dates are not structured" in c.value for c in app.caption)
-    assert any("javascript:bad()" in t.value for t in app.text)
+    assert any("Choose a topic and period" in item.value for item in app.info)
+    assert not any(button.label == "Read article" for button in app.get("link_button"))
 
 
 @pytest.mark.parametrize("action", ["Ask for latest available quote", "chat"])
@@ -175,9 +184,9 @@ def test_market_requests_are_scoped_to_us_nasdaq(
         next(t for t in app.text_input if t.label == "Stock symbol or company").input("AAPL")
         click(app, action)
     elif action == "Ask for latest available quote":
-        next(t for t in app.text_input if t.label == "Watchlist symbol").input("AAPL")
+        symbol_input(app).input("AAPL")
         click(app, "Add to watchlist")
-        click(app, action)
+        app.button(key="watchlist_quote_AAPL").click().run()
     else:
         app.chat_input[0].set_value("AAPL quote").run()
     assert not app.exception
@@ -194,15 +203,15 @@ def test_watchlist_selects_each_new_symbol_and_preserves_previous(
     monkeypatch.setattr(httpx.Client, "send", lambda *a, **kw: pytest.fail("No API calls"))
     app = app_for("market")
     for ticker in ["AAPL", "msft", "NVDA"]:
-        next(t for t in app.text_input if t.label == "Watchlist symbol").input(ticker)
+        symbol_input(app).input(ticker)
         click(app, "Add to watchlist")
         assert not app.exception
-        assert app.selectbox(key="market_selected_symbol").value == ticker.upper()
-        assert any(f"Added {ticker.upper()}" in item.value for item in app.success)
+        assert app.button(key=f"watchlist_quote_{ticker.upper()}").label == ticker.upper()
+        assert any(f"Added {ticker.upper()}" in item.value for item in app.caption)
     assert app.session_state["market_watchlist"] == ["AAPL", "MSFT", "NVDA"]
-    assert app.selectbox(key="market_selected_symbol").options == ["AAPL", "MSFT", "NVDA"]
-    assert any("Saved symbols (3): AAPL, MSFT, NVDA" in item.value for item in app.caption)
-    click(app, "Remove selected symbol")
+    assert all(app.button(key=f"watchlist_quote_{symbol}") for symbol in ["AAPL", "MSFT", "NVDA"])
+    assert any(item.value == "Watchlist" for item in app.subheader)
+    app.button(key="watchlist_remove_NVDA").click().run()
     assert app.session_state["market_watchlist"] == ["AAPL", "MSFT"]
     assert not app.exception
 
@@ -301,3 +310,127 @@ def test_comparison_chart_uses_validated_histories(monkeypatch, interval, provid
     assert chart["layout"]["yaxis"]["title"]["text"] == "Closing price (USD)"
     assert chart["data"][1]["customdata"] == [[200.0, 100.0], [180.0, 90.0]]
     assert [metric.value for metric in app.metric] == ["+10.00%", "-10.00%"]
+
+
+def test_comparison_keeps_watchlist_quote_links():
+    app = app_for("market")
+    symbol_input(app).input("MSFT")
+    click(app, "Add to watchlist")
+    app.radio(key="market_view").set_value("Compare stocks").run()
+    assert app.button(key="watchlist_quote_MSFT").label == "MSFT"
+    assert not app.exception
+    assert app.radio(key="market_view").value == "Compare stocks"
+    assert not any(button.label == "Quote" for button in app.button)
+    assert app.session_state["market_watchlist"] == ["MSFT"]
+
+
+def test_watchlist_quote_card_is_inline_and_refreshes_on_click(monkeypatch):
+    calls = []
+
+    def fetch(symbol):
+        calls.append(symbol)
+        return QueryResponse(
+            intent="market",
+            answer="Quote",
+            calculations=[
+                {
+                    "type": "market_observations",
+                    "symbol": symbol,
+                    "currency": "USD",
+                    "exchange": "NASDAQ",
+                    "interval": "quote",
+                    "values": [{"close": "123.456", "volume": 10000, "datetime": "2026-01-02"}],
+                }
+            ],
+        )
+
+    monkeypatch.setattr("finassist.web_app.components.showcase.fetch_market_quote", fetch)
+    app = app_for("market")
+    symbol_input(app).input("AAPL")
+    click(app, "Add to watchlist")
+    app.button(key="watchlist_quote_AAPL").click().run()
+    assert not app.exception
+    assert [metric.value for metric in app.metric] == ["$123.46", "10,000"]
+    assert any("Observation: 2026-01-02" in caption.value for caption in app.caption)
+    assert "conversation" not in app.session_state or not app.session_state["conversation"].messages
+    app.button(key="watchlist_quote_AAPL").click().run()
+    assert calls == ["AAPL", "AAPL"]
+    app.button(key="watchlist_remove_AAPL").click().run()
+    assert not app.metric
+
+
+def test_named_watchlists_preserve_symbols_and_validate_names():
+    app = app_for("market")
+    symbol_input(app).input("AAPL")
+    app.run()
+    app.text_input(key="new_watchlist_name").input("Technology")
+    click(app, "Create watchlist")
+    cards = [card for card in app.expander if card.label in {"Technology", "My watchlist"}]
+    assert [card.label for card in cards] == ["Technology", "My watchlist"]
+    assert all(card.proto.expanded for card in cards)
+    symbol_input(app, "_Technology").input("NVDA")
+    app.run()
+    assert app.session_state["market_watchlists"] == {
+        "Technology": ["NVDA"],
+        "My watchlist": ["AAPL"],
+    }
+    app.text_input(key="new_watchlist_name").input(" technology ")
+    click(app, "Create watchlist")
+    assert any("already exists" in warning.value for warning in app.warning)
+    app.text_input(key="new_watchlist_name").input(" ")
+    click(app, "Create watchlist")
+    assert any("between 1 and 40" in warning.value for warning in app.warning)
+    app.button(key="watchlist_remove_NVDA_Technology").click().run()
+    assert app.session_state["market_watchlists"]["Technology"] == []
+    assert app.session_state["market_watchlists"]["My watchlist"] == ["AAPL"]
+    assert not app.exception
+
+
+@pytest.mark.parametrize("active", [None, "Removed list"])
+def test_watchlists_recover_missing_or_stale_active_selection(active):
+    app = AppTest.from_file(str(APP), default_timeout=10)
+    app.session_state["market_watchlists"] = {"My list": ["AAPL"], "Tech": ["NVDA"]}
+    if active is not None:
+        app.session_state["market_active_watchlist"] = active
+    app.run().switch_page("views/market.py").run()
+    assert not app.exception
+    assert app.session_state["market_active_watchlist"] == "My list"
+    assert app.session_state["market_watchlists"]["Tech"] == ["NVDA"]
+    app.switch_page("views/goals.py").run()
+    app.switch_page("views/market.py").run()
+    assert not app.exception
+    assert app.session_state["market_watchlists"]["Tech"] == ["NVDA"]
+
+
+def test_watchlist_quote_can_be_closed_without_removing_stock(monkeypatch):
+    calls = []
+
+    def fetch(symbol):
+        calls.append(symbol)
+        return QueryResponse(intent="market", answer="Latest quote is available.")
+
+    monkeypatch.setattr("finassist.web_app.components.showcase.fetch_market_quote", fetch)
+    app = app_for("market")
+    symbol_input(app).input("AAPL")
+    app.run()
+    app.button(key="watchlist_quote_AAPL").click().run()
+    app.button(key="dismiss_watchlist_quote").click().run()
+    assert not app.exception
+    assert app.session_state["market_watchlists"]["My watchlist"] == ["AAPL"]
+    assert "watchlist_quote_result" not in app.session_state
+    assert not any(b.key == "dismiss_watchlist_quote" for b in app.button)
+    assert calls == ["AAPL"]
+
+
+def test_watchlist_add_control_switches_between_plus_and_input():
+    app = app_for("market")
+    assert not any(widget.key == "watchlist_symbol_input" for widget in app.text_input)
+    symbol_input(app).input("!").run()
+    assert app.text_input(key="watchlist_symbol_input").value == "!"
+    app.text_input(key="watchlist_symbol_input").input("AAPL").run()
+    assert not any(widget.key == "watchlist_symbol_input" for widget in app.text_input)
+    assert app.button(key="watchlist_show_input")
+    assert app.session_state["market_watchlists"]["My watchlist"] == ["AAPL"]
+    assert symbol_input(app).value == ""
+    assert not app.exception
+

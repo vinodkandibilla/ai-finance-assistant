@@ -114,8 +114,123 @@ def compact_spacing() -> None:
         font-size: 1.125rem;
         line-height: 1.4;
     }
+    .st-key-watchlist_quote_card [data-testid="stMetricValue"] {
+        font-size: 1.25rem;
+    }
     .st-key-market_quote_details [data-testid="stMetricLabel"] p {
         font-size: 0.8125rem;
+    }
+    .st-key-market_watchlist_panel [class*="st-key-watchlist_row_"] {
+        padding-block: 0;
+    }
+    .st-key-watchlist_section_header {
+        background: #F1F5F9;
+        border-radius: 0.5rem;
+        padding: 0.25rem 0.75rem;
+    }
+    .st-key-portfolio_customer_heading {
+        background: #F1F5F9;
+        padding: 0.5rem 0.875rem;
+        border-left: 3px solid #0F766E;
+        border-radius: 0.375rem;
+    }
+    .st-key-portfolio_customer_totals [data-testid="stMetricValue"] {
+        font-size: 1.25rem;
+        line-height: 1.4;
+    }
+    .st-key-portfolio_summary_metrics [data-testid="stMetricValue"] {
+        font-size: 1.25rem;
+        line-height: 1.4;
+    }
+    .st-key-portfolio_performance_metrics [data-testid="stMetricValue"] {
+        font-size: 1.25rem;
+        line-height: 1.4;
+    }
+    .st-key-portfolio_performance_metrics > [data-testid="stLayoutWrapper"] >
+    [data-testid="stVerticalBlock"] { padding: 0.5rem 0.75rem; }
+    :is(.st-key-portfolio_performance_loss, .st-key-portfolio_performance_pct_loss)
+    [data-testid="stMetricValue"] { color: #B91C1C; }
+    :is(.st-key-portfolio_performance_gain, .st-key-portfolio_performance_pct_gain)
+    [data-testid="stMetricValue"] { color: #047857; }
+    .st-key-portfolio_concentration_flag [data-testid="stMetricValue"] { color: #92400E; }
+    .st-key-portfolio_summary_metrics > [data-testid="stLayoutWrapper"] >
+    [data-testid="stVerticalBlock"] {
+        padding: 0.5rem 0.75rem;
+    }
+    .st-key-portfolio_customer_totals [data-testid="stMetricLabel"] p {
+        font-size: 0.8125rem;
+    }
+    .st-key-portfolio_customer_directory [class*="st-key-portfolio_customer_"] button {
+        color: #1D4ED8;
+        text-decoration: underline;
+        justify-content: flex-start;
+        padding: 0;
+        min-height: 0;
+        line-height: 1.5;
+    }
+    .st-key-portfolio_customer_directory [class*="st-key-portfolio_directory_row_"] {
+        border-bottom: 1px solid #E2E8F0;
+        padding: 0.375rem 0.5rem;
+    }
+    .st-key-portfolio_directory_header {
+        background: #153E75;
+        color: #FFFFFF;
+        padding: 0.5rem;
+        border-radius: 0.375rem 0.375rem 0 0;
+    }
+    .st-key-portfolio_directory_header p { color: #FFFFFF; }
+    .st-key-portfolio_customer_directory [class*="st-key-portfolio_directory_row_0_"] {
+        background: #F1F5F9;
+    }
+    .st-key-portfolio_customer_directory [class*="st-key-portfolio_directory_row_1_"] {
+        background: #FFFFFF;
+    }
+    .st-key-market_watchlist_panel [class*="st-key-watchlist_card_shell_"] {
+        position: relative;
+    }
+    .st-key-watchlist_create_control [data-testid="stIconMaterial"] {
+        font-size: 0.875rem;
+    }
+    /* Hide only the popover's trailing chevron, preserving its leading + icon
+       and the separate expander arrow on the card heading. */
+    .st-key-market_watchlist_panel [data-testid="stPopoverButton"] > div >
+    [aria-hidden="true"] { display: none; }
+    .st-key-market_watchlist_panel [class*="st-key-watchlist_tickers"] {
+        row-gap: 0.125rem;
+        column-gap: 0.5rem;
+        align-content: flex-start;
+    }
+    .st-key-market_watchlist_panel [class*="st-key-watchlist_compact_card_"] {
+        padding: 0.625rem 0.75rem;
+        gap: 0.25rem;
+    }
+    .st-key-market_watchlist_panel [class*="st-key-watchlist_compact_card_"] p {
+        margin-block: 0;
+    }
+    .st-key-market_watchlist_panel [data-testid="stExpanderDetails"] {
+        padding: 0.25rem;
+    }
+    .st-key-market_watchlist_panel [data-testid="stExpanderDetails"]
+    [data-testid="stTextInputRootElement"] {
+        min-height: 1.75rem;
+        height: 1.75rem;
+    }
+    .st-key-market_watchlist_panel [data-testid="stExpanderDetails"]
+    [data-testid="stTextInputRootElement"] input {
+        min-height: 0;
+        height: 100%;
+        padding-block: 0.125rem;
+        font-size: 0.8125rem;
+    }
+    .st-key-market_watchlist_panel [data-testid="stExpanderDetails"] >
+    [data-testid="stVerticalBlock"] { gap: 0.25rem; }
+    .st-key-market_watchlist_panel [class*="st-key-watchlist_quote_"] button {
+        justify-content: flex-start;
+        font-weight: 600;
+        color: #153E75;
+    }
+    .st-key-market_watchlist_panel [class*="st-key-watchlist_remove_"] button {
+        color: #64748B;
     }
     /* Scrollable layout wrappers can become focused on click, independently of
        stMain. Suppress their outlines, not those of widgets or ARIA controls. */
@@ -224,7 +339,38 @@ def compact_spacing() -> None:
         background: #94A3B8;
         border-radius: 4px;
     }
-    .st-key-finpilot_chat_panel { overflow: hidden; min-height: 0; }
+    .st-key-finpilot_chat_panel {
+        overflow: hidden;
+        min-height: 0;
+        background: #F8FAFC;
+        border-radius: 0.75rem;
+    }
+    .st-key-finpilot_chat_header {
+        background: linear-gradient(115deg, #153E75, #115E59);
+        padding: 0.75rem 0.875rem;
+        border-radius: 0.75rem 0.75rem 0 0;
+    }
+    .st-key-finpilot_chat .st-key-finpilot_chat_header h3,
+    .st-key-finpilot_chat_header [data-testid="stCaptionContainer"],
+    .st-key-finpilot_chat_header [data-testid="stCaptionContainer"] p,
+    .st-key-finpilot_chat_header button { color: #FFFFFF; }
+    .st-key-finpilot_chat_header button:hover { background: #FFFFFF20; }
+    .st-key-chat_history { background: #F8FAFC; padding-inline: 0.5rem; }
+    .st-key-chat_history [data-testid="stChatMessage"] {
+        background: #FFFFFF;
+        border-radius: 0.625rem;
+        padding: 0.75rem;
+    }
+    .st-key-chat_history [data-testid="stChatMessage"]:has(
+        [data-testid="stChatMessageAvatarUser"]
+    ) { background: #E5F2F0; }
+    .st-key-chat_composer {
+        background: #EAF0F6;
+        padding: 0.5rem;
+        border-radius: 0 0 0.75rem 0.75rem;
+    }
+    .st-key-chat_composer [data-testid="stChatInput"] { background: #FFFFFF; }
+    .st-key-chat_scope { padding-inline: 0.5rem; }
     @media (min-width: 901px) {
         [data-testid="stMain"] { overflow: hidden; }
         .st-key-workspace_body { overflow: hidden; }

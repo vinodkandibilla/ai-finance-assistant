@@ -7,16 +7,17 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from finassist.web_app.components.chat import ChatState
-from finassist.web_app.components.layout import card, metric_card
+from finassist.web_app.components.layout import metric_card
 from finassist.web_app.services.api_client import ApiError
 from finassist.web_app.services.citations import label_citations
 from finassist.web_app.services.market import (
     comparison_series,
+    fetch_market_quote,
     fetch_market_snapshot,
     market_chart_data,
 )
 from finassist.web_app.services.models import QueryResponse
-from finassist.web_app.services.showcase import project_goal, safe_source
+from finassist.web_app.services.showcase import project_goal
 
 
 def latest_response(intent: str) -> QueryResponse | None:
@@ -49,6 +50,8 @@ def market_showcase() -> None:
     )
     if mode == "Compare stocks":
         market_comparison()
+        st.divider()
+        market_watchlist()
         return
     with st.container(key="market_search_toolbar", border=True):
         stock, frequency = st.columns([4, 2], vertical_alignment="center")
@@ -155,39 +158,225 @@ def market_showcase() -> None:
             st.markdown(label_citations(response.answer), unsafe_allow_html=False)
         st.caption("Provider data, not guaranteed live. Search by symbol; no automatic polling.")
     st.divider()
-    st.subheader("Watchlist")
-    symbol = st.text_input("Watchlist symbol", max_chars=20, placeholder="AAPL")
-    if st.button("Add to watchlist"):
-        normalized = symbol.strip().upper()
-        watchlist = list(st.session_state.get("market_watchlist", []))
-        if not re.fullmatch(r"[A-Z0-9][A-Z0-9.^:-]{0,19}", normalized):
-            st.warning("Enter a ticker symbol using letters, digits, dots, colons, or hyphens.")
-        elif len(watchlist) >= 20 and normalized not in watchlist:
-            st.warning("The session watchlist supports up to 20 symbols.")
-        else:
-            st.session_state["market_watchlist"] = list(dict.fromkeys([*watchlist, normalized]))
-            st.session_state["market_selected_symbol"] = normalized
-            if normalized in watchlist:
-                st.info(f"{normalized} is already in your watchlist.")
-            else:
-                st.success(f"Added {normalized} to your watchlist.")
-    watchlist = st.session_state.get("market_watchlist", [])
-    if watchlist:
-        st.caption(f"Saved symbols ({len(watchlist)}): {', '.join(watchlist)}")
-        selected = st.selectbox(
-            "Saved symbols · This session only", watchlist, key="market_selected_symbol"
-        )
-        with st.container(horizontal=True, gap="small"):
-            if st.button("Ask for latest available quote", disabled=request_blocked()):
-                ask_question(
-                    f"What is the latest available quote for {selected}? "
-                    "Include provider and observation time if available."
-                )
-            if st.button("Remove selected symbol"):
-                st.session_state["market_watchlist"] = [s for s in watchlist if s != selected]
-                st.rerun()
+    market_watchlist()
+
+
+def _remove_watchlist_symbol(symbol: str, name: str) -> None:
+    lists = st.session_state["market_watchlists"]
+    lists[name] = [item for item in lists[name] if item != symbol]
+    if name == st.session_state.get("market_active_watchlist"):
+        st.session_state["market_watchlist"] = list(lists[name])
+
+
+def _create_watchlist() -> None:
+    name = st.session_state.get("new_watchlist_name", "").strip()
+    lists = st.session_state["market_watchlists"]
+    if not name or len(name) > 40:
+        st.session_state["watchlist_notice"] = "Enter a watchlist name between 1 and 40 characters."
+    elif any(existing.casefold() == name.casefold() for existing in lists):
+        st.session_state["watchlist_notice"] = "A watchlist with that name already exists."
     else:
-        st.info("Your watchlist is empty. Add a symbol to begin.")
+        st.session_state["market_watchlists"] = {name: [], **lists}
+        st.session_state["watchlist_card_revision"] = (
+            st.session_state.get("watchlist_card_revision", 0) + 1
+        )
+        st.session_state["market_active_watchlist"] = name
+        st.session_state["new_watchlist_name"] = ""
+        st.session_state["market_watchlist"] = []
+        st.session_state.pop("watchlist_quote_result", None)
+
+
+@st.fragment
+def market_watchlist() -> None:
+    """Local list editing reruns independently of provider-backed charts."""
+    if not st.session_state.get("market_watchlists"):
+        st.session_state["market_watchlists"] = {
+            "My watchlist": list(st.session_state.get("market_watchlist", []))
+        }
+    lists = st.session_state["market_watchlists"]
+    active = st.session_state.get("market_active_watchlist")
+    if active not in lists:
+        active = next(iter(lists))
+        st.session_state.pop("watchlist_quote_result", None)
+    st.session_state["market_active_watchlist"] = active
+    st.session_state["market_watchlist"] = list(lists[active])
+    with st.container(key="market_watchlist_panel", gap="small", border=True):
+        with st.container(key="watchlist_section_header"):
+            heading, create = st.columns([5, 1], vertical_alignment="center")
+            with heading:
+                st.subheader("Watchlist")
+            with create:
+                with st.container(
+                    horizontal=True, horizontal_alignment="right", key="watchlist_create_control"
+                ):
+                    with st.popover("", icon=":material/add:", help="Create a watchlist"):
+                        st.text_input(
+                            "Watchlist name",
+                            max_chars=40,
+                            key="new_watchlist_name",
+                            placeholder="e.g. Tech stocks",
+                        )
+                        st.button("Create watchlist", on_click=_create_watchlist, type="primary")
+                        notice = st.session_state.pop("watchlist_notice", None)
+                        if notice:
+                            st.warning(notice)
+        st.caption("NASDAQ · This session only · Quotes on request")
+        revision = st.session_state.get("watchlist_card_revision", 0)
+        with st.container(horizontal=True, gap="medium", vertical_alignment="top"):
+            for index, (name, symbols) in enumerate(lists.items()):
+                with st.container(key=f"watchlist_card_shell_{index}", width=360, gap=None):
+                    with st.expander(
+                        name,
+                        expanded=index < 2,
+                        key=f"watchlist_card_{revision}_{index}",
+                    ):
+                        with st.container(horizontal=True, horizontal_alignment="right"):
+                            _watchlist_add_symbol(name, symbols)
+                        _watchlist_contents(name, symbols)
+
+
+def _submit_watchlist_symbol(name: str, key: str) -> None:
+    symbols = st.session_state["market_watchlists"][name]
+    normalized = st.session_state.get(key, "").strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9.:-]{0,19}", normalized):
+        message = "Enter a valid symbol."
+    elif normalized in symbols:
+        message = f"{normalized} is already in your watchlist."
+    elif len(symbols) >= 20:
+        message = "Your watchlist supports up to 20 symbols."
+    else:
+        symbols.append(normalized)
+        if name == st.session_state["market_active_watchlist"]:
+            st.session_state["market_watchlist"] = list(symbols)
+        st.session_state[key] = ""
+        st.session_state[f"watchlist_editing_{name}"] = False
+        message = f"Added {normalized}."
+    st.session_state[f"watchlist_symbol_notice_{name}"] = message
+
+
+def _show_watchlist_symbol_input(name: str) -> None:
+    st.session_state[f"watchlist_editing_{name}"] = True
+
+
+def _watchlist_add_symbol(name: str, symbols: list[str]) -> None:
+    suffix = "" if name == "My watchlist" else f"_{name}"
+    key = f"watchlist_symbol_input{suffix}"
+    if not st.session_state.get(f"watchlist_editing_{name}", False):
+        st.button(
+            "",
+            icon=":material/add:",
+            key=f"watchlist_show_input{suffix}",
+            help=f"Add a symbol to {name}",
+            type="tertiary",
+            on_click=_show_watchlist_symbol_input,
+            args=(name,),
+        )
+        return
+    st.text_input(
+        "Watchlist symbol",
+        max_chars=20,
+        placeholder="Symbol",
+        key=key,
+        label_visibility="collapsed",
+        help=f"Add a NASDAQ symbol to {name} · press Enter",
+        on_change=_submit_watchlist_symbol,
+        args=(name, key),
+        width=80,
+    )
+
+
+def _watchlist_contents(name: str, symbols: list[str]) -> None:
+    suffix = "" if name == "My watchlist" else f"_{name}"
+    notice = st.session_state.pop(f"watchlist_symbol_notice_{name}", None)
+    if notice:
+        st.caption(notice)
+    if not symbols:
+        st.info("Your watchlist is empty. Add a symbol to follow it here.")
+    requested_symbol = None
+    with st.container(horizontal=True, gap="xsmall", key=f"watchlist_tickers{suffix}"):
+        for symbol in symbols:
+            with st.container(key=f"watchlist_row_{symbol}{suffix}", width="content"):
+                with st.container(horizontal=True, gap="xsmall", vertical_alignment="center"):
+                    if st.button(
+                        symbol,
+                        key=f"watchlist_quote_{symbol}{suffix}",
+                        type="tertiary",
+                        help=f"Retrieve {symbol} quote",
+                        disabled=request_blocked(),
+                    ):
+                        requested_symbol = symbol
+                    st.button(
+                        "",
+                        icon=":material/close:",
+                        key=f"watchlist_remove_{symbol}{suffix}",
+                        help=f"Remove {symbol} from {name}",
+                        type="tertiary",
+                        on_click=_remove_watchlist_symbol,
+                        args=(symbol, name),
+                    )
+    if requested_symbol:
+        st.session_state.pop("watchlist_quote_result", None)
+        try:
+            with st.spinner(f"Loading {requested_symbol} quote…"):
+                response = fetch_market_quote(requested_symbol)
+            st.session_state["watchlist_quote_list"] = name
+            st.session_state["watchlist_quote_result"] = (requested_symbol, response)
+        except (ApiError, ValueError):
+            st.error(f"Could not retrieve {requested_symbol}. Select the symbol to retry.")
+    result = st.session_state.get("watchlist_quote_result")
+    if result and result[0] in symbols and st.session_state.get("watchlist_quote_list") == name:
+        watchlist_quote_card(*result)
+
+
+def _dismiss_watchlist_quote() -> None:
+    st.session_state.pop("watchlist_quote_result", None)
+    st.session_state.pop("watchlist_quote_list", None)
+
+
+def watchlist_quote_card(symbol: str, response: QueryResponse) -> None:
+    # The callback clears the result before the watchlist fragment renders again.
+    with st.container(border=True, key="watchlist_quote_card", gap="small"):
+        heading, close = st.columns([5, 1], vertical_alignment="center")
+        with heading:
+            st.subheader(f"{symbol} · Latest available quote")
+        with close, st.container(horizontal=True, horizontal_alignment="right"):
+            st.button(
+                "",
+                icon=":material/close:",
+                key="dismiss_watchlist_quote",
+                help="Close quote",
+                type="tertiary",
+                on_click=_dismiss_watchlist_quote,
+            )
+        _, quote = market_chart_data(response, symbol, "Daily")
+        if quote:
+            with st.container(horizontal=True, gap="medium"):
+                for label, field in [
+                    ("Latest price", "close"),
+                    ("Open", "open"),
+                    ("Day high", "high"),
+                    ("Day low", "low"),
+                    ("Previous close", "previous_close"),
+                    ("Volume", "volume"),
+                ]:
+                    try:
+                        value = float(quote.get(field, ""))
+                    except (TypeError, ValueError):
+                        continue
+                    if not math.isfinite(value) or value < 0:
+                        continue
+                    display = f"{value:,.0f}" if field == "volume" else f"${value:,.2f}"
+                    st.metric(label, display)
+            observed = quote.get("datetime", quote.get("timestamp", "Not supplied"))
+            st.caption(f"NASDAQ · USD · Observation: {observed}")
+        else:
+            st.markdown(label_citations(response.answer), unsafe_allow_html=False)
+            st.caption("No structured quote fields supplied.")
+        if response.intent != "market":
+            st.caption(f"Returned intent: {response.intent}")
+        if response.status in {"error", "insufficient"}:
+            st.warning("Quote unavailable. Select the symbol to retry.")
+        st.caption("Provider data, not guaranteed live. Select the symbol to refresh.")
 
 
 def market_comparison() -> None:
@@ -404,49 +593,6 @@ def goals_showcase() -> None:
 
 
 def news_showcase() -> None:
-    st.subheader("News with source context")
-    topic = st.text_input(
-        "News topic", max_chars=200, placeholder="Financial markets, banking, technology…"
-    )
-    period = st.selectbox(
-        "Requested news window", ["Latest available", "Past 24 hours", "Past week"]
-    )
-    if st.button("Get news summary", disabled=request_blocked()):
-        if topic.strip():
-            ask_question(
-                f"Summarize financial news about {topic.strip()}. Requested window: {period}. "
-                "Include sources and publication dates when available; identify missing dates."
-            )
-        else:
-            st.warning("Enter a topic for the news summary.")
-    st.caption(
-        "The API returns a summary and citations, not typed article/publication metadata. "
-        "Dates and freshness are unverified unless stated in the answer; none are inferred."
-    )
-    response = latest_response("news")
-    if response:
-        with card("Latest returned news summary"):
-            st.markdown(
-                label_citations(response.answer or "No summary text was supplied."),
-                unsafe_allow_html=False,
-            )
-            if response.status:
-                st.text(f"Response status: {response.status}")
-            st.caption(
-                "Publication dates are not structured fields. See attributed dates in the summary."
-            )
-            for index, citation in enumerate(response.citations or [], 1):
-                host = safe_source(citation)
-                if host:
-                    st.link_button(citation, citation)
-                else:
-                    st.text(f"Source {index}: {citation}")
-            if not response.citations:
-                st.info("No sources supplied. The response contains no linked evidence.")
-    else:
-        st.info("No news summary in this session. Enter a topic above to request one.")
-    with st.expander("View a synthetic news example"):
-        st.caption("SYNTHETIC EXAMPLE · Not a real article or current event")
-        st.write("Fictional Demo Bank announces a financial-literacy workshop.")
-        st.text("Source: Fictional Demo Bulletin · Publication date: 2026-10-01 (invented)")
-        st.caption("No external link: this example was invented solely to demonstrate the layout.")
+    from finassist.web_app.components.news import news_browser
+
+    news_browser()

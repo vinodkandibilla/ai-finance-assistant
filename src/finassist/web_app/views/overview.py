@@ -7,19 +7,10 @@ from finassist.web_app.navigation import open_workspace
 
 st.subheader("What would you like to explore?")
 st.write("Learn the essentials, explore market context, or take the next step toward a goal.")
-with st.form("ask_ai", border=False):
-    question = st.text_input(
-        "Ask AI",
-        placeholder="For example: How do ETFs work?",
-        max_chars=4000,
-    )
-    submitted = st.form_submit_button("Ask AI", type="primary")
-if submitted:
-    if question.strip():
-        open_workspace("finance_qa", question)
-    else:
-        st.warning("Enter a question to open your AI workspace.")
-st.caption("Start with a question. You can review and edit it in the next workspace.")
+st.caption(
+    "Ask a question in the chat panel, or choose a workspace below "
+    "to start with a suggested question."
+)
 
 st.subheader("Six ways to build financial confidence")
 with st.container(horizontal=True, gap="small"):

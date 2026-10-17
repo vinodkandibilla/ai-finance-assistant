@@ -34,9 +34,23 @@ async def _classify_intent(
     *,
     classifier: IntentClassifier,
 ) -> FinanceAssistantState:
+    from finassist.workflow.greetings import WELCOME, is_standalone_greeting
+
+    if is_standalone_greeting(state["query"]):
+        return {
+            "intent": "other",
+            "answer": WELCOME,
+            "status": "answered",
+            "standalone_greeting": True,
+        }
     intent = await classifier.classify(state["query"])
     handler = _route_intent({**state, "intent": intent})
-    return {"intent": intent, "classified_intent": intent, "executed_handler": handler}
+    return {
+        "intent": intent,
+        "classified_intent": intent,
+        "executed_handler": handler,
+        "standalone_greeting": False,
+    }
 
 
 def _is_generic_query(intent: str | None, query: str | None) -> bool:
@@ -202,7 +216,7 @@ def build_graph(
     workflow.add_edge(START, "intent_router")
     workflow.add_conditional_edges(
         "intent_router",
-        lambda state: state["executed_handler"],
+        lambda state: END if state.get("standalone_greeting") else state["executed_handler"],
     )
     workflow.add_edge("finance_qa_node", END)
     workflow.add_edge("portfolio_analysis_node", END)

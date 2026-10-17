@@ -41,14 +41,14 @@ def test_watchlist_isolated_between_sessions() -> None:
     second = AppTest.from_file(str(APP), default_timeout=10).run()
     second.switch_page("views/market.py").run()
     assert not second.exception
-    assert not any(s.label.startswith("Saved symbols") for s in second.selectbox)
+    assert not any(b.key == "watchlist_quote_AAPL" for b in second.button)
 
 
 def test_pending_clarification_disables_new_showcase_requests() -> None:
     app = AppTest.from_file(str(APP), default_timeout=10)
     app.session_state["conversation"] = ChatState(thread_id="pending-thread")
     app.run().switch_page("views/news.py").run()
-    assert next(b for b in app.button if b.label == "Get news summary").disabled
+    assert next(b for b in app.button if b.label == "Search news").disabled
     app.switch_page("views/market.py").run()
     assert app.text_input(key="market_chart_symbol").disabled
     app.switch_page("views/goals.py").run()

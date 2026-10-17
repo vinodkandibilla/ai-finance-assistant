@@ -276,3 +276,25 @@ def test_question_renders_before_http_request(monkeypatch: pytest.MonkeyPatch) -
     assert len(calls) == 1
     assert len(app.chat_message) == 2
     assert app.session_state["conversation"].pending_request is None
+
+
+def test_why_after_backend_error_explains_without_routing():
+    from finassist.web_app.components.chat import ChatState, Message, _explain_previous_error
+    from finassist.web_app.services.models import QueryResponse
+
+    response = QueryResponse(
+        intent="news", answer="News synthesis is currently unavailable.", status="error"
+    )
+    state = ChatState(messages=[Message("assistant", response.answer, response)])
+    assert _explain_previous_error(state, "Why?")
+    assert "cannot confirm why it failed" in state.messages[-1].text
+    assert state.messages[-1].response is None
+    assert state.pending_request is None
+
+
+def test_why_does_not_intercept_pending_clarification_or_normal_followups():
+    from finassist.web_app.components.chat import ChatState, _explain_previous_error
+
+    state = ChatState(thread_id="pending")
+    assert not _explain_previous_error(state, "Why?")
+    assert not _explain_previous_error(ChatState(), "Why?")

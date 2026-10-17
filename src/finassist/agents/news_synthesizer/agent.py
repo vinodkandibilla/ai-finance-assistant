@@ -216,6 +216,8 @@ class NewsSynthesizerAgent:
         return await self.graph.ainvoke(state, config=config)
 
     async def _run(self, state, config):
+        grounded_claims = []
+        evidence = {}
         try:
             async with asyncio.timeout(self.timeout_seconds):
                 output = await self.agent.ainvoke(
@@ -342,6 +344,7 @@ class NewsSynthesizerAgent:
                         "This request is outside news synthesis. Please submit a new question."
                     )
                 elif final.status == "error":
+                    logger.warning("news_execution_failed category=formatter_reported_error")
                     result.answer = "News synthesis is currently unavailable."
                 elif final.status == "clarification":
                     result = AgentResult(
@@ -352,6 +355,7 @@ class NewsSynthesizerAgent:
         except GraphInterrupt:
             raise
         except (TimeoutError, GraphRecursionError) as error:
+            logger.warning("news_execution_failed category=%s", type(error).__name__)
             result = AgentResult(
                 status="error",
                 answer="News synthesis reached its execution limit. "
@@ -359,9 +363,37 @@ class NewsSynthesizerAgent:
                 errors=[type(error).__name__],
             )
         except Exception as error:
+            # Do not log provider exception text: it may contain request payloads.
+            logger.error("news_execution_failed category=%s", type(error).__name__)
             result = AgentResult(
                 status="error",
                 answer="News synthesis is currently unavailable.",
                 errors=[type(error).__name__],
             )
-        return {**result.model_dump(), "final_result": result.model_dump(), "intent": "news"}
+        articles = []
+        if result.status in {"answered", "insufficient"} and grounded_claims:
+            seen_urls = set()
+            for identifier, article in evidence.items():
+                claims = [
+                    claim.text
+                    for claim in grounded_claims
+                    if identifier in claim.evidence_ids and claim.kind == "reported_fact"
+                ]
+                if not claims or article.url in seen_urls:
+                    continue
+                seen_urls.add(article.url)
+                articles.append(
+                    {
+                        "title": article.title,
+                        "url": article.url,
+                        "publisher": article.source,
+                        "published_at": article.published_at,
+                        "summary": " ".join(claims),
+                    }
+                )
+        return {
+            **result.model_dump(),
+            "final_result": result.model_dump(),
+            "intent": "news",
+            "calculations": [{"type": "news_articles", "articles": articles}],
+        }

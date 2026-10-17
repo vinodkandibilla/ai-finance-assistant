@@ -43,6 +43,22 @@ def comparison_series(
     )
 
 
+def fetch_market_quote(symbol: str) -> QueryResponse:
+    """Request only a quote via the public query endpoint."""
+    with FinanceApiClient(WebSettings.from_environment()) as client:
+        return client.query(
+            QueryRequest(
+                query=(
+                    f"Retrieve the latest available quote for {symbol}. "
+                    "Scope: United States, NASDAQ-listed equities only, currency USD. "
+                    "Exclude all other exchanges. Include open, high, low, close, volume, "
+                    "previous close and provider observation time. Do not fetch time series. "
+                    "Keep the summary under 120 words. Do not invent missing data."
+                )
+            )
+        )
+
+
 def fetch_market_snapshot(symbol: str, interval: str) -> QueryResponse:
     window = "1 month" if interval == "Daily" else "3 months"
     query = (

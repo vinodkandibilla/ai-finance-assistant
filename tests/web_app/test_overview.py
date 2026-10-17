@@ -64,22 +64,13 @@ def test_landing_actions(landing: AppTest, label: str, title: str, question: str
     assert not landing.chat_message
 
 
-def test_ask_ai_preserves_question_and_edits(landing: AppTest) -> None:
-    landing.text_input[0].input("  How do bonds work?  ")
-    next(button for button in landing.button if button.label == "Ask AI").click().run()
+def test_overview_uses_shared_chat_as_only_question_input(landing: AppTest) -> None:
     assert not landing.exception
-    assert landing.title[0].value == "Finance Q&A"
-    assert landing.chat_input[0].value == "How do bonds work?"
+    assert len(landing.chat_input) == 1
+    assert not any(widget.label == "Ask AI" for widget in landing.text_input)
+    assert not any(button.label == "Ask AI" for button in landing.button)
     assert not landing.text_area
-    assert not landing.chat_message
-
-
-def test_empty_question_stays_on_overview(landing: AppTest) -> None:
-    landing.text_input[0].input("   ")
-    next(button for button in landing.button if button.label == "Ask AI").click().run()
-    assert not landing.exception
     assert landing.title[0].value == "Overview"
-    assert any("Enter a question" in item.value for item in landing.warning)
 
 
 def test_previews_label_demo_figures(landing: AppTest) -> None:

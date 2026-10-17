@@ -71,6 +71,7 @@ async def test_quote_tool_conversation_and_allowlist(monkeypatch):
         "get_time_series",
         "resolve_market_timeframe",
         "calculate_price_growth",
+        "calculate_price_extrema",
     }
     assert model.messages[-1].tool_call_id == "quote-1"
 

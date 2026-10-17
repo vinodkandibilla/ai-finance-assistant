@@ -70,11 +70,11 @@ def test_name_resolution_only_lists_authorized_customers(store):
     manager = PortfolioTools(
         store, user_context=UserContext(user_id="PM001", role="PORTFOLIO_MANAGER")
     )
-    matches = manager.resolve_customer("Synthetic Customer")
+    matches = manager.resolve_customer("a")
     assert matches["ambiguous"]
     assert {r["customer_id"] for r in matches["matches"]} == {f"C{i:03d}" for i in range(1, 6)}
-    assert manager.resolve_customer("Customer 20:")["matches"] == []
-    assert manager.resolve_customer("Customer 1:")["matches"][0]["customer_id"] == "C001"
+    assert manager.resolve_customer("Elizabeth:")["matches"] == []
+    assert manager.resolve_customer("James:")["matches"][0]["customer_id"] == "C001"
 
 
 async def test_runtime_identity_is_hidden_and_defaults_resolve_scope(store):
@@ -197,13 +197,13 @@ async def test_ambiguous_authorized_name_clarifies(store):
     agent, _ = make_agent(
         store,
         [
-            call("resolve_portfolio_customer", {"name": "Synthetic Customer"}, "resolve"),
+            call("resolve_portfolio_customer", {"name": "a"}, "resolve"),
             call("ask_portfolio_clarification", {"question": "Which of C001–C005?"}, "ask"),
         ],
         checkpointer=MemorySaver(),
     )
     paused = await agent.ainvoke(
-        {"query": "Analyze Synthetic Customer"}, config={"configurable": {"thread_id": "ambiguous"}}
+        {"query": "Analyze a"}, config={"configurable": {"thread_id": "ambiguous"}}
     )
     assert paused["__interrupt__"][0].value["question"] == "Which of C001–C005?"
 
