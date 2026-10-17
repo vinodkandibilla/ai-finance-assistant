@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 
 import streamlit as st
 from pydantic import ValidationError
+from streamlit.errors import StreamlitAPIException
 
 from finassist.web_app.components.chat_viewport import fit_chat_viewport
 from finassist.web_app.components.focus import focus_chat_composer
@@ -113,6 +114,23 @@ def _render_message(message: Message) -> None:
                         st.json(response.calculations)
 
 
+def _rerun_chat(*, refresh_content: bool = False) -> None:
+    if refresh_content:
+        st.rerun()
+    try:
+        st.rerun(scope="fragment")
+    except StreamlitAPIException:
+        # A page handoff can execute the fragment during a full-app run, where
+        # Streamlit permits only an app-scoped rerun.
+        st.rerun()
+
+
+def _refresh_matching_content(state: ChatState, page: str) -> bool:
+    response = state.messages[-1].response if state.messages else None
+    return bool(response and response.intent == page and page in {"portfolio", "news"})
+
+
+@st.fragment
 def conversational_screen(page: str, *, heading: str = "Ask FinPilot") -> None:
     with st.container(key="finpilot_chat", gap="xsmall"):
         _conversational_screen(page, heading=heading)
@@ -203,7 +221,7 @@ def _conversational_screen(page: str, *, heading: str) -> None:
                 if st.button("Retry last request", key="retry_chat") and state.failed_request:
                     with loading_indicator.container():
                         _send(state, state.failed_request)
-                    st.rerun()
+                    _rerun_chat(refresh_content=_refresh_matching_content(state, page))
                 if st.button("Edit failed message", key="edit_chat") and state.failed_request:
                     failed = state.failed_request
                     edited_text = (
@@ -213,7 +231,7 @@ def _conversational_screen(page: str, *, heading: str) -> None:
                     st.session_state[f"question_{page}"] = edited_text
                     state.failed_request = None
                     state.error = None
-                    st.rerun()
+                    _rerun_chat()
             if state.thread_id:
                 st.caption(
                     "Awaiting your clarification reply. Use New Chat to start a different question."
@@ -260,7 +278,7 @@ def _conversational_screen(page: str, *, heading: str) -> None:
         state.pending_request = None
         with loading_indicator.container():
             _send(state, pending_request)
-        st.rerun()
+        _rerun_chat(refresh_content=_refresh_matching_content(state, page))
     queued = st.session_state.pop("queued_question", None)
     if queued is not None and not state.thread_id and state.failed_request is None:
         text = queued
@@ -299,4 +317,4 @@ def _conversational_screen(page: str, *, heading: str) -> None:
         state.pending_request = request
         st.session_state["scroll_to_latest_turn"] = True
         st.session_state.pop(f"draft_{page}", None)
-        st.rerun()
+        _rerun_chat()

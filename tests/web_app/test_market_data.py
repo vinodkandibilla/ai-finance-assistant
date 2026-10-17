@@ -1,12 +1,17 @@
 import json
 
 import httpx
+import pytest
 
 from finassist.web_app.services.market import fetch_market_snapshot, market_chart_data
 from finassist.web_app.services.models import QueryResponse
 
 
-def test_market_fetch_uses_only_query(monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "interval,window,expected_interval",
+    [("Daily", "1 month", "1day"), ("Weekly", "3 months", "1week")],
+)
+def test_market_fetch_uses_only_query(monkeypatch, interval, window, expected_interval) -> None:
     calls = []
 
     def send(client, request, **kwargs):
@@ -16,18 +21,20 @@ def test_market_fetch_uses_only_query(monkeypatch) -> None:
         )
 
     monkeypatch.setattr(httpx.Client, "send", send)
-    fetch_market_snapshot("AAPL", "Weekly")
+    fetch_market_snapshot("AAPL", interval)
     assert calls[0][0] == "/query"
     assert set(calls[0][1]) == {"query"}
-    assert "weekly OHLC" in calls[0][1]["query"]
-    assert "last 3 months" in calls[0][1]["query"]
+    assert f"{interval.lower()} OHLC" in calls[0][1]["query"]
+    assert f"last {window}" in calls[0][1]["query"]
+    assert "under 120 words" in calls[0][1]["query"]
+    assert "Do not reproduce historical rows" in calls[0][1]["query"]
     from datetime import date
 
     from finassist.agents.market_analysis.timeframe import resolve_timeframe
 
     assert (
         resolve_timeframe(calls[0][1]["query"], date(2026, 10, 15))["parameters"]["interval"]
-        == "1week"
+        == expected_interval
     )
 
 
@@ -92,3 +99,15 @@ def test_dashboard_draws_provider_ohlc(monkeypatch) -> None:
     assert figure["data"][0]["type"] == "candlestick"
     assert figure["data"][0]["close"] == [105.0]
     assert figure["data"][0]["high"] == [110.0]
+
+
+def test_comparison_aligns_shared_dates_and_rebases_prices():
+    from finassist.web_app.services.market import MarketBar, comparison_series
+
+    def bar(day, price):
+        return MarketBar(datetime=day, open=price, high=price, low=price, close=price)
+
+    first = [bar("2026-01-01", 10), bar("2026-01-02", 20), bar("2026-01-03", 30)]
+    second = [bar("2026-01-02", 100), bar("2026-01-03", 90), bar("2026-01-04", 110)]
+    assert comparison_series(first, second) == (["2026-01-02", "2026-01-03"], [100, 150], [100, 90])
+    assert comparison_series(first[:1], second) == ([], [], [])

@@ -192,6 +192,13 @@ frontend parses `intent`, `answer`, `classified_intent`, `executed_handler`,
 `clarification_question`. The supplied reference contract is versioned at
 [docs/api/finassist-openapi.json](docs/api/finassist-openapi.json).
 
+Chat runs in a Streamlit fragment, so ordinary chat interactions update the right
+panel without rerunning the central page. A completed response refreshes central
+Portfolio or News content only when its returned intent matches the open
+workspace. Market content stays unchanged for every chat intent, including market;
+stock search and interval changes still refresh Market. This execution isolation
+does not cache API results in the UI.
+
 Chat messages are shared across pages in `st.session_state`. Submitted questions
 render before the HTTP request begins, with a loading indicator immediately below.
 After a response, the transcript scrolls to the latest question and answer. Ordinary
@@ -202,7 +209,7 @@ The compose icon beside **Ask FinPilot** starts a new chat. A nonempty conversat
 or tracked draft requires confirmation before clearing local messages, drafts,
 errors, and the active thread. This does not delete backend checkpoints. Native
 composer text remains browser-held until submitted; it is not durable history.
-Watchlists and dashboard results are also session-only. A disconnected/recreated
+Watchlists are also session-only. Market dashboard results are fetched on reruns rather than cached in UI state. A disconnected/recreated
 session or server restart can lose UI state. No login, verified user profile,
 frontend authorization, or durable history is implemented; PM001 is not treated as
 a logged-in user by the UI.
@@ -217,10 +224,14 @@ retry resends the same payload and does not duplicate the visible user question.
 
 The stock field, search icon, and Daily/Weekly controls share one row; the watchlist
 sits below the chart. Opening Market requests the latest available AAPL quote and
-three months of daily OHLC data. Changing the symbol or interval fetches an uncached
-combination. Results are cached in the Streamlit session by symbol/interval; the
-search icon explicitly refreshes them. There is no background polling. Failed or
-incomplete results may also remain cached until refreshed.
+one month of daily OHLC data; Weekly requests three months. There is no UI result
+cache: each full Market page rerun requests data through FastAPI, including stock or
+interval changes, search clicks, and content-side widget interactions. Chat-only
+fragment reruns never fetch market data, including after a market-intent answer.
+Failed responses are not retained for reuse. Requests remain blocked during pending chat
+clarification/recovery. There is no background polling. The backend provider cache
+is separate and remains active, so a new HTTP request does not guarantee a fresh
+provider quote.
 
 All dashboard requests use `/query`. The existing market agent exposes provider
 observations through the response's flexible `calculations` field, using
@@ -354,7 +365,7 @@ entitlements, rate limits, retrieval initialization, or upstream outages. See th
 | Backend unavailable | Start FastAPI; verify the base URL from the Streamlit process and use Check API connection. |
 | Health succeeds but answers fail | Verify backend model/provider configuration and startup/retrieval logs; health is connectivity only. |
 | Market text appears without candles | Check structured observations, symbol/exchange/currency/interval metadata, and provider access. Restart an unreloaded backend after adapter edits, then refresh with the search icon. |
-| Old or empty market result persists | Use the search icon; session results and provider caches are separate. A refresh does not guarantee a new provider quote. |
+| Old or empty market result persists | Use the search icon to request again. There is no UI result cache; backend provider cache TTLs and upstream availability still apply. |
 | Slow first response | Allow for initial graph/store/model initialization; tune read timeout without treating it as an execution deadline. |
 | Timeout or HTTP 422 | Review inputs/configuration; retry deliberately because timeout completion can be unknown. |
 | Portfolio has no chart | Supply supported portfolio scope through chat or use the explicitly labeled sample view; a prose answer alone is not a snapshot. |
@@ -589,6 +600,13 @@ flowchart LR
 ```
 
 `finance_rag_query` and `tax_rag_query` include the whole pipeline when invoked standalone or through an agent. Embedding, fusion, and reranking are implementation steps inside the tool, not separately exposed model actions. The agent receives the ranked evidence after one tool invocation and decides whether another search is useful.
+
+The shared cross-encoder serializes model initialization and prediction across finance and tax
+requests. On macOS it uses CPU inference explicitly rather than auto-selecting MPS, reducing
+exposure to native allocator failures during threaded inference. Other platforms retain automatic
+device selection. This can reduce concurrent reranking throughput; retrieval and citation rules
+remain unchanged. Restart FastAPI after changing the reranker runtime. Hugging Face HTTP 307
+redirects followed by HTTP 200 are normal and do not indicate a failed model download.
 
 Tool factories require a reranker dependency and accept `rerank_top_n` (default 5). Shared [`rag_tools.py`](src/finassist/agents/common/rag_tools.py) packages the results through [`EvidenceResult`](src/finassist/agents/common/schemas.py): `candidates`, `metadata_filters`, `citations`, and `errors`. Candidate records retain content, source metadata, and retrieval identifiers/scores when supplied. A reranking failure returns an error and no unranked evidence; empty retrieval skips reranking. Omitted lexical keywords default to the search question; an explicit empty keyword list disables that sparse query.
 

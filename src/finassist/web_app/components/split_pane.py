@@ -17,7 +17,16 @@ _SPLIT_PANE = """
         if (!row || !left?.isConnected) return;
         const stacked = narrow.matches;
         handle.hidden = stacked;
-        row.style.height = stacked ? '' : '100%';
+        // Give the native row wrapper a definite height too. Otherwise its
+        // percentage-height children collapse to the shorter page's content.
+        const workspace = document.querySelector('.st-key-workspace_body');
+        let wrapper = row;
+        while (wrapper && wrapper !== workspace && workspace?.contains(wrapper)) {
+            wrapper.style.height = stacked ? '' : '100%';
+            wrapper.style.flex = stacked ? '' : '1 1 0%';
+            wrapper.style.minHeight = '0';
+            wrapper = wrapper.parentElement;
+        }
         for (const pane of [left, right]) {
             pane.style.height = stacked ? '' : '100%';
             pane.style.minHeight = '0';
@@ -28,6 +37,8 @@ _SPLIT_PANE = """
             let node = anchor;
             while (node && node !== [left, right][index]) {
                 node.style.height = stacked ? '' : '100%';
+                // Native fixed-height wrappers otherwise retain a 500px flex basis.
+                node.style.flex = stacked ? '' : '1 1 0%';
                 node.style.minHeight = '0';
                 node = node.parentElement;
             }

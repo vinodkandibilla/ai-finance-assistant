@@ -65,3 +65,45 @@ async def test_errors_are_not_cached(response):
         await cache.call_tool(session, "get_quote", {"symbol": "AAPL"})
     assert session.call_tool.await_count == 2
     assert not cache.entries
+
+
+async def test_hit_logs_metadata_but_not_response_or_unrelated_arguments(caplog):
+    import logging
+
+    cache, session = MarketCache(), AsyncMock()
+    session.call_tool.return_value = result("private-response-sentinel")
+    arguments = {"symbol": "aapl", "interval": "1day", "unused": "sensitive-sentinel"}
+    with caplog.at_level(logging.INFO, logger=module.__name__):
+        await cache.call_tool(session, "get_time_series", arguments)
+        assert "[Market Cache] HIT" not in caplog.text
+        assert "[Market Cache] MISS" in caplog.text
+        await cache.call_tool(session, "get_time_series", arguments)
+    assert "[Market Cache] HIT" in caplog.text
+    assert "tool=get_time_series" in caplog.text
+    assert "symbol='AAPL'" in caplog.text
+    assert "interval='1day'" in caplog.text
+    assert "remaining_ttl_seconds=" in caplog.text
+    assert "private-response-sentinel" not in caplog.text
+    assert "sensitive-sentinel" not in caplog.text
+    session.call_tool.assert_awaited_once()
+
+
+async def test_miss_diagnostics_distinguish_selectors_and_expiration(caplog, monkeypatch):
+    import logging
+
+    clock = [0]
+    monkeypatch.setattr(module, "monotonic", lambda: clock[0])
+    cache, session = MarketCache(), AsyncMock()
+    session.call_tool.return_value = result()
+    with caplog.at_level(logging.INFO, logger=module.__name__):
+        await cache.call_tool(session, "get_time_series", {"symbol": "AAPL", "outputsize": 22})
+        assert "reason=empty_cache" in caplog.text
+        caplog.clear()
+        await cache.call_tool(session, "get_time_series", {"symbol": "AAPL", "outputsize": 23})
+        assert "reason=key_not_present" in caplog.text
+        assert '"outputsize": 23' in caplog.text
+        assert "pid=" in caplog.text and "key=" in caplog.text
+        caplog.clear()
+        clock[0] = TTLS["get_time_series"]
+        await cache.call_tool(session, "get_time_series", {"symbol": "AAPL", "outputsize": 23})
+        assert "reason=expired" in caplog.text

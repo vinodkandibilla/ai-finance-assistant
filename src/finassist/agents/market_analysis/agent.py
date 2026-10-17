@@ -65,6 +65,12 @@ class MarketAnalysisAgent:
             async with asyncio.timeout(self.settings.market_agent_timeout_seconds):
                 async with twelve_data_session(self.settings) as session:
                     return await self._run(state, session)
+        except TimeoutError:
+            return {
+                "answer": "Market data retrieval exceeded the agent's time limit. "
+                "Please retry or request a shorter date range.",
+                "status": "error",
+            }
         except Exception as error:
             # Never return exception text: upstream errors can contain credentials.
             answer = RATE_LIMIT_RESPONSE if is_rate_limit(error) else UNAVAILABLE

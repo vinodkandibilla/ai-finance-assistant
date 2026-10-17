@@ -24,7 +24,8 @@ _VIEWPORT = """
                 frame.style.maxHeight = height;
                 frame.style.minHeight = '0';
                 frame.style.setProperty('--pane-height', `${Math.max(186, remaining - 34)}px`);
-                frame.style.flexShrink = '0';
+                // Override Streamlit's flex basis as well as its CSS height.
+                frame.style.flex = desktop ? `0 0 ${height}` : '';
                 const content = document.querySelector('.st-key-workspace_content');
                 let scrollArea = content;
                 while (scrollArea && scrollArea !== frame &&
@@ -47,6 +48,16 @@ _VIEWPORT = """
             const available = bottom - history.getBoundingClientRect().top - footer;
             const height = `${Math.max(100, Math.floor(available))}px`;
             if (history.style.height !== height) history.style.height = height;
+            // Streamlit's native scrolling container has a separate fixed-size wrapper.
+            // Updating only the inner element leaves the original 300px limit in place.
+            const historyWrapper = history.parentElement;
+            if (historyWrapper) {
+                historyWrapper.style.height = height;
+                historyWrapper.style.maxHeight = height;
+                historyWrapper.style.minHeight = '0';
+                historyWrapper.style.flex = `0 0 ${height}`;
+            }
+            history.style.flex = `0 0 ${height}`;
             const latest = document.querySelector('.st-key-latest_chat_turn___TURN_REVISION__');
             if (latest && latest.children.length) {
                 // Reserve enough space below a short turn to align its question at the top.
@@ -78,6 +89,10 @@ _VIEWPORT = """
     const observer = new ResizeObserver(resize);
     const panel = document.querySelector('.st-key-finpilot_chat_panel');
     if (panel) observer.observe(panel);
+    for (const key of ['workspace_header', 'chat_composer', 'chat_scope']) {
+        const element = document.querySelector('.st-key-' + key);
+        if (element) observer.observe(element);
+    }
     window.addEventListener('resize', resize, {signal: abort.signal});
     window.addEventListener('scroll', resize, {signal: abort.signal, capture: true, passive: true});
     window.finpilotChatViewportCleanup = () => {

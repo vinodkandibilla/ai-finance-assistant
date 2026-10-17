@@ -50,7 +50,7 @@ def test_pending_clarification_disables_new_showcase_requests() -> None:
     app.run().switch_page("views/news.py").run()
     assert next(b for b in app.button if b.label == "Get news summary").disabled
     app.switch_page("views/market.py").run()
-    assert app.button(key="market_search").disabled
+    assert app.text_input(key="market_chart_symbol").disabled
     app.switch_page("views/goals.py").run()
     assert next(b for b in app.button if b.label == "Ask AI about this scenario").disabled
 

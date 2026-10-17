@@ -207,12 +207,15 @@ def test_watchlist_selects_each_new_symbol_and_preserves_previous(
     assert not app.exception
 
 
-def test_market_defaults_daily_aapl_and_switches_weekly(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("status", [None, "error"])
+def test_market_fetches_each_rerun_without_ui_cache(
+    monkeypatch: pytest.MonkeyPatch, status: str | None
+) -> None:
     requested = []
 
     def fetch(symbol: str, interval: str) -> QueryResponse:
         requested.append((symbol, interval))
-        return QueryResponse(intent="market", answer="Data unavailable", status="error")
+        return QueryResponse(intent="market", answer="Data unavailable", status=status)
 
     monkeypatch.setattr("finassist.web_app.components.showcase.fetch_market_snapshot", fetch)
     app = app_for("market")
@@ -222,10 +225,79 @@ def test_market_defaults_daily_aapl_and_switches_weekly(monkeypatch: pytest.Monk
     next(r for r in app.radio if r.label == "Interval").set_value("Weekly").run()
     assert requested[-1] == ("AAPL", "Weekly")
     app.run()
-    assert len(requested) == 2
+    assert requested == [("AAPL", "Daily"), ("AAPL", "Weekly"), ("AAPL", "Weekly")]
     app.text_input(key="market_chart_symbol").input("MSFT").run()
     assert requested[-1] == ("MSFT", "Weekly")
-    app.button(key="market_search").click().run()
+    app.run()
     assert requested.count(("MSFT", "Weekly")) == 2
     assert not app.exception
     assert not app.get("plotly_chart")
+
+
+@pytest.mark.parametrize("intent", ["news", "tax", "market", "portfolio", "finance_qa", "goals"])
+def test_market_content_never_refreshes_from_chat_intent(intent) -> None:
+    from finassist.web_app.components.chat import ChatState, Message, _refresh_matching_content
+
+    state = ChatState(
+        messages=[Message("assistant", "Answer", QueryResponse(intent=intent, answer="Answer"))]
+    )
+    assert not _refresh_matching_content(state, "market")
+
+
+def test_comparison_missing_data_and_duplicate_symbols(monkeypatch):
+    requested = []
+
+    def fetch(symbol, interval):
+        requested.append((symbol, interval))
+        return QueryResponse(intent="market", answer="No data")
+
+    monkeypatch.setattr("finassist.web_app.components.showcase.fetch_market_snapshot", fetch)
+    app = app_for("market")
+    app.radio(key="market_view").set_value("Compare stocks").run()
+    assert requested[-2:] == [("AAPL", "Daily"), ("MSFT", "Daily")]
+    assert any("No validated" in element.value for element in app.info)
+    app.text_input(key="compare_second").input("AAPL").run()
+    assert any("different symbols" in element.value for element in app.info)
+    assert not app.exception
+
+
+@pytest.mark.parametrize("interval,provider_interval", [("Daily", "1day"), ("Weekly", "1week")])
+def test_comparison_chart_uses_validated_histories(monkeypatch, interval, provider_interval):
+    def fetch(symbol, requested_interval):
+        prices = [100, 110] if symbol == "AAPL" else [200, 180]
+        return QueryResponse(
+            intent="market",
+            answer="Available",
+            calculations=[
+                {
+                    "type": "market_observations",
+                    "symbol": symbol,
+                    "currency": "USD",
+                    "exchange": "NASDAQ",
+                    "interval": provider_interval,
+                    "values": [
+                        {
+                            "datetime": day,
+                            "open": price,
+                            "high": price,
+                            "low": price,
+                            "close": price,
+                        }
+                        for day, price in zip(["2026-01-02", "2026-01-09"], prices, strict=True)
+                    ],
+                }
+            ],
+        )
+
+    monkeypatch.setattr("finassist.web_app.components.showcase.fetch_market_snapshot", fetch)
+    app = app_for("market")
+    app.radio(key="market_view").set_value("Compare stocks").run()
+    app.radio(key="compare_interval").set_value(interval).run()
+    assert not app.exception
+    assert len(app.get("plotly_chart")) == 1
+    chart = json.loads(app.get("plotly_chart")[0].proto.spec)
+    assert chart["data"][0]["y"] == [100.0, 110.0]
+    assert chart["data"][1]["y"] == [200.0, 180.0]
+    assert chart["layout"]["yaxis"]["title"]["text"] == "Closing price (USD)"
+    assert chart["data"][1]["customdata"] == [[200.0, 100.0], [180.0, 90.0]]
+    assert [metric.value for metric in app.metric] == ["+10.00%", "-10.00%"]

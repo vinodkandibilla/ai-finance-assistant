@@ -10,7 +10,11 @@ from finassist.web_app.components.chat import ChatState
 from finassist.web_app.components.layout import card, metric_card
 from finassist.web_app.services.api_client import ApiError
 from finassist.web_app.services.citations import label_citations
-from finassist.web_app.services.market import fetch_market_snapshot, market_chart_data
+from finassist.web_app.services.market import (
+    comparison_series,
+    fetch_market_snapshot,
+    market_chart_data,
+)
 from finassist.web_app.services.models import QueryResponse
 from finassist.web_app.services.showcase import project_goal, safe_source
 
@@ -36,39 +40,68 @@ def ask_question(question: str) -> None:
 def market_showcase() -> None:
     st.subheader("Market overview")
     st.caption("U.S. NASDAQ · USD · Provider quotes may be delayed or cached")
-    stock, search, frequency = st.columns([3, 0.6, 2], vertical_alignment="bottom")
-    with stock:
-        symbol = st.text_input("Stock:", value="AAPL", max_chars=20, key="market_chart_symbol")
-    with search:
-        refresh = st.button(
-            "",
-            icon=":material/search:",
-            help="Search stock",
-            key="market_search",
-            disabled=request_blocked(),
-        )
-    with frequency:
-        interval = st.radio(
-            "Interval", ["Daily", "Weekly"], horizontal=True, label_visibility="collapsed"
-        )
+    mode = st.radio(
+        "Market view",
+        ["Individual stock", "Compare stocks"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="market_view",
+    )
+    if mode == "Compare stocks":
+        market_comparison()
+        return
+    with st.container(key="market_search_toolbar", border=True):
+        stock, frequency = st.columns([4, 2], vertical_alignment="center")
+        with stock:
+            symbol = st.text_input(
+                "Stock symbol",
+                value="AAPL",
+                max_chars=20,
+                placeholder="e.g. AAPL",
+                key="market_chart_symbol",
+                label_visibility="collapsed",
+                help="Enter a NASDAQ symbol and press Enter to search.",
+                icon=":material/search:",
+                disabled=request_blocked(),
+            )
+        with frequency:
+            interval = st.radio(
+                "Interval", ["Daily", "Weekly"], horizontal=True, label_visibility="collapsed"
+            )
     symbol = symbol.strip().upper()
     if not re.fullmatch(r"[A-Z][A-Z0-9.:-]{0,19}", symbol):
         st.warning("Enter a valid NASDAQ stock symbol.")
         return
-    cache_key = (symbol, interval)
-    cache = st.session_state.setdefault("market_chart_cache_v2", {})
-    if (refresh or cache_key not in cache) and not request_blocked():
+    response = None
+    if not request_blocked():
         try:
             with st.spinner(f"Loading {symbol} {interval.lower()} market data…"):
-                cache[cache_key] = fetch_market_snapshot(symbol, interval)
+                response = fetch_market_snapshot(symbol, interval)
         except (ApiError, ValueError):
-            cache[cache_key] = None
-    response = cache.get(cache_key)
-    st.subheader(f"{symbol} · {interval} · Three months")
+            pass
+    window_label = "One month" if interval == "Daily" else "Three months"
+    st.subheader(f"{symbol} · {interval} · {window_label}")
     if response is None:
-        st.error("Market data is unavailable. Use the search icon to retry.")
+        st.error("Market data is unavailable. Reload the page to retry.")
     else:
         bars, quote = market_chart_data(response, symbol, interval)
+        if quote:
+            st.caption("Latest available quote · USD")
+            with st.container(horizontal=True, key="market_quote_details"):
+                for label, field in [
+                    ("Latest price", "close"),
+                    ("Open", "open"),
+                    ("Day high", "high"),
+                    ("Day low", "low"),
+                    ("Volume", "volume"),
+                    ("Previous close", "previous_close"),
+                ]:
+                    if quote.get(field) is not None:
+                        st.metric(label, str(quote[field]))
+            observed = quote.get("datetime", quote.get("timestamp", "Not supplied"))
+            st.caption(f"Quote observation: {observed}")
+        else:
+            st.caption("Latest quote unavailable; historical observations are shown when supplied.")
         if bars:
             figure = go.Figure(
                 go.Candlestick(
@@ -118,22 +151,9 @@ def market_showcase() -> None:
             )
         else:
             st.info("No validated OHLC series returned for this stock and interval.")
-        if quote:
-            with st.container(horizontal=True):
-                for label, field in [
-                    ("Latest price", "close"),
-                    ("Open", "open"),
-                    ("High", "high"),
-                    ("Low", "low"),
-                    ("Volume", "volume"),
-                    ("Previous close", "previous_close"),
-                ]:
-                    st.metric(label, str(quote.get(field, "Not supplied")))
-            observed = quote.get("datetime", quote.get("timestamp", "Not supplied"))
-            st.caption(f"Quote observation: {observed}")
         if not bars or response.status == "error":
             st.markdown(label_citations(response.answer), unsafe_allow_html=False)
-        st.caption("Provider data, not guaranteed live. Refresh with search; no automatic polling.")
+        st.caption("Provider data, not guaranteed live. Search by symbol; no automatic polling.")
     st.divider()
     st.subheader("Watchlist")
     symbol = st.text_input("Watchlist symbol", max_chars=20, placeholder="AAPL")
@@ -168,6 +188,158 @@ def market_showcase() -> None:
                 st.rerun()
     else:
         st.info("Your watchlist is empty. Add a symbol to begin.")
+
+
+def market_comparison() -> None:
+    """Fetch two independent HTTP snapshots; never derive prices from chat prose."""
+    with st.container(border=True, key="market_compare_toolbar"):
+        first, second, frequency = st.columns([2, 2, 2], vertical_alignment="center")
+        with first:
+            first_symbol = (
+                st.text_input(
+                    "First stock",
+                    value="AAPL",
+                    max_chars=20,
+                    key="compare_first",
+                    icon=":material/search:",
+                    label_visibility="collapsed",
+                    help="First NASDAQ symbol · press Enter to search",
+                    disabled=request_blocked(),
+                )
+                .strip()
+                .upper()
+            )
+        with second:
+            second_symbol = (
+                st.text_input(
+                    "Second stock",
+                    value="MSFT",
+                    max_chars=20,
+                    key="compare_second",
+                    icon=":material/search:",
+                    label_visibility="collapsed",
+                    help="Second NASDAQ symbol · press Enter to search",
+                    disabled=request_blocked(),
+                )
+                .strip()
+                .upper()
+            )
+        with frequency:
+            interval = st.radio(
+                "Comparison interval",
+                ["Daily", "Weekly"],
+                horizontal=True,
+                label_visibility="collapsed",
+                key="compare_interval",
+            )
+    symbols = [first_symbol, second_symbol]
+    if any(not re.fullmatch(r"[A-Z][A-Z0-9.:-]{0,19}", symbol) for symbol in symbols):
+        st.warning("Enter two valid NASDAQ stock symbols.")
+        return
+    if first_symbol == second_symbol:
+        st.info("Choose two different symbols to compare.")
+        return
+    if request_blocked():
+        st.info("Complete or clear the pending chat request before fetching a comparison.")
+        return
+    snapshots = []
+    with st.spinner("Loading stock comparison…"):
+        for symbol in symbols:
+            try:
+                response = fetch_market_snapshot(symbol, interval)
+                bars, _ = market_chart_data(response, symbol, interval)
+            except (ApiError, ValueError):
+                bars = []
+            snapshots.append(bars)
+    missing = [symbol for symbol, bars in zip(symbols, snapshots, strict=True) if not bars]
+    if missing:
+        st.info(
+            f"No validated {interval.lower()} history available for {', '.join(missing)}. "
+            "Change the symbols or interval to retry."
+        )
+        return
+    dates, first_values, second_values = comparison_series(*snapshots)
+    if not dates:
+        st.info("At least two shared observation dates are required to compare these stocks.")
+        return
+    window = "One month" if interval == "Daily" else "Three months"
+    st.subheader(f"{first_symbol} vs {second_symbol} · {interval} · {window}")
+    st.caption(
+        "Actual closing prices in USD. Switch to Start = 100 to compare relative changes. "
+        "Only shared observation dates are plotted."
+    )
+    actual_prices = [
+        [prices[day] for day in dates]
+        for prices in [{bar.datetime[:10]: bar.close for bar in bars} for bars in snapshots]
+    ]
+    figure = go.Figure()
+    for symbol, prices, indices, color, dash, marker in zip(
+        symbols,
+        actual_prices,
+        [first_values, second_values],
+        ["#1D4ED8", "#C2410C"],
+        ["solid", "dash"],
+        ["circle", "diamond"],
+        strict=True,
+    ):
+        figure.add_trace(
+            go.Scatter(
+                x=dates,
+                y=prices,
+                customdata=list(zip(prices, indices, strict=True)),
+                name=symbol,
+                mode="lines+markers",
+                line={"color": color, "width": 2.5, "dash": dash},
+                marker={"symbol": marker, "size": 6},
+                hovertemplate="%{x}<br>Close: $%{customdata[0]:,.2f}"
+                "<br>Index: %{customdata[1]:.2f}<extra>%{fullData.name}</extra>",
+            )
+        )
+    figure.update_layout(
+        height=380,
+        yaxis_title="Closing price (USD)",
+        updatemenus=[
+            {
+                "type": "buttons",
+                "direction": "right",
+                "x": 0,
+                "y": 1.28,
+                "buttons": [
+                    {
+                        "label": "Actual price (USD)",
+                        "method": "update",
+                        "args": [{"y": actual_prices}, {"yaxis.title.text": "Closing price (USD)"}],
+                    },
+                    {
+                        "label": "Start = 100",
+                        "method": "update",
+                        "args": [
+                            {"y": [first_values, second_values]},
+                            {"yaxis.title.text": "Closing price index (start = 100)"},
+                        ],
+                    },
+                ],
+            }
+        ],
+        hovermode="x unified",
+        legend={"orientation": "h", "y": 1.12},
+        margin={"l": 10, "r": 10, "t": 90, "b": 15},
+    )
+    st.plotly_chart(figure, width="stretch", key="market_comparison_chart")
+    with st.expander("Closing prices by date · USD"):
+        st.dataframe(
+            {"Date": dates, first_symbol: actual_prices[0], second_symbol: actual_prices[1]},
+            hide_index=True,
+            width="stretch",
+        )
+    with st.container(horizontal=True):
+        for symbol, values in zip(symbols, [first_values, second_values], strict=True):
+            st.metric(f"{symbol} · price change", f"{values[-1] - 100:+.2f}%")
+    st.caption(
+        f"Shared observations: {len(dates)} · {dates[0]} to {dates[-1]}. "
+        "Provider history, not guaranteed live. Price change excludes dividends; "
+        "split/adjustment treatment depends on provider data. No automatic polling."
+    )
 
 
 def goals_showcase() -> None:

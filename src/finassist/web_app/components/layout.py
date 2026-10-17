@@ -14,9 +14,9 @@ DISCLAIMER = (
 
 def page_header(title: str, description: str) -> None:
     with st.container(key="finpilot_header", gap="small"):
-        st.caption("FINPILOT AI · YOUR FINANCE WORKSPACE")
         st.title(title)
-        st.write(description)
+        with st.container(key="header_description"):
+            st.caption(description)
 
 
 @contextmanager
@@ -75,7 +75,48 @@ def compact_spacing() -> None:
     <style>
     header.stAppHeader,
     header[data-testid="stHeader"] { display: none; }
-    .stMainBlockContainer { padding: 1rem; }
+    .stMainBlockContainer { padding: 0 1rem 1rem; }
+    /* Empty style/script blocks must not create a gap above the app header. */
+    .stMainBlockContainer > [data-testid="stVerticalBlock"] { gap: 0; }
+    :is(.st-key-market_search_toolbar, .st-key-market_compare_toolbar) {
+        background: #F8FAFC;
+        border-color: #DCE5EF;
+        padding: 0.875rem 1rem;
+        border-radius: 0.875rem;
+    }
+    :is(.st-key-market_search_toolbar, .st-key-market_compare_toolbar)
+    [data-testid="stWidgetLabel"] p {
+        color: #475569;
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+    :is(.st-key-market_search_toolbar, .st-key-market_compare_toolbar) input {
+        font-weight: 600;
+        letter-spacing: 0.04em;
+    }
+    :is(.st-key-market_search_toolbar, .st-key-market_compare_toolbar) [role="radiogroup"] {
+        min-height: 2.5rem;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.375rem;
+    }
+    :is(.st-key-market_search_toolbar, .st-key-market_compare_toolbar) [role="radiogroup"] label {
+        margin: 0;
+        padding: 0.375rem 0.625rem;
+        border-radius: 0.625rem;
+    }
+    :is(.st-key-market_search_toolbar, .st-key-market_compare_toolbar)
+    [role="radiogroup"] label:has(input:checked) {
+        background: #DDF1ED;
+        color: #115E59;
+    }
+    .st-key-market_quote_details [data-testid="stMetricValue"] {
+        font-size: 1.125rem;
+        line-height: 1.4;
+    }
+    .st-key-market_quote_details [data-testid="stMetricLabel"] p {
+        font-size: 0.8125rem;
+    }
     /* Scrollable layout wrappers can become focused on click, independently of
        stMain. Suppress their outlines, not those of widgets or ARIA controls. */
     .stApp :is(div, section, main):focus:not([role]):not([contenteditable="true"]) {
@@ -101,20 +142,63 @@ def compact_spacing() -> None:
         box-shadow: none !important;
     }
     [data-testid="stSidebarHeader"] { display: none; }
-    [data-testid="stSidebarContent"] { padding-top: 1rem; }
+    [data-testid="stSidebarContent"] { padding-top: 0; }
+    [data-testid="stSidebarUserContent"] { padding-top: 0; }
+    [data-testid="stSidebar"] { border-right: 0; }
+    @media (min-width: 901px) {
+        [data-testid="stSidebar"] {
+            width: clamp(220px, 16vw, 250px) !important;
+            min-width: 220px;
+            max-width: 250px;
+        }
+        [data-testid="stSidebarUserContent"] {
+            padding-inline: 0.875rem;
+        }
+    }
+    /* Paint the sidebar band edge to edge, outside its padded content. */
+    [data-testid="stSidebar"]::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 80px;
+        background: linear-gradient(180deg, #E8EFF7 0%, #F1F5F9 100%);
+        box-sizing: border-box;
+        pointer-events: none;
+    }
+    .st-key-sidebar_brand {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: linear-gradient(180deg, #E8EFF7 0%, #F1F5F9 100%);
+        min-height: 80px;
+        padding: 0.75rem 0;
+        box-sizing: border-box;
+        margin-bottom: 0.5rem;
+    }
+    .st-key-sidebar_brand strong { color: #153E75; font-size: 1.25rem; }
+    .st-key-sidebar_brand p { margin: 0; }
+    .st-key-sidebar_brand [data-testid="stCaptionContainer"] { color: #475569; }
     [data-testid="stSidebarNav"] { padding-top: 0; }
     .st-key-workspace_header {
         position: sticky;
         top: 0;
         z-index: 20;
-        background: #F8FAFC;
+        background: linear-gradient(180deg, #E8EFF7 0%, #F1F5F9 100%);
+        border-radius: 0;
+        padding: 0.75rem 1rem;
+        min-height: 80px;
+        box-sizing: border-box;
+        width: 100%;
     }
     /* Include Streamlit's immediate header wrapper in the sticky region. */
     .st-key-finpilot_page > :has(.st-key-workspace_header) {
         position: sticky;
         top: 0;
         z-index: 20;
-        background: #FFFFFF;
+        background: transparent;
+        margin-inline: -1rem;
+        width: calc(100% + 2rem);
+        max-width: none;
     }
     .st-key-workspace_body {
         border: 1px solid #CBD5E1;
@@ -152,12 +236,16 @@ def compact_spacing() -> None:
 
     .st-key-finpilot_header h1 {
         color: #153E75;
-        font-size: 2.25rem;
+        font-size: 1.5rem;
         line-height: 1.2;
         margin: 0;
         padding-block: 0.15rem;
     }
-    .st-key-finpilot_header p { margin-block: 0 0.25rem; }
+    .st-key-finpilot_header p { margin-block: 0; }
+    @media (max-width: 900px) {
+        .st-key-header_description { display: none; }
+        .st-key-workspace_header { min-height: 80px; }
+    }
     .st-key-finpilot_page h2,
     .st-key-finpilot_page h3 {
         color: #153E75;

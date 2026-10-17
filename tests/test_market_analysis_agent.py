@@ -190,7 +190,8 @@ async def test_deadline_cancels_slow_server(monkeypatch):
 
     session.list_tools.side_effect = slow_catalog
     result = await agent.ainvoke({"query": "AAPL"})
-    assert result == {"answer": module.UNAVAILABLE, "status": "error"}
+    assert result["status"] == "error"
+    assert "time limit" in result["answer"]
 
 
 async def test_history_uses_deterministic_parameters(monkeypatch):

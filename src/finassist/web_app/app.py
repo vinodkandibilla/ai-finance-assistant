@@ -17,9 +17,23 @@ from finassist.web_app.services.api_client import ApiError, check_health
 
 st.set_page_config(page_title="FinPilot AI", page_icon="✈️", layout="wide")
 compact_spacing()
+pages = [
+    st.Page("views/overview.py", title="Overview", icon="🏠", default=True),
+    st.Page("views/finance_qa.py", title="Finance Q&A", icon="💬"),
+    st.Page("views/portfolio.py", title="Portfolio", icon="💼"),
+    st.Page("views/market.py", title="Market", icon="📈"),
+    st.Page("views/goals.py", title="Goals", icon="🎯"),
+    st.Page("views/news.py", title="News", icon="📰"),
+    st.Page("views/tax.py", title="Tax Education", icon="📚"),
+]
+page = st.navigation(pages, position="hidden")
 with st.sidebar:
-    st.subheader("✈ FinPilot AI")
-    st.caption("Learn. Explore. Plan.")
+    with st.container(key="sidebar_brand"):
+        st.markdown("**✈ FinPilot AI**")
+        st.caption("Learn. Explore. Plan.")
+    for destination in pages:
+        st.page_link(destination, label=destination.title, icon=destination.icon)
+    st.divider()
     if st.button("Check API connection", width="stretch"):
         with loading_state("Checking connection…"):
             try:
@@ -38,21 +52,8 @@ with st.sidebar:
             error_state(message)
         else:
             status_indicator(message, "success")
-    else:
-        st.caption("API connection has not been checked.")
     st.caption("Educational workspace · Session only")
 
-page = st.navigation(
-    [
-        st.Page("views/overview.py", title="Overview", icon="🏠", default=True),
-        st.Page("views/finance_qa.py", title="Finance Q&A", icon="💬"),
-        st.Page("views/portfolio.py", title="Portfolio", icon="💼"),
-        st.Page("views/market.py", title="Market", icon="📈"),
-        st.Page("views/goals.py", title="Goals", icon="🎯"),
-        st.Page("views/news.py", title="News", icon="📰"),
-        st.Page("views/tax.py", title="Tax Education", icon="📚"),
-    ]
-)
 workspace = page.url_path or "overview"
 # The default page's URL is empty; every other page uses its script stem.
 if workspace not in {"finance_qa", "portfolio", "market", "goals", "news", "tax"}:
@@ -67,7 +68,7 @@ descriptions = {
     "tax": "Learn about US taxes with educational guidance.",
 }
 with st.container(key="finpilot_page", gap="small"):
-    with st.container(border=True, key="workspace_header"):
+    with st.container(border=False, key="workspace_header"):
         page_header(page.title, descriptions[workspace])
     with st.container(key="workspace_body", gap="small"):
         content, assistant = st.columns([0.62, 0.38], gap="medium")

@@ -27,14 +27,33 @@ class MarketBar(BaseModel):
         return self
 
 
+def comparison_series(
+    first: list[MarketBar], second: list[MarketBar]
+) -> tuple[list[str], list[float], list[float]]:
+    """Compare closing prices on shared dates, rebased to 100 at the first date."""
+    first_prices = {bar.datetime[:10]: bar.close for bar in first}
+    second_prices = {bar.datetime[:10]: bar.close for bar in second}
+    dates = sorted(first_prices.keys() & second_prices.keys())
+    if len(dates) < 2:
+        return [], [], []
+    return (
+        dates,
+        [100 * first_prices[day] / first_prices[dates[0]] for day in dates],
+        [100 * second_prices[day] / second_prices[dates[0]] for day in dates],
+    )
+
+
 def fetch_market_snapshot(symbol: str, interval: str) -> QueryResponse:
+    window = "1 month" if interval == "Daily" else "3 months"
     query = (
         "Scope: United States NASDAQ-listed equities only, currency USD. "
         "Exclude international listings and depositary receipts. "
         f"Retrieve the latest available quote for {symbol}, NASDAQ, USD, including open, high, "
         f"low, close, volume, previous close and provider observation time. Also retrieve "
-        f"{interval.lower()} OHLC time series for {symbol} over the last 3 months. "
+        f"{interval.lower()} OHLC time series for {symbol} over the last {window}. "
         "Use available observations only; do not invent unavailable prices."
+        " Keep the textual summary under 120 words. Do not reproduce historical rows "
+        "in prose or tables; the chart uses the structured provider observations."
     )
     with FinanceApiClient(WebSettings.from_environment()) as client:
         return client.query(QueryRequest(query=query))
