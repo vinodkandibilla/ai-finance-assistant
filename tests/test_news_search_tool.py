@@ -173,18 +173,28 @@ async def test_search_caps_evidence_at_three_results(monkeypatch):
     "parameters,expected",
     [
         ({"time_range": "day"}, {"time_range": "day"}),
+        (
+            {"start_date": "2026-12-31", "end_date": "2026-12-31"},
+            {"start_date": "2026-12-31", "end_date": "2027-01-01"},
+        ),
+        (
+            {"start_date": "2024-02-29", "end_date": "2024-02-29"},
+            {"start_date": "2024-02-29", "end_date": "2024-03-01"},
+        ),
         ({"time_range": "month"}, {"time_range": "month"}),
         (
             {"start_date": "2026-10-13", "end_date": "2026-10-13"},
-            {"start_date": "2026-10-13", "end_date": "2026-10-13"},
+            {"start_date": "2026-10-13", "end_date": "2026-10-14"},
         ),
         (
             {"start_date": "2026-09-01", "end_date": "2026-09-30"},
-            {"start_date": "2026-09-01", "end_date": "2026-09-30"},
+            {"start_date": "2026-09-01", "end_date": "2026-10-01"},
         ),
     ],
 )
-async def test_requested_timeframe_passes_to_tavily(monkeypatch, parameters, expected):
+async def test_requested_timeframe_converts_inclusive_end_for_tavily(
+    monkeypatch, parameters, expected
+):
     def handle(request):
         payload = json.loads(request.content)
         actual = {
@@ -202,6 +212,7 @@ async def test_requested_timeframe_passes_to_tavily(monkeypatch, parameters, exp
     "parameters",
     [
         {"start_date": "2026-10-01"},
+        {"start_date": "9999-12-31", "end_date": "9999-12-31"},
         {"start_date": "invalid", "end_date": "2026-10-13"},
         {"start_date": "2026-10-13", "end_date": "2026-09-01"},
     ],

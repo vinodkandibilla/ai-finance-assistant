@@ -12,10 +12,33 @@ MAX_RECORDS = 100
 
 def resolve_timeframe(request: str, today: date) -> dict[str, object]:
     text = request.lower()
+    numbers = {
+        "one": 1,
+        "two": 2,
+        "three": 3,
+        "four": 4,
+        "five": 5,
+        "six": 6,
+        "seven": 7,
+        "eight": 8,
+        "nine": 9,
+        "ten": 10,
+        "eleven": 11,
+        "twelve": 12,
+    }
+    # Normalize natural-language rolling windows before the numeric parser.
+    text = re.sub(r"\b(last|past)\s+the\s+", r"\1 ", text)
+    text = re.sub(
+        r"\b(last|past)\s+(" + "|".join(numbers) + r")\s+(days?|weeks?|months?)\b",
+        lambda match: f"{match[1]} {numbers[match[2]]} {match[3]}",
+        text,
+    )
+    text = re.sub(r"\b(last|past)\s+(day|week|month)\b", r"\1 1 \2", text)
     growth = bool(
         re.search(
             r"\bgrowth\b|\breturns?\b|\bpercentage change\b|\bpercent change\b"
-            r"|\bperformance\b|\bcompare\b",
+            r"|\bperformance\b|\bcompare\b|\bprice\s+change(?:d)?\b"
+            r"|\b(?:highest|lowest|maximum|minimum|extrema)\b",
             text,
         )
     )
@@ -23,7 +46,10 @@ def resolve_timeframe(request: str, today: date) -> dict[str, object]:
     if re.search(r"\bmonthly\b|\b1month\b", text):
         interval = "1month"
     dates = re.findall(r"\b\d{4}-\d{2}-\d{2}\b", text)
-    note = "Date bounds are inclusive; only available market observations are returned."
+    note = (
+        "Relative month windows roll back from the as-of date, not a calendar month. "
+        "Date bounds are inclusive; only available market observations are returned."
+    )
 
     try:
         if len(dates) == 2:

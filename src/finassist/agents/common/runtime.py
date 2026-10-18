@@ -36,6 +36,7 @@ class AgentPolicy:
     clarification_response: Callable[[str, str], str | None] | None = None
     process_tool_results: Callable | None = None
     additional_reply_tools: tuple[str, ...] = ()
+    recover_skipped_retrieval: bool = False
 
 
 def user_replies(messages, tool_name, additional_tools=()):
@@ -179,35 +180,66 @@ class AutonomousEducationAgent:
             deadline = asyncio.timeout(self._settings.agent_timeout_seconds)
             try:
                 async with deadline:
-                    output = await self.agent.ainvoke(
-                        {"messages": [HumanMessage(content=query)]},
-                        config={**config, "recursion_limit": self._settings.agent_recursion_limit},
-                    )
-                    replies = user_replies(
-                        output["messages"],
-                        policy.clarification_tool_name,
-                        policy.additional_reply_tools,
-                    )
-                    final = await self._formatter.ainvoke(
-                        [
-                            SystemMessage(
-                                content=policy.prompt
-                                + "\nFormat the completed task. A latest reply replacing the task "
-                                "outside your scope requires out_of_scope, not insufficient. "
-                                "Clarification must use the interrupt tool."
-                            ),
-                            *output["messages"],
-                            HumanMessage(
-                                content="Original question: "
-                                + query
-                                + "\nActual clarification replies: "
-                                + repr(replies)
-                                + "\nHonor the latest actual user reply if it changes the task. "
-                                "Return the outcome for that task, not the abandoned original task."
-                            ),
-                        ]
-                    )
-                    result = schema.model_validate(final)
+                    input_messages = [HumanMessage(content=query)]
+                    for attempt in range(2 if policy.recover_skipped_retrieval else 1):
+                        output = await self.agent.ainvoke(
+                            {"messages": input_messages},
+                            config={
+                                **config,
+                                "recursion_limit": self._settings.agent_recursion_limit,
+                            },
+                        )
+                        replies = user_replies(
+                            output["messages"],
+                            policy.clarification_tool_name,
+                            policy.additional_reply_tools,
+                        )
+                        final = await self._formatter.ainvoke(
+                            [
+                                SystemMessage(
+                                    content=policy.prompt
+                                    + "\nFormat the task. A latest reply replacing the task "
+                                    "outside your scope requires out_of_scope, not insufficient. "
+                                    "Clarification must use the interrupt tool."
+                                ),
+                                *output["messages"],
+                                HumanMessage(
+                                    content="Original question: "
+                                    + query
+                                    + "\nActual clarification replies: "
+                                    + repr(replies)
+                                    + "\nHonor the latest user reply if it changes the task. "
+                                    "Return the current task outcome, not the abandoned task."
+                                ),
+                            ]
+                        )
+                        result = schema.model_validate(final)
+                        if (
+                            policy.recover_skipped_retrieval
+                            and attempt == 0
+                            and result.status == "answered"
+                            and not any(
+                                isinstance(message, ToolMessage) for message in output["messages"]
+                            )
+                        ):
+                            logger.info(
+                                "%s skipped evidence acquisition; requesting one recovery turn.",
+                                policy.label,
+                            )
+                            input_messages = [
+                                *output["messages"],
+                                SystemMessage(
+                                    content=(
+                                        "Answer rejected: no tool was called. "
+                                        "For explanations, call the retrieval tool now "
+                                        "and ground your answer in returned passages. Do not use "
+                                        "the unsupported answer as evidence. For a supported "
+                                        "calculation, use the calculator. If outside scope, say so."
+                                    )
+                                ),
+                            ]
+                            continue
+                        break
                     evidence, errors = [], []
                     for message in output["messages"]:
                         if (

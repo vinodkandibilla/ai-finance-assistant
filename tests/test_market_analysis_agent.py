@@ -61,6 +61,9 @@ async def test_quote_tool_conversation_and_allowlist(monkeypatch):
     )
     result = await agent.ainvoke({"query": "Quote QQQ"})
     assert result["status"] == "answered"
+    assert result["calculations"][0]["type"] == "market_observations"
+    assert result["calculations"][0]["symbol"] == "QQQ"
+    assert result["calculations"][0]["values"][0]["close"] == "212.35"
     session.call_tool.assert_awaited_once_with("get_quote", {"symbol": "QQQ"})
     assert {tool["function"]["name"] for tool in model.descriptors} == {
         "get_quote",
@@ -68,6 +71,7 @@ async def test_quote_tool_conversation_and_allowlist(monkeypatch):
         "get_time_series",
         "resolve_market_timeframe",
         "calculate_price_growth",
+        "calculate_price_extrema",
     }
     assert model.messages[-1].tool_call_id == "quote-1"
 
@@ -187,7 +191,8 @@ async def test_deadline_cancels_slow_server(monkeypatch):
 
     session.list_tools.side_effect = slow_catalog
     result = await agent.ainvoke({"query": "AAPL"})
-    assert result == {"answer": module.UNAVAILABLE, "status": "error"}
+    assert result["status"] == "error"
+    assert "time limit" in result["answer"]
 
 
 async def test_history_uses_deterministic_parameters(monkeypatch):

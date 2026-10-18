@@ -1,0 +1,1 @@
+"""FinPilot page scripts."""

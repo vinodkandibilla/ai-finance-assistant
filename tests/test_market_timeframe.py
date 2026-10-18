@@ -77,3 +77,28 @@ def test_hundred_records_is_allowed():
 def test_large_daily_window_requires_narrowing():
     assert resolve_timeframe("daily from 2025-01-01 to 2025-12-31", TODAY)["status"] == "clarify"
     assert resolve_timeframe("weekly from 2025-01-01 to 2025-12-31", TODAY)["status"] == "ready"
+
+
+@pytest.mark.parametrize(
+    "window",
+    ["last month", "last one month", "over the last month", "past one month", "last the month"],
+)
+def test_natural_language_month_price_change_has_date_bounds(window):
+    result = resolve_timeframe(f"How much has NVDA’s price changed {window}?", TODAY)
+    assert result["status"] == "ready"
+    assert result["parameters"] == {
+        "interval": "1day",
+        "start_date": "2026-09-13",
+        "end_date": "2026-10-13",
+        "outputsize": 100,
+    }
+
+
+def test_spelled_window_in_clarification_retains_original_growth_request():
+    query = "How much has NVDA’s price changed?\nAdditional details: last one month"
+    result = resolve_timeframe(query, date(2024, 3, 31))
+    assert result["status"] == "ready"
+    assert result["parameters"]["start_date"] == "2024-02-29"
+    assert (
+        resolve_timeframe("NVDA daily history for the last two months", TODAY)["status"] == "ready"
+    )

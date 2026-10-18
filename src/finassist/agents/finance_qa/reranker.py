@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import platform
 from functools import lru_cache
+from threading import RLock
 from typing import Protocol
 
 from finassist.agents.finance_qa.schemas import FinanceDocument
+
+_MODEL_LOCK = RLock()
 
 
 class CrossEncoderModel(Protocol):
@@ -15,7 +19,8 @@ class CrossEncoderModel(Protocol):
 def _load_cross_encoder(model_name: str) -> CrossEncoderModel:
     from sentence_transformers import CrossEncoder
 
-    return CrossEncoder(model_name)
+    # Avoid auto-selecting Apple's MPS backend for the server's threaded inference.
+    return CrossEncoder(model_name, device="cpu" if platform.system() == "Darwin" else None)
 
 
 class FinanceCrossEncoderReranker:
@@ -40,5 +45,12 @@ class FinanceCrossEncoderReranker:
         ]
 
     def _score(self, query: str, documents: list[FinanceDocument]) -> object:
-        model = self._model or _load_cross_encoder(self._model_name)
-        return model.predict([(query, document.content) for document in documents])
+        # Finance and tax share a cached model. lru_cache alone does not prevent
+        # duplicate concurrent loads; guard loading and native inference together.
+        # Keep the lock in the worker: cancellation must not release it while
+        # native prediction is still running in that worker.
+        with _MODEL_LOCK:
+            model = self._model or _load_cross_encoder(self._model_name)
+            return model.predict(
+                [(query, document.content) for document in documents], show_progress_bar=False
+            )

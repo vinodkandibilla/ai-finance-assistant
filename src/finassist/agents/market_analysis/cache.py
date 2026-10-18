@@ -1,7 +1,10 @@
 """Shared, process-local TTL/LRU cache for market MCP responses."""
 
 import asyncio
+import hashlib
 import json
+import logging
+import os
 import re
 from collections import OrderedDict
 from time import monotonic
@@ -13,6 +16,7 @@ from mcp.types import CallToolResult
 from finassist.core.config import get_settings
 
 TTLS = {"get_quote": 30 * 60, "search_symbol": 24 * 60 * 60, "get_time_series": 24 * 60 * 60}
+logger = logging.getLogger(__name__)
 
 
 class MarketCache:
@@ -32,12 +36,61 @@ class MarketCache:
             if name != "search_symbol":
                 normalized["symbol"] = normalized["symbol"].upper()
         key = name + ":" + json.dumps(normalized, sort_keys=True)
+        fingerprint = hashlib.sha256(key.encode()).hexdigest()[:12]
+        # Only public provider selectors are logged; never dump arbitrary tool args.
+        selectors = {
+            field: normalized[field]
+            for field in (
+                "start_date",
+                "end_date",
+                "outputsize",
+                "exchange",
+                "country",
+                "currency",
+                "timezone",
+                "order",
+                "format",
+                "adjust",
+            )
+            if field in normalized
+        }
         now = monotonic()
+        expired_exact = key in self.entries and self.entries[key][0] <= now
         for expired in [key for key, (expiry, _) in self.entries.items() if expiry <= now]:
             del self.entries[expired]
         if key in self.entries:
             self.entries.move_to_end(key)
+            logger.info(
+                "[Market Cache] HIT | tool=%s | symbol=%r | interval=%r | "
+                "remaining_ttl_seconds=%.0f | pid=%s | key=%s | selectors=%s",
+                name,
+                normalized.get("symbol"),
+                normalized.get("interval"),
+                self.entries[key][0] - now,
+                os.getpid(),
+                fingerprint,
+                json.dumps(selectors, sort_keys=True),
+            )
             return self.entries[key][1]
+
+        reason = (
+            "expired"
+            if expired_exact
+            else ("empty_cache" if not self.entries else "key_not_present")
+        )
+        logger.info(
+            "[Market Cache] MISS | tool=%s | symbol=%r | interval=%r | shared_inflight=%s "
+            "| pid=%s | key=%s | reason=%s | entries=%s | selectors=%s",
+            name,
+            normalized.get("symbol"),
+            normalized.get("interval"),
+            key in self.pending,
+            os.getpid(),
+            fingerprint,
+            reason,
+            len(self.entries),
+            json.dumps(selectors, sort_keys=True),
+        )
 
         async def fetch() -> CallToolResult:
             result = await session.call_tool(name, normalized)
@@ -50,6 +103,12 @@ class MarketCache:
                 self.entries.move_to_end(key)
                 while len(self.entries) > self.capacity:
                     self.entries.popitem(last=False)
+            else:
+                logger.info(
+                    "[Market Cache] BYPASS | tool=%s | key=%s | reason=provider_error",
+                    name,
+                    fingerprint,
+                )
             return result
 
         if key not in self.pending:

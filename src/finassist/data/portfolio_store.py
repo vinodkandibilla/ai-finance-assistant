@@ -16,6 +16,34 @@ PRICE_AS_OF_DATE = "2026-10-09"
 PRICE_BASIS = "frozen_historical_close_usd"
 RISK_PROFILE_LAST_UPDATED = "2025-12-01"
 DATA_SOURCE = "synthetic_test_data"
+CUSTOMER_FIRST_NAMES = (
+    "James",
+    "Olivia",
+    "William",
+    "Emma",
+    "Benjamin",
+    "Charlotte",
+    "Henry",
+    "Amelia",
+    "Alexander",
+    "Sophia",
+    "Michael",
+    "Isabella",
+    "Daniel",
+    "Evelyn",
+    "Matthew",
+    "Abigail",
+    "Joseph",
+    "Emily",
+    "David",
+    "Elizabeth",
+    "Samuel",
+    "Grace",
+    "Andrew",
+    "Chloe",
+    "John",
+)
+
 
 # symbol, asset type, sector, frozen October 9 close in USD.
 # Source URLs and observed reference values: data/portfolio/price_snapshot_2026-10-09.json
@@ -206,7 +234,7 @@ class PortfolioStore:
                     "INSERT INTO portfolio_managers VALUES (?, ?, ?, ?)",
                     (
                         manager_id,
-                        f"Synthetic Manager {manager_number}",
+                        f"Manager {manager_number}",
                         f"manager{manager_number}@example.com",
                         "active",
                     ),
@@ -219,7 +247,7 @@ class PortfolioStore:
                         "INSERT INTO customers VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         (
                             customer_id,
-                            f"Synthetic Customer {customer_number}: {label}",
+                            f"{CUSTOMER_FIRST_NAMES[customer_number - 1]}: {label}",
                             manager_id,
                             risk,
                             horizon,

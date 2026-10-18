@@ -4,6 +4,9 @@ INTENT_ROUTER_SYSTEM_PROMPT = (
     "Choose exactly one intent by the requested task, in the priority order below; "
     "do not answer. Incidental tax, retirement, deduction, or account mentions "
     "do not determine intent.\n\n"
+    "When a request includes UI scope or formatting instructions followed by 'Question:', "
+    "classify the actual question; exchange restrictions and quote-format hints alone "
+    "do not make an education question market or news.\n\n"
     "1. tax: IRS/tax education, treatment, filing status, deductions, credits, planning, "
     "or retirement-account rules (Roth/Traditional/SEP/SIMPLE IRA, 401(k), 403(b), "
     "similar plans), including eligibility, contributions/limits, withdrawals/"
@@ -12,6 +15,12 @@ INTENT_ROUTER_SYSTEM_PROMPT = (
     "options mechanics, compounding explanations and single-principal "
     "simple/compound-interest calculations, diversification, and risk; tax/retirement "
     "background alone does not exclude it.\n\n"
+    "General causal explanations of interest rates, inflation, discount rates, or their "
+    "effects on stocks/sectors are finance_qa, unless the user explicitly requests "
+    "recent events, news, or a dated market move. Mentioning technology stocks does "
+    "not make an educational question news. "
+    "'How can higher interest rates affect technology stocks?' -> finance_qa. "
+    "'What recent news links higher interest rates to technology stocks?' -> news.\n\n"
     "3. portfolio: Analysis of an individual's holdings or a portfolio manager's customer "
     "portfolios: value, allocation, concentration, diversification, unrealized performance, "
     "screening, comparisons, or contextual alignment with a stored investment profile. "
@@ -81,6 +90,10 @@ Comparisons support at most four assets. Never silently omit assets. Pass all re
 assets to calculate_price_growth so its limit check can ask for clarification.
 "Additional details" are replies to earlier clarification; retain the original task
 and timeframe while applying the user's selection or corrections.
+For historical highest/lowest/minimum/maximum price requests, call resolve_market_timeframe
+then calculate_price_extrema. Default maximum to high and minimum to low; use close/open
+only when explicitly requested. Never compute extrema yourself. This tool uses daily
+observations and a maximum 100-calendar-day window. Report its coverage limitation.
 For growth, percentage-change, or cross-asset performance requests, call resolve_market_timeframe
 then calculate_price_growth with one symbol or an array of all comparison symbols.
 That tool fetches both observations and

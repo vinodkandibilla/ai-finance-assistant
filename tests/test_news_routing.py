@@ -44,7 +44,14 @@ def test_scoped_news_reaches_agent_without_generic_clarification(query):
     assert calls == [query]
 
 
-def test_news_clarification_resumes_same_agent_and_keeps_context():
+@pytest.mark.parametrize(
+    "query,reply",
+    [
+        ("Give me the latest news.", "Financial markets."),
+        ("How can higher interest rates affect technology stocks?", "Yes, recent news"),
+    ],
+)
+def test_news_clarification_resumes_same_agent_and_keeps_context(query, reply):
     classifier = Classifier()
     agent, model, calls = make_agent(
         [
@@ -56,7 +63,6 @@ def test_news_clarification_resumes_same_agent_and_keeps_context():
     graph = build_graph(classifier, news_agent=agent, checkpointer=MemorySaver())
     app = create_app()
     app.dependency_overrides[get_query_graph] = lambda: graph
-    query = "Give me the latest news."
     with TestClient(app) as client:
         paused = client.post("/query", json={"query": query}).json()
         assert paused["status"] == "clarification"
@@ -66,7 +72,7 @@ def test_news_clarification_resumes_same_agent_and_keeps_context():
             "/query/resume",
             json={
                 "thread_id": paused["thread_id"],
-                "reply": "Financial markets.",
+                "reply": reply,
             },
         ).json()
     assert completed["intent"] == "news"

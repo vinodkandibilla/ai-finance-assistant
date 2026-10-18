@@ -1,8 +1,9 @@
 # AI Finance Assistant
 
-**An education API with autonomous finance and tax agents, complete hybrid RAG tools, and checkpointed clarification.**
+**An AI finance workspace with a Streamlit web client, six specialized agents, hybrid RAG tools, and checkpointed clarification through FastAPI.**
 
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Web-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-1C3C3C)
 ![Qdrant](https://img.shields.io/badge/Vector_database-Qdrant-DC244C)
@@ -10,7 +11,7 @@
 
 Ask an investing, US tax, savings-goal, or financial-news question in plain English. Separate tool-calling agents choose searches, assess retrieved evidence, request essential clarification, and return cited answers or evidence limitations. A shared runtime handles execution limits and API integration; domain RAG tools handle embeddings, Qdrant fusion, reranking, and citation packaging in one invocation.
 
-[Quick start](#quick-start) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Tax](#tax-education) · [Goal planning](#goal-planning-agent) · [News](#news-synthesizer-agent) · [Portfolio](#portfolio-analysis-agent) · [Authorization](#simulated-portfolio-authorization) · [Layout](#repository-guide) · [Example queries](#example-queries) · [Configuration](#configuration) · [Storage and operations](#index-lifecycle-and-operations) · [Development](#development)
+[Quick start](#quick-start) · [FinPilot web app](#finpilot-streamlit-frontend) · [API](#api) · [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) · [Tax](#tax-education) · [Goal planning](#goal-planning-agent) · [News](#news-synthesizer-agent) · [Portfolio](#portfolio-analysis-agent) · [Authorization](#simulated-portfolio-authorization) · [Layout](#repository-guide) · [Example queries](#example-queries) · [Configuration](#configuration) · [Storage and operations](#index-lifecycle-and-operations) · [Development](#development)
 
 ## Capabilities
 
@@ -33,6 +34,7 @@ The project is in active development. Finance, tax, market, goal-planning, news,
 | Goal | Reference |
 | --- | --- |
 | Run locally and send a first request | [Quick start](#quick-start) |
+| Run and understand the web workspace | [FinPilot Streamlit frontend](#finpilot-streamlit-frontend) |
 | Integrate a client or resume clarification | [API](#api) |
 | Understand routing and evidence retrieval | [Architecture](#architecture) · [Finance QA](#finance-qa-agentic-rag) |
 | Set models, providers, and retrieval limits | [Configuration](#configuration) |
@@ -87,6 +89,347 @@ Use the default router prompt in `core/config.py`; `.env.example` leaves it unse
 Open [Swagger UI](http://127.0.0.1:8000/docs) or [service health](http://127.0.0.1:8000/health).
 
 Server startup opens the SQLite checkpoint connection through FastAPI’s async lifespan and closes it on shutdown. The first query constructs the cached parent graph and initializes both retrieval domains. New collections require embedding calls; Finance QA stores dense and FastEmbed BM25 sparse vectors together in Qdrant. The cross-encoder loads when reranking is first needed. Health checks do not initialize these dependencies or verify provider availability.
+
+## FinPilot Streamlit frontend
+
+FinPilot is the seven-page web client for the existing FastAPI service. It brings
+education, portfolio analysis, market charts, goal projections, and news into a shared
+workspace with a conversational assistant. The frontend uses Streamlit, HTTPX, and
+Plotly; all agent execution and provider access remain behind FastAPI.
+
+### Local setup and startup
+
+Run commands from the repository root with Python **3.12**. Complete the
+[backend setup](#install), including `.env` and provider configuration, first.
+Streamlit is included in the project dependencies; development tools are installed
+with the `dev` extra:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e '.[dev]'
+```
+
+Start the two processes in separate terminals:
+
+**Terminal 1 — FastAPI**
+
+```bash
+.venv/bin/python -m uvicorn finassist.main:app --host 127.0.0.1 --port 8000
+```
+
+**Terminal 2 — Streamlit**
+
+```bash
+.venv/bin/python -m streamlit run src/finassist/web_app/app.py \
+  --server.address=127.0.0.1 --server.port=8501
+```
+
+Open [FinPilot](http://127.0.0.1:8501). Select **Check API connection** in the sidebar
+to check connectivity. [Swagger UI](http://127.0.0.1:8000/docs) exposes the backend
+contract. A successful health check does not verify models, retrieval collections,
+provider credentials, or subscription entitlements.
+
+Use `--reload` with Uvicorn during development; omit it for a stable demonstration
+because reloads can interrupt in-flight requests. Restart FastAPI after backend edits
+when reload is disabled. The first agent request may initialize retrieval stores,
+embeddings, and models. Market and news need their configured providers; the local
+Goals calculator and explicitly labeled sample views can be explored without them.
+Opening Market automatically makes a provider-backed request through FastAPI.
+
+### Workspace and navigation
+
+The desktop layout has four areas: left navigation, a sticky page header, central
+content, and a resizable right-hand chat panel. Central content and chat messages
+scroll independently inside a shared frame; the chat composer remains visible.
+Drag the three-dot handle to change the content/chat split, double-click to reset,
+or focus it and use Left/Right arrow keys. Split width is stored in browser-tab
+session storage. Narrow screens relax the fixed desktop layout and use native
+responsive wrapping/stacking.
+
+| Page | URL path | Current behavior |
+| --- | --- | --- |
+| Overview | `/` | Ask AI handoff, six capability cards, and explicitly labeled synthetic market/portfolio previews. |
+| Finance Q&A | `/finance_qa` | Guided topics, editable suggested questions, and shared conversational answers. |
+| Portfolio | `/portfolio` | Structured API snapshot views when available; separately labeled synthetic samples for valuation, holdings, allocation, concentration, and customer comparison. |
+| Market | `/market` | Editable stock search, Daily/Weekly OHLC chart, quote metrics, and a session watchlist. Defaults to AAPL and Daily. |
+| Goals | `/goals` | Deterministic hypothetical savings projections and an action to ask the API about the entered assumptions. |
+| News | `/news` | Topic/window requests, cited summaries, and an explicitly fictional example. |
+| Tax Education | `/tax` | Guided US tax learning, suggested questions, and evidence-backed answers when the corpus supports them. |
+
+The page paths above belong to Streamlit, not FastAPI. Topic selection and suggested
+questions prefill the chat composer for editing; selecting a suggestion does not
+submit it. Agent and intent labels come from the API response, not the page name.
+Every workspace includes an educational-use disclaimer.
+
+### HTTP integration and session behavior
+
+```mermaid
+flowchart LR
+    UI[Streamlit pages and shared chat] --> Client[Typed HTTPX client]
+    Client --> API[FastAPI]
+    API --> Graph[LangGraph router and six agents]
+    Graph --> Data[RAG, Qdrant, SQLite, and providers]
+    API --> Client
+    Client --> UI
+    UI --> Goals[Local hypothetical calculator]
+```
+
+The frontend imports no backend agents, workflows, settings, or stores and never
+reads portfolio SQLite directly. Its runtime API surface is limited to:
+
+| Endpoint | Client method | Use |
+| --- | --- | --- |
+| `GET /health` | `health()` | Explicit sidebar connection check. |
+| `POST /query` | `query(QueryRequest(...))` | New chat questions, showcase actions, and market dashboard requests. |
+| `POST /query/resume` | `resume(ResumeRequest(...))` | Reply to a pending clarification using its returned `thread_id`. |
+
+`QueryRequest` requires `query` and optionally accepts `user_role`, `customer_id`,
+and `manager_id`. These fields express requested scope; they do not establish an
+identity or grant access. `ResumeRequest` requires `thread_id` and `reply`. The
+frontend parses `intent`, `answer`, `classified_intent`, `executed_handler`,
+`calculation`, `calculations`, `status`, `citations`, `thread_id`, and
+`clarification_question`. The supplied reference contract is versioned at
+[docs/api/finassist-openapi.json](docs/api/finassist-openapi.json).
+
+Chat runs in a Streamlit fragment, so ordinary chat interactions update the right
+panel without rerunning the central page. A completed response refreshes central
+Portfolio or News content only when its returned intent matches the open
+workspace. Market content stays unchanged for every chat intent, including market;
+stock search and interval changes still refresh Market. This execution isolation
+does not cache API results in the UI.
+
+Chat messages are shared across pages in `st.session_state`. Submitted questions
+render before the HTTP request begins, with a loading indicator immediately below.
+After a response, the transcript scrolls to the latest question and answer. Ordinary
+questions do **not** send earlier chat messages as backend context; only pending
+clarifications resume a checkpointed thread.
+
+The compose icon beside **Ask FinPilot** starts a new chat. A nonempty conversation
+or tracked draft requires confirmation before clearing local messages, drafts,
+errors, and the active thread. This does not delete backend checkpoints. Native
+composer text remains browser-held until submitted; it is not durable history.
+Watchlists are also session-only. Market dashboard results are fetched on reruns rather than cached in UI state. A disconnected/recreated
+session or server restart can lose UI state. No login, verified user profile,
+frontend authorization, or durable history is implemented; PM001 is not treated as
+a logged-in user by the UI.
+
+Assistant Markdown has raw HTML disabled. Inline evidence labels display source
+hostnames while keeping their destination URLs; the expandable Sources section
+retains full URLs. Missing citations are stated explicitly. Calculation details
+render separately as JSON. Failed chat requests support explicit retry or editing;
+retry resends the same payload and does not duplicate the visible user question.
+
+### Market data and chart mapping
+
+The stock field, search icon, and Daily/Weekly controls share one row; the watchlist
+sits below the chart. Opening Market requests the latest available AAPL quote and
+one month of daily OHLC data; Weekly requests three months. There is no UI result
+cache: each full Market page rerun requests data through FastAPI, including stock or
+interval changes, search clicks, and content-side widget interactions. Chat-only
+fragment reruns never fetch market data, including after a market-intent answer.
+Failed responses are not retained for reuse. Requests remain blocked during pending chat
+clarification/recovery. There is no background polling. The backend provider cache
+is separate and remains active, so a new HTTP request does not guarantee a fresh
+provider quote.
+
+All dashboard requests use `/query`. The existing market agent exposes provider
+observations through the response's flexible `calculations` field, using
+`type: "market_observations"`, symbol, exchange, currency, interval, provider, and
+`values`. The backend adapter handles Twelve Data's wrapped CSV and JSON tool
+responses; chart prices are never extracted from generated answer text.
+
+The frontend requires the requested symbol, NASDAQ/XNAS exchange, USD currency,
+and matching `1day` or `1week` interval. It validates finite positive OHLC values,
+ordered price ranges, parseable nonfuture dates, and nonnegative volume when
+supplied; it sorts observations and removes duplicate timestamps before plotting.
+
+| Provider field | Presentation |
+| --- | --- |
+| `datetime` | Candle position on the date/time axis. |
+| `open`, `close` | Candle body; teal for a nonnegative change and red for a decline. |
+| `high`, `low` | Upper and lower candle wicks. |
+| Latest quote `close` | Dotted horizontal latest-price marker when finite and positive. |
+| Quote open/high/low, volume, previous close | Metrics below the chart when supplied. |
+
+Weekly candles use provider weekly OHLC bars, not averages of daily prices. The
+current daily/weekly bar can be incomplete. Latest quote and historical candle
+observation times can differ. Quotes may be cached or delayed; provider timestamp,
+cache-hit, and exchange-delay metadata are not a complete freshness contract.
+Missing data, invalid metadata, disabled providers, or subscription limits show an
+unavailable state or returned explanation. **No synthetic stock prices substitute
+for missing API chart data.** NASDAQ scope is expressed in the query and validated
+for plotting; the API does not expose a typed exchange-filter request field.
+
+### Portfolio, learning, goals, and news boundaries
+
+Portfolio defaults to **API response** and uses adequate structured calculations
+from the latest portfolio answer in the current session. It does not automatically
+load a manager's assigned customers. There is no portfolio GET endpoint or current
+logged-in-user integration. **Synthetic sample** contains fictional UI-only values,
+separate from the backend's synthetic SQLite portfolios and frozen reference
+prices. Historical performance requires a dated series; it is not inferred from
+valuation snapshots. See the [portfolio dashboard contract](docs/api/portfolio-dashboard.md).
+
+Finance Q&A and Tax Education share Investing Basics, Banking & Interest,
+Retirement Accounts, Risk & Diversification, and Tax Education topics. Suggestions
+prefill the composer and preserve the transcript. Returned evidence and status
+control the answer display; the UI does not supply unsupported tax claims or
+hardcode which agent ran.
+
+Goals calculates local hypothetical projections with end-of-month contributions
+and monthly compounding. The pure calculation lives in `services/showcase.py` and
+is independent of agent output. Assumptions and excluded costs, inflation, and
+risk are stated in the UI. **Ask AI about this scenario** sends the inputs to the
+backend; local projections are neither forecasts nor account balances.
+
+News sends topic/window questions through `/query` and renders returned summaries
+and valid HTTP(S) sources. Publication dates are not typed fields in the current
+response and are not inferred. The optional news example is explicitly fictional.
+Showcase actions and new market fetches are blocked during pending clarification
+or failed-chat recovery so they do not become accidental clarification replies.
+
+### Frontend configuration
+
+Frontend settings come from environment variables exported in the **Streamlit
+terminal**, not from loading backend `.env` secrets. For example:
+
+```bash
+export FINPILOT_API_BASE_URL=http://127.0.0.1:8000
+export FINPILOT_READ_TIMEOUT=120
+.venv/bin/python -m streamlit run src/finassist/web_app/app.py \
+  --server.address=127.0.0.1 --server.port=8501
+```
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `FINPILOT_API_BASE_URL` | `http://127.0.0.1:8000` | Backend HTTP(S) base URL; no embedded credentials, query, or fragment. |
+| `FINPILOT_CONNECT_TIMEOUT` | `5` | Connection timeout in seconds. |
+| `FINPILOT_READ_TIMEOUT` | `120` | Read inactivity timeout in seconds. |
+| `FINPILOT_WRITE_TIMEOUT` | `10` | Write timeout in seconds. |
+| `FINPILOT_POOL_TIMEOUT` | `5` | Connection-pool timeout in seconds. |
+| `FINPILOT_HEALTH_TIMEOUT` | `5` | Dedicated health-check timeout in seconds. |
+
+Timeout values must be finite and positive. HTTP phase timeouts are not a total
+agent execution deadline. `FinanceApiClient` closes connections through its context
+manager, follows no redirects, and performs no automatic retries. `ApiError`
+provides a safe message, machine-readable code, and optional HTTP status without
+exposing raw server bodies, credentials, or request data. An HTTP 200 response can
+still carry an application-level `error`, `insufficient`, or clarification status.
+A timed-out request may have completed on the server.
+
+[.streamlit/config.toml](.streamlit/config.toml) owns the light navy/teal theme,
+viewer toolbar mode, disabled usage telemetry, and development polling/rerun
+settings. Shared styles hide Streamlit's top chrome in favor of the app header.
+Launch from the repository root to load this configuration. Restart Streamlit after
+dependency changes or if imported modules remain stale. Provider keys belong in
+backend configuration, never UI code or committed files.
+
+Historical extrema in Market chat use `calculate_price_extrema` after timeframe resolution.
+The tool computes minima/maxima from provider daily bars using decimal arithmetic, returns
+all tied dates and structured `market_price_extrema` output, and supports open/high/low/close.
+Highest defaults to high; lowest defaults to low. Requests are limited to 100 calendar days.
+Results describe returned observations and explicitly leave full trading-session coverage
+unverified; no prices or missing sessions are synthesized. No new HTTP route is required.
+
+The Portfolio landing page automatically requests the current application identity's
+portfolio through `POST /query`. For a customer it requests their own snapshot; for a
+portfolio manager it requests all assigned customer snapshots. The server supplies the
+simulated identity (default PM001); the frontend does not supply identity credentials or
+read SQLite. Returned names identify customers in the selector. Backend snapshots remain
+synthetic, frozen historical data. Refresh portfolios reloads the displayed snapshot;
+changing simulated identity on the server requires refreshing the page's portfolio data.
+No login or new portfolio HTTP endpoint is introduced.
+
+The News workspace provides manual topic/period searches through `POST /query`.
+The News agent includes validated article metadata in `calculations` entries with
+`type: news_articles`. Cards use retrieved titles, exact URLs, supplied publisher/date,
+and grounded reported facts; interpretation claims are excluded from card summaries.
+Missing dates are labeled unavailable. Failed searches retain prior results with their
+retrieval timestamp. “Ask about this” prefills an editable question with article context
+without sending it. There is no automatic feed, personalized news, or new endpoint.
+
+### Validation and troubleshooting
+
+Install the `dev` extra, then run offline checks:
+
+```bash
+.venv/bin/python -m pytest -q tests/web_app
+.venv/bin/python -m pytest -q
+.venv/bin/python -m ruff check src/finassist/web_app tests/web_app scripts/smoke_web_app.py
+.venv/bin/python -m ruff format --check src/finassist/web_app tests/web_app scripts/smoke_web_app.py
+.venv/bin/python -m mypy src/finassist/web_app
+```
+
+AppTest and mocked HTTP coverage exercise seven-page navigation, request/response
+validation, chat submission order, clarification/resume, retry/edit/reset, citations,
+watchlists, goal calculations, portfolio provenance, and market chart mapping.
+Browser-only JavaScript behavior—dragging, focus timing, sticky layout, and scroll
+position—also needs browser verification; passing Python tests alone does not prove
+viewport or accessibility behavior.
+
+With **both servers running**, check their HTTP contract and routes:
+
+```bash
+.venv/bin/python scripts/smoke_web_app.py
+# Opt in to real agent/provider calls; these may incur usage charges:
+.venv/bin/python scripts/smoke_web_app.py --live-agents
+# Limit live checks to one intent:
+.venv/bin/python scripts/smoke_web_app.py --live-agents --intent market
+```
+
+The default smoke check compares the served OpenAPI contract with its reference,
+checks API health, and requests Streamlit page URLs. HTTP 200 does not establish
+that charts rendered or providers are ready. Live checks can fail because of keys,
+entitlements, rate limits, retrieval initialization, or upstream outages. See the
+[QA handoff](docs/qa-handoff.md) for the broader validation plan and historical results.
+
+| Symptom | Check or recovery |
+| --- | --- |
+| Backend unavailable | Start FastAPI; verify the base URL from the Streamlit process and use Check API connection. |
+| Health succeeds but answers fail | Verify backend model/provider configuration and startup/retrieval logs; health is connectivity only. |
+| Market text appears without candles | Check structured observations, symbol/exchange/currency/interval metadata, and provider access. Restart an unreloaded backend after adapter edits, then refresh with the search icon. |
+| Old or empty market result persists | Use the search icon to request again. There is no UI result cache; backend provider cache TTLs and upstream availability still apply. |
+| Slow first response | Allow for initial graph/store/model initialization; tune read timeout without treating it as an execution deadline. |
+| Timeout or HTTP 422 | Review inputs/configuration; retry deliberately because timeout completion can be unknown. |
+| Portfolio has no chart | Supply supported portfolio scope through chat or use the explicitly labeled sample view; a prose answer alone is not a snapshot. |
+| Chat seems to forget context | Ordinary queries are independent; only an explicit pending clarification resumes a backend thread. |
+
+### Implementation map and deployment boundaries
+
+```text
+src/finassist/web_app/
+├── app.py                       # Navigation and shared workspace shell
+├── config.py                    # Frontend-only environment settings
+├── navigation.py                # Page handoffs and suggested drafts
+├── views/                       # Seven Streamlit page scripts
+├── components/
+│   ├── chat.py                  # Session conversation, confirmation, retry/resume
+│   ├── chat_viewport.py          # Transcript sizing and latest-turn scrolling
+│   ├── split_pane.py             # Browser-side draggable divider
+│   ├── focus.py                  # Suggested-question composer focus
+│   ├── layout.py                 # Theme, frame, cards, states, disclaimer
+│   ├── learning.py               # Guided finance/tax topics
+│   ├── portfolio.py              # Portfolio dashboard presentation
+│   └── showcase.py               # Market, Goals, and News presentation
+└── services/
+    ├── api_client.py             # Typed HTTPX adapter and safe errors
+    ├── models.py                 # Frontend wire models
+    ├── market.py                 # HTTP market requests and OHLC validation
+    ├── portfolio.py              # Portfolio snapshot adapters and provenance
+    ├── showcase.py               # Pure projections and response helpers
+    └── citations.py              # Safe citation labels
+```
+
+This is an educational capstone MVP, not a production financial-advice service.
+Publishing the source does not make the runtime production-ready. Deployment work
+still includes real authentication/authorization, server-supported conversation
+context, versioned domain/freshness schemas, cancellation/idempotency, session
+recovery, observability, provider budgets, and automated browser/accessibility
+coverage. Streamlit sessions are process memory; do not assume cross-process or
+cross-restart persistence. Backend storage and multiworker limitations remain
+listed under [operations](#index-lifecycle-and-operations) and
+[current limitations](#current-limitations-and-next-steps).
 
 ## API
 
@@ -281,6 +624,13 @@ flowchart LR
 ```
 
 `finance_rag_query` and `tax_rag_query` include the whole pipeline when invoked standalone or through an agent. Embedding, fusion, and reranking are implementation steps inside the tool, not separately exposed model actions. The agent receives the ranked evidence after one tool invocation and decides whether another search is useful.
+
+The shared cross-encoder serializes model initialization and prediction across finance and tax
+requests. On macOS it uses CPU inference explicitly rather than auto-selecting MPS, reducing
+exposure to native allocator failures during threaded inference. Other platforms retain automatic
+device selection. This can reduce concurrent reranking throughput; retrieval and citation rules
+remain unchanged. Restart FastAPI after changing the reranker runtime. Hugging Face HTTP 307
+redirects followed by HTTP 200 are normal and do not indicate a failed model download.
 
 Tool factories require a reranker dependency and accept `rerank_top_n` (default 5). Shared [`rag_tools.py`](src/finassist/agents/common/rag_tools.py) packages the results through [`EvidenceResult`](src/finassist/agents/common/schemas.py): `candidates`, `metadata_filters`, `citations`, and `errors`. Candidate records retain content, source metadata, and retrieval identifiers/scores when supplied. A reranking failure returns an error and no unranked evidence; empty retrieval skips reranking. Omitted lexical keywords default to the search question; an explicit empty keyword list disables that sparse query.
 
@@ -1086,6 +1436,7 @@ ai-finance-assistant/
 │   ├── prompts/         # Centralized system prompts
 │   ├── providers/       # Existing provider package
 │   ├── rag/             # Retrieval, indexing and evidence models
+│   ├── web_app/         # FinPilot Streamlit client, components and HTTP services
 │   ├── workflow/        # Parent intent classifier, state and graph builder
 │   └── main.py          # Application startup and lifecycle
 ├── resources/           # Development/reference prompts
@@ -1095,12 +1446,12 @@ ai-finance-assistant/
 └── README.md
 ```
 
-The next iteration will add the web app as a consumer of the existing API. Its
-implementation and framework will determine whether it belongs in a Python
-`web_app/` package or a separate frontend directory; no empty UI package is added
-in this restructuring. Dependencies remain authoritative in `pyproject.toml`, and
-configuration stays in typed settings plus environment variables. Shared helpers
-stay with their owning domains instead of introducing a generic `utils/` folder.
+The Streamlit frontend lives in `src/finassist/web_app/` and consumes FastAPI over
+HTTP. Its theme/configuration is in `.streamlit/config.toml`, API reference in
+`docs/api/finassist-openapi.json`, and UI checks in `tests/web_app/`. Dependencies
+remain authoritative in `pyproject.toml`; frontend environment settings are separate
+from backend secrets. Shared helpers stay with their owning domains instead of
+introducing a generic `utils/` folder.
 
 The Python import package is `finassist`; the distribution name remains
 `ai-finance-assistant`. Start the API with `python -m uvicorn finassist.main:app`.
@@ -1177,3 +1528,8 @@ Use the [issue tracker](https://github.com/vinodkandibilla/ai-finance-assistant/
 ## License
 
 This repository currently has no license file. Reuse and redistribution terms have not been specified.
+
+News search date handling: explicit dates are inclusive calendar days. The Tavily
+adapter sends the following day as the exclusive end bound, so a single-day query
+never sends identical start/end dates (which Tavily rejects). Rolling time ranges
+remain unchanged. See [Tavily date parameters](https://docs.tavily.com/documentation/api-reference/endpoint/search).

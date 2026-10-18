@@ -1,6 +1,6 @@
 """Tavily news retrieval; evidence IDs come from checkpointed tool history."""
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
@@ -30,7 +30,8 @@ def create_news_search_tool(settings: Settings | None = None):
 
         time_range is a rolling day/week/month/year (default week). For calendar periods
         such as today or last calendar month, supply both ISO YYYY-MM-DD dates;
-        explicit dates override time_range. Never silently substitute the default period.
+        explicit dates are inclusive calendar dates and override time_range.
+        Python converts the end date to Tavily's exclusive upper bound.
         Returns evidence IDs, exact source URLs, available publication dates and content.
         Retrieval only: no final answer or synthesis. Search calls must run sequentially.
         """
@@ -54,9 +55,12 @@ def create_news_search_tool(settings: Settings | None = None):
                     or (date.fromisoformat(start_date) > date.fromisoformat(end_date))
                 ):
                     raise ValueError
-            except ValueError:
+                # Tavily searches before end_date and rejects equal endpoints.
+                # Include the complete requested end day, including single-day searches.
+                provider_end_date = (date.fromisoformat(end_date) + timedelta(days=1)).isoformat()
+            except (ValueError, OverflowError):
                 return respond("error", error="invalid_news_timeframe")
-            timeframe = {"start_date": start_date, "end_date": end_date}
+            timeframe = {"start_date": start_date, "end_date": provider_end_date}
         if settings.tavily_api_key is None:
             return respond("error", error="tavily_not_configured")
         try:
