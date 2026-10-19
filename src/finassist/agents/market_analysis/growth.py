@@ -14,7 +14,7 @@ from mcp import ClientSession
 from finassist.agents.market_analysis.cache import market_cache
 from finassist.workflow.state import FinanceAssistantState
 
-MAX_COMPARISON_ASSETS = 4
+MAX_COMPARISON_ASSETS = 2
 RATE_LIMIT_RESPONSE = (
     "The Market Analysis agent's API rate limit was reached. Please try again after one minute."
 )
@@ -67,7 +67,7 @@ async def calculate_price_growth(
     comparison = len(symbols) > 1
 
     async def records(name: str, arguments: dict[str, Any]) -> list[dict[str, str]]:
-        result = await market_cache.call_tool(session, name, arguments)
+        result = await market_cache.call_tool(session, name, arguments, retry=False)
         if is_rate_limit(result):
             raise ValueError(RATE_LIMIT_RESPONSE)
         if result.isError:

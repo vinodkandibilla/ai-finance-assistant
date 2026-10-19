@@ -37,6 +37,8 @@ class AgentPolicy:
     process_tool_results: Callable | None = None
     additional_reply_tools: tuple[str, ...] = ()
     recover_skipped_retrieval: bool = False
+    evidence_recovery: Callable | None = None
+    recovery_tool_names: tuple[str, ...] = ()
 
 
 def user_replies(messages, tool_name, additional_tools=()):
@@ -75,6 +77,10 @@ class AutonomousEducationAgent:
             sparse_keywords: list[str] | None = None,
         ) -> tuple[dict, dict]:
             """Search domain evidence and rerank passages; returns valid citations and errors."""
+            if policy.evidence_recovery:
+                return await policy.evidence_recovery(
+                    policy.search_tool_name, query, state, dense_queries, sparse_keywords
+                )
             calls = sum(
                 sum(
                     call["name"] == policy.search_tool_name
@@ -107,6 +113,42 @@ class AutonomousEducationAgent:
                     )
             payload = result.model_dump()
             return payload, payload
+
+        def make_recovery_tool(name):
+            @tool(name, response_format="content_and_artifact")
+            async def recover(
+                query: str,
+                state: Annotated[dict, InjectedState],
+                missing_aspect: str = "",
+                dense_queries: list[str] | None = None,
+                sparse_keywords: list[str] | None = None,
+            ) -> tuple[dict, dict]:
+                """Recover evidence: expand a previous search or target an explicit missing aspect.
+
+                Expansion reuses the last successful search plan; query is ignored.
+                Targeted search requires missing_aspect and a focused query.
+                Original user constraints and shared budgets are enforced by the application.
+                """
+                return await policy.evidence_recovery(
+                    name, query, state, dense_queries, sparse_keywords, missing_aspect
+                )
+
+            if "expand" in name:
+                recover.description = (
+                    "Deepen the last successful evidence search using the expansion profile. "
+                    "Use when relevant evidence is too shallow. Reuses previous search terms; "
+                "query is ignored. The shared runtime enforces the total action budget."
+                )
+            else:
+                recover.description = (
+                    "Search for a specific missing aspect using baseline depth. Supply "
+                    "missing_aspect and a focused query, optionally semantic queries and lexical "
+                    "terms. Original constraints are preserved. Request one action at a time."
+                )
+            return recover
+
+        recovery_tools = [make_recovery_tool(name) for name in policy.recovery_tool_names]
+        self.evidence_tools = [search, *recovery_tools]
 
         @tool(policy.clarification_tool_name, response_format="content_and_artifact")
         def clarify(question: str, state: Annotated[dict, InjectedState]) -> tuple[str, dict]:
@@ -159,7 +201,7 @@ class AutonomousEducationAgent:
         self.retrieval_tool = search
         self.agent = create_react_agent(
             model=llm,
-            tools=[search, clarify, *additional_tools],
+            tools=[search, *recovery_tools, clarify, *additional_tools],
             prompt=agent_prompt,
             name=policy.name,
         )
@@ -242,10 +284,10 @@ class AutonomousEducationAgent:
                         break
                     evidence, errors = [], []
                     for message in output["messages"]:
-                        if (
-                            isinstance(message, ToolMessage)
-                            and message.name == policy.search_tool_name
-                        ):
+                        if isinstance(message, ToolMessage) and message.name in {
+                            policy.search_tool_name,
+                            *policy.recovery_tool_names,
+                        }:
                             artifact = EvidenceResult.model_validate(message.artifact or {})
                             evidence.extend(artifact.candidates)
                             errors.extend(artifact.errors)

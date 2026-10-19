@@ -83,7 +83,11 @@ async def test_model_selects_searches_and_follow_up_terms():
                 },
                 "one",
             ),
-            call("finance_rag_query", {"query": "Theta", "sparse_keywords": ["time decay"]}, "two"),
+            call(
+                "finance_targeted_search",
+                {"query": "Theta", "missing_aspect": "Theta", "sparse_keywords": ["time decay"]},
+                "two",
+            ),
             AIMessage(content="Both concepts are supported."),
         ],
         FinanceAgentResult(
@@ -165,4 +169,44 @@ async def test_parent_clarification_interrupt_resumes_inside_agent():
     assert retriever.calls[0][0] == ["ETFs versus mutual funds"]
     assert any(
         isinstance(m, ToolMessage) and m.content == "ETFs and mutual funds" for m in model.seen[-1]
+    )
+
+
+async def test_targeted_evidence_is_collected_by_shared_runtime():
+    agent, retriever, model = make_agent(
+        [
+            call("finance_rag_query", {"query": "ETF"}, "initial"),
+            call(
+                "finance_targeted_search",
+                {
+                    "query": "ETF fees",
+                    "missing_aspect": "expense ratios",
+                },
+                "targeted",
+            ),
+            AIMessage(content="Supported explanation."),
+        ],
+        FinanceAgentResult(status="answered", answer="Supported explanation."),
+    )
+
+    async def retrieve(dense_queries, sparse_keywords, **kwargs):
+        retriever.calls.append((dense_queries, sparse_keywords))
+        if dense_queries == ["ETF"]:
+            return [], []
+        return [
+            FinanceDocument(
+                content="ETF fees evidence",
+                source="handbook",
+                metadata={"page_number": 12},
+            )
+        ], []
+
+    retriever.retrieve = retrieve
+    result = await agent.graph.ainvoke({"query": "Explain ETF fees"})
+    assert result["status"] == "answered"
+    assert result["citations"] == ["Financial Education Handbook, page 12"]
+    assert len(retriever.calls) == 2
+    assert any(
+        isinstance(message, ToolMessage) and message.name == "finance_targeted_search"
+        for message in model.seen[-1]
     )

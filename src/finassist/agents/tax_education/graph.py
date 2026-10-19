@@ -9,6 +9,11 @@ from finassist.agents.tax_education.calculator_tools import (
     process_tax_calculation_results,
 )
 from finassist.agents.tax_education.config import TaxAgentSettings
+from finassist.agents.tax_education.evidence_recovery import (
+    EXPAND,
+    TARGET,
+    create_tax_evidence_recovery,
+)
 from finassist.agents.tax_education.schemas import TaxAgentResult
 from finassist.agents.tax_education.tools import create_tax_rag_query_tool
 from finassist.prompts import TAX_EDUCATION_AGENT_PROMPT as AGENT_PROMPT
@@ -18,6 +23,9 @@ from finassist.rag.tax_education import extract_tax_metadata
 class TaxEducationAgent(AutonomousEducationAgent):
     def __init__(self, *, llm, retriever, reranker, settings=None, checkpointer=None):
         settings = settings or TaxAgentSettings()
+        baseline_tool = create_tax_rag_query_tool(
+            retriever, reranker=reranker, rerank_top_n=settings.rerank_top_n
+        )
         policy = AgentPolicy(
             intent="tax",
             recover_skipped_retrieval=True,
@@ -31,12 +39,14 @@ class TaxEducationAgent(AutonomousEducationAgent):
             search_arguments=_search_arguments,
             clarification_response=_clarification_response,
             process_tool_results=process_tax_calculation_results,
+            recovery_tool_names=(EXPAND, TARGET),
+            evidence_recovery=create_tax_evidence_recovery(
+                retriever, reranker, settings, baseline_tool
+            ),
         )
         super().__init__(
             llm=llm,
-            retrieval=create_tax_rag_query_tool(
-                retriever, reranker=reranker, rerank_top_n=settings.rerank_top_n
-            ),
+            retrieval=baseline_tool,
             settings=settings,
             policy=policy,
             result_schema=TaxAgentResult,
