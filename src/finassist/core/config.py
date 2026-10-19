@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     twelve_data_mcp_command: str = ".cache/twelvedata-mcp/.venv/bin/python"
     twelve_data_mcp_args: list[str] = [".cache/twelvedata-mcp/src/server.py"]
     market_agent_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    market_provider_max_calls_per_request: int = Field(default=8, gt=0, le=50)
+    market_provider_max_concurrency: int = Field(default=2, gt=0, le=16)
+    market_provider_max_retries: int = Field(default=2, ge=0, le=3)
+    market_provider_backoff_base_seconds: float = Field(default=0.5, ge=0, le=10)
+    market_provider_backoff_max_seconds: float = Field(default=4.0, gt=0, le=30)
     intent_router_system_prompt: str = Field(
         default=INTENT_ROUTER_SYSTEM_PROMPT,
         min_length=1,

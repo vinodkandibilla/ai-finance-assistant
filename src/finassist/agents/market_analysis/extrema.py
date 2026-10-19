@@ -89,6 +89,7 @@ async def calculate_price_extrema(
                 "end_date": end,
                 "outputsize": 100,
             },
+            retry=False,
         )
         if is_rate_limit(result):
             return {"answer": RATE_LIMIT_RESPONSE, "status": "error"}

@@ -1,12 +1,14 @@
 """Shared, process-local TTL/LRU cache for market MCP responses."""
 
 import asyncio
+import contextvars
 import hashlib
 import json
 import logging
 import os
 import re
 from collections import OrderedDict
+from contextlib import asynccontextmanager
 from time import monotonic
 from typing import Any
 
@@ -17,16 +19,40 @@ from finassist.core.config import get_settings
 
 TTLS = {"get_quote": 30 * 60, "search_symbol": 24 * 60 * 60, "get_time_series": 24 * 60 * 60}
 logger = logging.getLogger(__name__)
+_request_calls: contextvars.ContextVar[tuple[int, int] | None] = contextvars.ContextVar(
+    "market_request_calls", default=None
+)
+
+
+@asynccontextmanager
+async def market_request_budget(limit: int):
+    token = _request_calls.set((0, limit))
+    try:
+        yield
+    finally:
+        _request_calls.reset(token)
 
 
 class MarketCache:
-    def __init__(self, capacity: int = 100) -> None:
+    def __init__(
+        self,
+        capacity: int = 100,
+        *,
+        max_concurrency: int = 2,
+        max_retries: int = 0,
+        backoff_base: float = 0.5,
+        backoff_max: float = 4.0,
+    ) -> None:
         self.capacity = capacity
         self.entries: OrderedDict[str, tuple[float, CallToolResult]] = OrderedDict()
         self.pending: dict[str, asyncio.Task[CallToolResult]] = {}
+        self.limiter = asyncio.Semaphore(max_concurrency)
+        self.max_retries = max_retries
+        self.backoff_base = backoff_base
+        self.backoff_max = backoff_max
 
     async def call_tool(
-        self, session: ClientSession, name: str, arguments: dict[str, Any]
+        self, session: ClientSession, name: str, arguments: dict[str, Any], *, retry: bool = True
     ) -> CallToolResult:
         if name not in TTLS:
             return await session.call_tool(name, arguments)
@@ -93,8 +119,30 @@ class MarketCache:
         )
 
         async def fetch() -> CallToolResult:
-            result = await session.call_tool(name, normalized)
-            text = "\n".join(block.text for block in result.content if block.type == "text")
+            state = _request_calls.get()
+            if state is not None:
+                calls, limit = state
+                if calls >= limit:
+                    raise RuntimeError("Market provider request budget exhausted.")
+                _request_calls.set((calls + 1, limit))
+            retries = self.max_retries if retry else 0
+            for attempt in range(retries + 1):
+                try:
+                    async with self.limiter:
+                        result = await session.call_tool(name, normalized)
+                except Exception:
+                    if attempt >= retries:
+                        raise
+                    await asyncio.sleep(min(self.backoff_max, self.backoff_base * (2**attempt)))
+                    continue
+                text = "\n".join(block.text for block in result.content if block.type == "text")
+                retryable = result.isError or bool(
+                    re.search(r"\b429\b|rate[ _-]?limit|too many requests|temporar", text, re.I)
+                )
+                if retryable and attempt < retries:
+                    await asyncio.sleep(min(self.backoff_max, self.backoff_base * (2**attempt)))
+                    continue
+                break
             # MCP providers can report errors as text with isError=False.
             if not result.isError and not re.search(
                 r"\berror\b|\b429\b|rate[ _-]?limit|too many requests|api credits", text, re.I
@@ -119,4 +167,11 @@ class MarketCache:
             self.pending.pop(key, None)
 
 
-market_cache = MarketCache(capacity=get_settings().market_cache_max_entries)
+_settings = get_settings()
+market_cache = MarketCache(
+    capacity=_settings.market_cache_max_entries,
+    max_concurrency=_settings.market_provider_max_concurrency,
+    max_retries=_settings.market_provider_max_retries,
+    backoff_base=_settings.market_provider_backoff_base_seconds,
+    backoff_max=_settings.market_provider_backoff_max_seconds,
+)

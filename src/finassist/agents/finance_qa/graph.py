@@ -3,7 +3,6 @@
 import re
 
 from finassist.agents.common.rag_tools import finance_citations as _citations
-from finassist.prompts import FINANCE_QA_AGENT_PROMPT as AGENT_PROMPT
 from finassist.agents.common.runtime import AgentPolicy, AutonomousEducationAgent
 from finassist.agents.finance_qa.calculator_tools import (
     CLARIFICATION,
@@ -11,9 +10,14 @@ from finassist.agents.finance_qa.calculator_tools import (
     create_calculation_result_processor,
     create_calculation_tools,
 )
+from finassist.agents.finance_qa.evidence_recovery import (
+    EXPAND,
+    TARGET,
+    create_evidence_recovery,
+)
 from finassist.agents.finance_qa.schemas import FinanceAgentResult, FinanceDocument
 from finassist.agents.finance_qa.tools import create_finance_rag_query_tool
-
+from finassist.prompts import FINANCE_QA_AGENT_PROMPT as AGENT_PROMPT
 
 
 class FinanceQaAgent(AutonomousEducationAgent):
@@ -41,6 +45,10 @@ class FinanceQaAgent(AutonomousEducationAgent):
             process_tool_results=create_calculation_result_processor(),
             clarification_response=_calculation_clarification,
             additional_reply_tools=(CLARIFICATION,),
+            recovery_tool_names=(EXPAND, TARGET),
+            evidence_recovery=create_evidence_recovery(
+                retriever, metadata_extractor, reranker, settings
+            ),
         )
         super().__init__(
             llm=llm,

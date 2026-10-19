@@ -12,7 +12,7 @@ from langchain_core.utils.function_calling import convert_to_openai_tool
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from finassist.agents.market_analysis.cache import market_cache
+from finassist.agents.market_analysis.cache import market_cache, market_request_budget
 from finassist.agents.market_analysis.chart_data import chart_observation
 from finassist.agents.market_analysis.extrema import calculate_price_extrema
 from finassist.agents.market_analysis.growth import (
@@ -65,7 +65,10 @@ class MarketAnalysisAgent:
         try:
             async with asyncio.timeout(self.settings.market_agent_timeout_seconds):
                 async with twelve_data_session(self.settings) as session:
-                    return await self._run(state, session)
+                    async with market_request_budget(
+                        self.settings.market_provider_max_calls_per_request
+                    ):
+                        return await self._run(state, session)
         except TimeoutError:
             return {
                 "answer": "Market data retrieval exceeded the agent's time limit. "

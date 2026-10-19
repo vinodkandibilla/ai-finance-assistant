@@ -136,18 +136,20 @@ class FinanceHybridRetriever:
         sparse_keywords: list[str],
         *,
         metadata_filter: object | None = None,
+        profile: dict[str, int] | None = None,
     ) -> tuple[list[FinanceDocument], list[str]]:
         if not getattr(self, "_index_ready", True):
             return [], []
+        profile = profile or {}
         query = " ".join(sparse_keywords).strip()
         try:
             async with self._semaphore:
                 points = await self._hybrid_search.search(
                     dense_queries,
                     query,
-                    dense_limit=self._settings.dense_top_k,
-                    sparse_limit=self._settings.sparse_top_k,
-                    candidate_limit=self._settings.rrf_candidates,
+                    dense_limit=profile.get("dense_limit", self._settings.dense_top_k),
+                    sparse_limit=profile.get("sparse_limit", self._settings.sparse_top_k),
+                    candidate_limit=profile.get("candidate_limit", self._settings.rrf_candidates),
                     rrf_k=self._settings.rrf_k,
                     timeout_seconds=self._settings.retrieval_timeout_seconds,
                     query_filter=metadata_filter,

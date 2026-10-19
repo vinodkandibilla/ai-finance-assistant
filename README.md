@@ -667,6 +667,43 @@ flowchart TD
 
 The search tool accepts a question, up to three semantic queries, and lexical keywords. It applies corpus-supported metadata filters, performs Qdrant dense/BM25 retrieval with RRF fusion, and reranks candidates. It returns passages, citation metadata, and errors to the model. The model assesses coverage and may choose focused follow-up searches; there is no separate evaluator or fixed retry node in the active finance agent.
 
+Finance also exposes `finance_expand_evidence` and `finance_targeted_search`.
+Expansion reuses the last successful search terms with a deeper profile; targeted search
+requires a focused `query` and `missing_aspect` and uses baseline depth. Both preserve
+metadata constraints from the original question plus actual clarification replies.
+The agent chooses recovery order and assesses sufficiency; `FinanceContextEvaluator`
+is not invoked. Recovery bookkeeping is shared with Tax through
+[`common/evidence_recovery.py`](src/finassist/agents/common/evidence_recovery.py), while
+retrieval, metadata, and citation behavior remain domain-specific.
+
+Baseline acquisition is allowed once; subsequent retrieval must use a recovery action.
+All finance retrieval actions share the search budget. Tool feedback reports new
+passages, skipped duplicates, remaining attempts, and evidence capacity.
+Evidence is deduplicated before reranking; only whole passages fitting the remaining
+passage/character budget are exposed. Budgets apply to one agent invocation and its
+checkpointed clarification continuation, not across independent `/query` requests.
+
+| Environment variable | Default | Purpose |
+|---|---:|---|
+| `FINANCE_DENSE_TOP_K` | 10 | Baseline dense results per semantic query |
+| `FINANCE_SPARSE_TOP_K` | 10 | Baseline lexical results |
+| `FINANCE_RRF_CANDIDATES` | 20 | Baseline fused candidate cap |
+| `FINANCE_RERANK_TOP_N` | 5 | Baseline returned passage cap |
+| `FINANCE_EXPANSION_DENSE_TOP_K` | 20 | Expansion dense depth |
+| `FINANCE_EXPANSION_SPARSE_TOP_K` | 20 | Expansion lexical depth |
+| `FINANCE_EXPANSION_RRF_CANDIDATES` | 40 | Expansion candidate cap |
+| `FINANCE_EXPANSION_RERANK_TOP_N` | 10 | Expansion returned passage cap |
+| `FINANCE_MAX_EXPANSION_ACTIONS` | 1 | Expansion attempt cap |
+| `FINANCE_MAX_TARGETED_ACTIONS` | 2 | Targeted-search attempt cap |
+| `FINANCE_MAX_DENSE_QUERIES` | 3 | Semantic queries per action (1–3) |
+| `FINANCE_MAX_EVIDENCE_PASSAGES` | 15 | Unique passages exposed across actions |
+| `FINANCE_MAX_EVIDENCE_CHARACTERS` | 30000 | Total passage-content characters exposed |
+
+Expansion settings must be at least as deep as baseline settings; rerank limits cannot
+exceed fused candidate limits. These defaults are starting points, not calibrated optima.
+Character limits constrain passage content, not metadata, total model tokens, or repeated
+context transmission. Existing agent/retrieval timeouts and RRF settings still apply.
+
 The clarification tool pauses the checkpointed graph and resumes with the user's reply. The model continues the task or reports `out_of_scope` if the user changes domains; the parent graph does not reroute the resumed request. A thin one-node adapter maps the API's query/result fields to the agent's message state.
 
 Searches are capped by `FINANCE_AGENT_MAX_SEARCHES` (default 4); execution is bounded by `FINANCE_AGENT_RECURSION_LIMIT` (default 30). These limits constrain cost without prescribing a search plan. Answers without retrieved evidence are rejected, and the public citation list is restricted to retrieved pages. This does not independently verify every answer claim or inline citation. Retrieval and reranker errors are returned to the model; exhausted execution or provider failures produce controlled errors.
@@ -876,6 +913,12 @@ Tax uses the same autonomous runtime as Finance QA, with its own prompt, [`TaxAg
 
 The runtime binds metadata constraints to the original user question plus genuine clarification replies. The model can reformulate its search, but cannot replace that original context. The standalone tax tool accepts original `query` separately from optional `search_query`; explicit tax/filing-year mismatches are rejected before reranking. Filing status, forms, and other supported constraints are applied by the Qdrant metadata filter. Subtopic extraction is restricted to the selected topic to avoid conflicting filters such as `tax_brackets` plus an unrelated `filing_status` subtopic.
 
+Tax now also exposes `tax_expand_evidence` and `tax_targeted_search`. Expansion uses a
+deeper tax retrieval limit when relevant evidence is too shallow. Targeted search accepts
+a focused query and `missing_aspect` when a specific tax concept is absent. Both actions
+reuse the shared evidence-history, deduplication, and evidence-budget helpers while the
+tax adapter preserves tax-year and filing-year filtering and tax-specific citations.
+
 Tax retrieval uses [the bundled IRS-oriented JSONL corpus](src/finassist/data/corpora/tax_education/irs_tax_2026_rag_corpus_expanded.jsonl), independently from the finance handbook. Its dense and BM25 vectors live in `tax_education_hybrid`. The companion tax PDF is a reference artifact, not a runtime source.
 
 The prompt uses the corpus scope, tax year **2026**, generally filed in **2027**, when no year is supplied. Explicit years override that default. For bracket questions, the prompt interprets unqualified income as taxable ordinary income and instructs the model to state the assumption; explicitly stated gross income or salary must not be silently treated as taxable income. These interpretation rules remain agent instructions; the direct calculator validates supplied taxable ordinary income and computes progressive tax deterministically.
@@ -918,7 +961,7 @@ pip install -e '.[dev]'
 
 Set `TWELVE_DATA_API_KEY` in `.env`, then restart the service. The setup script downloads a pinned official server revision to `.cache/twelvedata-mcp` and installs it in an isolated virtual environment. The application passes the key to its stdio subprocess; the hosted server uses OAuth and is not used by this integration.
 
-Try `What is the latest quote for AAPL?` or `Give me QQQ price, volume, and daily change.` The agent uses symbol search for company names or ambiguous symbols. Responses include currency, exchange, latest price, volume, absolute and percentage daily change, and provider time when available. Missing metrics are marked unavailable. Quotes are fetched without the old disk cache; freshness and instrument coverage depend on your Twelve Data subscription and market hours.
+Try `What is the latest quote for AAPL?` or `Give me QQQ price, volume, and daily change.` The agent uses symbol search for company names or ambiguous symbols. Responses include currency, exchange, latest price, volume, absolute and percentage daily change, and provider time when available. Missing metrics are marked unavailable. The application uses a shared process-local in-memory provider cache; freshness and instrument coverage depend on your Twelve Data subscription and market hours.
 
 `MARKET_QUOTES_ENABLED=false` disables market requests before opening the MCP connection. `MARKET_AGENT_TIMEOUT_SECONDS` defaults to 30 seconds for the complete market invocation. Override `TWELVE_DATA_MCP_COMMAND` and `TWELVE_DATA_MCP_ARGS` (a JSON array) for an existing local server installation. Single-asset growth and cross-asset price-growth comparisons are supported.
 
@@ -958,7 +1001,9 @@ The default is **100 entries**, and the value must be a positive integer. Restar
 
 A cache key contains the tool name and sorted request parameters, for example `get_quote:{"symbol": "AAPL"}`. Ticker symbols are trimmed and uppercased; symbol-search text is trimmed. Dates, intervals, output sizes, and optional filters distinguish entries. Cache keys do not contain user queries or API keys.
 
-On a hit, an unexpired response is returned and moved to the most-recently-used position. On a miss, the MCP response is fetched and cached if successful. Expired entries are removed during access; when capacity is exceeded, the least recently used entry is evicted. Identical simultaneous requests share one fetch. Provider errors and rate-limit responses are not cached as data.
+On a hit, an unexpired response is returned and moved to the most-recently-used position. On a miss, the MCP response is fetched and cached if successful. Expired entries are removed during access; when capacity is exceeded, the least recently used entry is evicted. Identical simultaneous requests share one in-flight fetch, so concurrent callers do not duplicate the provider request. Provider errors and rate-limit responses are not cached as data.
+
+The cache is also the current provider-call gateway. Each Market Analysis invocation allows at most **8 provider calls**, with at most **2 calls in flight** per application process. Transient exceptions, provider errors, temporary messages, and rate-limit responses may be retried up to **2 times** with exponential backoff starting at **0.5 seconds**, capped at **4 seconds**. Deterministic growth and extrema calculations disable these retries so their rate-limit handling remains immediate. There is no requests-per-minute limiter or weighted request-cost model yet.
 
 TTLs are fixed; no unfinished-bar checks are performed. Quotes can be cached for 30 minutes and current-period history for 24 hours. Provider observation dates remain available, and quote answers describe the latest available data rather than promising live freshness. Entries are shared across clients within one application process, cleared on restart, and not shared across worker processes. Cache misses still consume provider credits; caching does not implement credit pacing.
 
@@ -1309,7 +1354,11 @@ Application settings load from `.env` and environment variables through [`core/c
 | `TWELVE_DATA_MCP_COMMAND` | `.cache/twelvedata-mcp/.venv/bin/python` | Local MCP executable. |
 | `TWELVE_DATA_MCP_ARGS` | `[".cache/twelvedata-mcp/src/server.py"]` | MCP arguments as a JSON array. |
 | `MARKET_AGENT_TIMEOUT_SECONDS` | `30` | Complete market request timeout. |
-| `QUOTE_CACHE_TTL_SECONDS` | `86400` | Quote cache lifetime. |
+| `MARKET_PROVIDER_MAX_CALLS_PER_REQUEST` | `8` | Maximum uncached provider calls during one Market Analysis invocation. |
+| `MARKET_PROVIDER_MAX_CONCURRENCY` | `2` | Maximum concurrent provider calls per application process. |
+| `MARKET_PROVIDER_MAX_RETRIES` | `2` | Retries for transient/provider rate-limit failures; deterministic growth and extrema calls opt out. |
+| `MARKET_PROVIDER_BACKOFF_BASE_SECONDS` | `0.5` | Initial exponential retry delay. |
+| `MARKET_PROVIDER_BACKOFF_MAX_SECONDS` | `4.0` | Maximum retry delay. |
 
 Finance retrieval settings come from [`FinanceAgentSettings`](src/finassist/agents/finance_qa/config.py). These tuning variables must be **exported into the process environment**; that settings class does not load `.env` itself.
 
@@ -1474,13 +1523,16 @@ explicit reindex. New ingestion uses the relocated corpus paths.
 | [`agents/common/runtime.py`](src/finassist/agents/common/runtime.py) | Autonomous agent creation, budgets, clarification artifacts, API adapter, and output checks. |
 | [`agents/common/schemas.py`](src/finassist/agents/common/schemas.py) | Shared result, evidence, state, and domain intent contracts. |
 | [`agents/common/rag_tools.py`](src/finassist/agents/common/rag_tools.py) | Shared reranking/result packaging and domain citation formatting. |
+| [`agents/common/evidence_recovery.py`](src/finassist/agents/common/evidence_recovery.py) | Shared retrieval history, deduplication, evidence budgets, and recovery feedback. |
 | [`agents/finance_qa/graph.py`](src/finassist/agents/finance_qa/graph.py) | Finance prompt and domain policy. |
 | [`agents/finance_qa/tools.py`](src/finassist/agents/finance_qa/tools.py) | Complete finance RAG tool. |
 | [`agents/finance_qa/corpus_index.py`](src/finassist/agents/finance_qa/corpus_index.py) | Complete nonempty-page ingestion and citation metadata. |
 | [`agents/finance_qa/retrieval.py`](src/finassist/agents/finance_qa/retrieval.py) | Finance index creation/reuse/empty recovery and hybrid retrieval. |
+| [`agents/finance_qa/evidence_recovery.py`](src/finassist/agents/finance_qa/evidence_recovery.py) | Finance retrieval profiles and metadata-aware recovery actions. |
 | [`agents/finance_qa/reranker.py`](src/finassist/agents/finance_qa/reranker.py) | Local cross-encoder implementation reused by both domains. |
 | [`agents/tax_education/graph.py`](src/finassist/agents/tax_education/graph.py) | Tax prompt, search-context binding, and clarification policy. |
 | [`agents/tax_education/tools.py`](src/finassist/agents/tax_education/tools.py) | Complete tax RAG tool with year validation. |
+| [`agents/tax_education/evidence_recovery.py`](src/finassist/agents/tax_education/evidence_recovery.py) | Tax retrieval profiles, year filtering, and recovery actions. |
 | [`rag/tax_education.py`](src/finassist/rag/tax_education.py) | Tax corpus loading, metadata extraction, and retriever adapter. |
 | [`rag/retriever.py`](src/finassist/rag/retriever.py) | Shared dense/BM25 prefetch and Qdrant RRF search. |
 | [`rag/qdrant.py`](src/finassist/rag/qdrant.py) | Shared embedded/server Qdrant client. |
