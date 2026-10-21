@@ -366,8 +366,14 @@ class PortfolioTools:
             manager_id: str | None = None,
             screen: Screen = "concentrated",
             rank_by: RankBy = "concentration",
+            finish_response: bool = False,
         ) -> dict[str, Any]:
-            """Screen authorized customers; omitted manager means the current manager."""
+            """Screen authorized customers; omitted manager means the current manager.
+
+            Set finish_response true only when this screen fully answers a routine
+            listing request; false for interpretation, profile alignment or additional tasks.
+            Python formats successful completed screens without another model call.
+            """
             tools = scoped(config)
             user = tools.user_context
             return tools.screen_manager_portfolios(
@@ -380,8 +386,14 @@ class PortfolioTools:
             manager_id: str | None = None,
             customer_ids: list[str] | None = None,
             rank_by: RankBy = "concentration",
+            finish_response: bool = False,
         ) -> dict[str, Any]:
-            """Compare authorized customers; omitted manager means the current manager."""
+            """Compare authorized customers; omitted manager means the current manager.
+
+            Set finish_response true for a complete routine listing or dashboard;
+            false for interpretation, profile alignment or additional tasks.
+            Python formats successful completed comparisons without another model call.
+            """
             tools = scoped(config)
             user = tools.user_context
             return tools.compare_manager_portfolios(

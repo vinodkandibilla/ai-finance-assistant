@@ -258,8 +258,9 @@ observation times can differ. Quotes may be cached or delayed; provider timestam
 cache-hit, and exchange-delay metadata are not a complete freshness contract.
 Missing data, invalid metadata, disabled providers, or subscription limits show an
 unavailable state or returned explanation. **No synthetic stock prices substitute
-for missing API chart data.** NASDAQ scope is expressed in the query and validated
-for plotting; the API does not expose a typed exchange-filter request field.
+for missing API chart data.** Dashboard snapshot/comparison/watchlist requests send the optional typed
+`market_scope: "us_nasdaq_usd"` field; Python enforces direct-tool NASDAQ/US selectors
+and rejects explicitly non-USD observations. Plotting also validates NASDAQ/USD.
 
 ### Portfolio, learning, goals, and news boundaries
 
@@ -1592,3 +1593,136 @@ Run `.venv/bin/python scripts/evaluate_finance.py` for the offline check report.
 See [implemented checks and pending live evaluations](evals/finance/README.md).
 This command does not run the 25 retrieval questions against the real index or
 invoke the grounding LLM judge. Live quality areas remain explicitly `not_run`.
+
+### Market MCP connection reuse
+
+The API worker lazily opens one Twelve Data stdio MCP subprocess/session on its
+first enabled market request. Later requests borrow that session; the dedicated
+owner task enters and exits its async contexts, and application shutdown closes
+it. A cancelled/timed-out request does not own or close the shared transport.
+A broken transport invalidates the session; the next request reconnects. Failed
+calls are not automatically replayed by the session manager. Existing provider
+response retry/cache policies remain separate.
+
+Tool discovery is cached per connection for 30 minutes by default:
+
+```dotenv
+MARKET_TOOL_CATALOG_TTL_SECONDS=1800
+```
+
+The value must be positive and finite. On the first request after expiry, one
+caller refreshes the catalog while concurrent callers wait. Reconnection always
+starts with an empty catalog. Tool-change notification refresh is deferred; a new
+tool/schema can remain undiscovered until TTL refresh or reconnection. The existing
+allowlist continues to restrict which advertised tools the model can invoke.
+
+This catalog cache is independent of quote/history response caching. Each API
+worker owns its own connection and caches. Standalone agents created without an
+injected session manager retain per-invocation connection handling. Session reuse
+reduces repeated MCP startup/tool-discovery work, not the number of LLM calls;
+no live end-to-end latency improvement has been measured yet.
+
+### Market response latency and context size
+
+Market tool selection remains LLM-driven, with the existing full tool allowlist.
+Quote and history schemas require an explicit application-only `finish_response` boolean.
+The model may set it on its last data call when a routine quote/chart request is
+complete. After executing the entire tool-call batch successfully, Python renders
+a standard snapshot and returns without an additional prose-generation LLM turn.
+The flag is stripped before MCP/cache calls, so it does not change cache keys or
+provider arguments. Analysis, explanations and custom tables retain model-written
+responses; failures return to the tool conversation rather than silently finishing.
+This relies on the model signaling completion appropriately and needs live smoke
+verification for your actual requests.
+
+Successful provider results sent to the model omit the redundant MCP envelope.
+Tabular results use `columns` plus `rows`, retaining all rows, fields and provider
+metadata; errors remain available to the model. Full original observations stay
+in the existing `calculations` response field for charts and quote cards. No API
+or UI migration is required. Routine answer text becomes a standard latest-price,
+change/time and chart-coverage summary, with missing data and possible caching
+stated explicitly. No new growth/extrema arithmetic is introduced by formatting.
+
+This saves one model call when the model opts into routine completion. Router,
+tool selection and any dependent planning turns still run. Actual latency/token
+savings depend on provider responses and model behavior; they have not been
+benchmarked live. Restart the API after updating to use the new schema and prompt.
+
+The LLM selects quote/history/growth/extrema tools and symbols. Timeframe
+resolution is not advertised as a separate tool: Python runs the existing local
+resolver once, automatically, when a batch first includes a historical operation.
+It uses the original request and injects validated parameters; clarification stops
+the batch before provider calls. Quote-only requests skip the resolver. Company-name
+lookup still requires inspecting results before choosing an uncertain listing.
+
+Routine completion is checked after the entire selected batch using its last
+quote/history call. Batched growth calls retain all requested assets. A routine
+AAPL quote/chart can use router + one market-model turn with Python formatting;
+actual model batching/completion choices still require live verification.
+
+The model must explicitly set `finish_response=true` when routine quote/chart data
+is complete, including standard OHLC/volume supplied through structured observations.
+Use false for pending work or analytical/custom narrative requests. The executor
+still tolerates an omitted flag from older/scripted clients by continuing the LLM
+conversation. Restart the API to load the updated schema/prompt; inspect the actual
+last quote/history call arguments to verify the live model's completion choice.
+
+Market-page scope uses `market_scope="us_nasdaq_usd"`, with legacy query-header
+detection retained for chat compatibility. NASDAQ-only scope is enforced on direct symbol-search, quote and
+history tool arguments in Python, including removal of conflicting MIC selectors.
+Returned quote/history observations from other exchanges cannot become charts or
+Python snapshots for that scoped request. Unscoped agent requests can still use
+other exchanges. For example, AAP's NYSE listing must not be substituted for a
+NASDAQ listing; AAP and AAPL are different symbols. Unexpected market-agent errors
+log their exception category without provider exception text or credentials.
+
+### Market MCP spans in LangSmith
+
+With LangSmith tracing enabled in the API process, each market cache operation
+creates a `Market data cache` tool span under the active request. Its metadata
+contains `cache_status`: `hit`, `miss`, `shared_inflight`, `bypass_provider_error`,
+or `uncached_tool`. A miss creates a `Call market MCP tool` child span for every
+actual MCP attempt, including retries; a hit has no MCP child. Coalesced requests
+show a downstream attempt only under the request that initiated the shared fetch.
+
+Trace inputs contain the tool name and allowlisted public market selectors, not
+session objects, API keys or arbitrary arguments. Outputs summarize record counts
+or sanitized provider error codes/messages, not full quote/history data. Transport
+exceptions expose only a safe category (or rate-limit/timeout indication). Existing
+LLM/graph tracing may separately capture their own payloads; these filters apply
+only to the new custom spans. Global tracing privacy controls remain relevant.
+
+The call spans execute in the request context, not in the persistent connection
+owner task, so reusing a session does not attach later requests to its first trace.
+No new tracing is enabled automatically; restart the API with its existing
+LangSmith environment configuration. Check the spans in the configured project.
+The Twelve Data HTTP request inside the stdio subprocess is not instrumented:
+an MCP attempt indicates a tool request, not proof of an upstream HTTP fetch.
+Server-side caching or failures may still avoid an HTTP call.
+
+Market snapshot/comparison requests carry only symbols and chart interval/window
+in the query, with `market_scope="us_nasdaq_usd"` as a separate API field.
+Watchlist quote requests use the same field. Market chat retains its legacy scope
+header and `Question:` wrapper. Scope enforcement currently covers direct tools;
+growth/extrema helper paths are not covered. Missing currency/exchange metadata
+is not rejected by the agent, but cannot pass the chart validator. Depositary-receipt
+exclusion is not validated in Python; reliable instrument-type enforcement is deferred.
+
+### Routine portfolio screening completion
+
+`screen_manager_portfolios` and `compare_manager_portfolios` accept an optional
+`finish_response` flag (default
+false). The model sets it only for a complete routine listing request. After one
+successful screening/comparison tool call, the pre-model hook stops before model narration
+and the separate coverage assessment. Python renders the screen, ranking, matching
+customer IDs, exclusion count, source and price basis; the complete authorized
+payload remains in `calculation` for the UI. Failed screens, multi-tool requests,
+profile alignment and interpretation retain the existing model loop. Authorization
+still runs inside the tool. This optimization depends on the model selecting the
+completion flag; live call-count improvements have not yet been benchmarked.
+
+Trace display labels include `Classify request`, `Choose specialist agent`,
+`Market analysis`, `Execute specialist request`, `Ask for missing details`,
+`Clarify or finish`, and `Assess portfolio answer`. Internal graph node IDs stay
+unchanged for routing/checkpoint compatibility and may still appear as enclosing
+spans. These labels affect newly generated traces after restarting the API.

@@ -48,31 +48,26 @@ def fetch_market_quote(symbol: str) -> QueryResponse:
     with FinanceApiClient(WebSettings.from_environment()) as client:
         return client.query(
             QueryRequest(
+                market_scope="us_nasdaq_usd",
                 query=(
-                    f"Retrieve the latest available quote for {symbol}. "
-                    "Scope: United States, NASDAQ-listed equities only, currency USD. "
-                    "Exclude all other exchanges. Include open, high, low, close, volume, "
-                    "previous close and provider observation time. Do not fetch time series. "
-                    "Keep the summary under 120 words. Do not invent missing data."
+                    f"Latest quote only for {symbol}: OHLC, volume, previous close and "
+                    "provider observation time. Keep summary under 120 words."
                 )
             )
         )
 
 
-def fetch_market_snapshot(symbol: str, interval: str) -> QueryResponse:
+def fetch_market_snapshot(symbol: str | list[str], interval: str) -> QueryResponse:
     window = "1 month" if interval == "Daily" else "3 months"
-    query = (
-        "Scope: United States NASDAQ-listed equities only, currency USD. "
-        "Exclude international listings and depositary receipts. "
-        f"Retrieve the latest available quote for {symbol}, NASDAQ, USD, including open, high, "
-        f"low, close, volume, previous close and provider observation time. Also retrieve "
-        f"{interval.lower()} OHLC time series for {symbol} over the last {window}. "
-        "Use available observations only; do not invent unavailable prices."
-        " Keep the textual summary under 120 words. Do not reproduce historical rows "
-        "in prose or tables; the chart uses the structured provider observations."
+    target = symbol if isinstance(symbol, str) else " and ".join(symbol)
+    task = (
+        f"Show {target}'s latest quote"
+        if isinstance(symbol, str)
+        else f"For each of {target}, show latest quote"
     )
+    query = f"{task} and {interval.lower()} OHLC chart for the last {window}."
     with FinanceApiClient(WebSettings.from_environment()) as client:
-        return client.query(QueryRequest(query=query))
+        return client.query(QueryRequest(query=query, market_scope="us_nasdaq_usd"))
 
 
 def market_chart_data(

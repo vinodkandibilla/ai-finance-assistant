@@ -191,9 +191,13 @@ def test_market_requests_are_scoped_to_us_nasdaq(
         app.chat_input[0].set_value("AAPL quote").run()
     assert not app.exception
     assert len(calls) == 1
-    assert set(calls[0]) == {"query"}
-    assert "United States, NASDAQ-listed equities only, currency USD" in calls[0]["query"]
-    assert "Exclude all other exchanges" in calls[0]["query"]
+    if action == "Ask for latest available quote":
+        assert calls[0]["market_scope"] == "us_nasdaq_usd"
+        assert "Scope:" not in calls[0]["query"]
+    else:
+        assert set(calls[0]) == {"query"}
+        assert "United States, NASDAQ-listed equities only, currency USD" in calls[0]["query"]
+        assert "No depositary receipts" in calls[0]["query"]
     assert "under 120 words" in calls[0]["query"]
 
 
@@ -263,7 +267,7 @@ def test_comparison_missing_data_and_duplicate_symbols(monkeypatch):
     monkeypatch.setattr("finassist.web_app.components.showcase.fetch_market_snapshot", fetch)
     app = app_for("market")
     app.radio(key="market_view").set_value("Compare stocks").run()
-    assert requested[-2:] == [("AAPL", "Daily"), ("MSFT", "Daily")]
+    assert requested == [("AAPL", "Daily"), (["AAPL", "MSFT"], "Daily")]
     assert any("No validated" in element.value for element in app.info)
     app.text_input(key="compare_second").input("AAPL").run()
     assert any("different symbols" in element.value for element in app.info)
@@ -273,7 +277,7 @@ def test_comparison_missing_data_and_duplicate_symbols(monkeypatch):
 @pytest.mark.parametrize("interval,provider_interval", [("Daily", "1day"), ("Weekly", "1week")])
 def test_comparison_chart_uses_validated_histories(monkeypatch, interval, provider_interval):
     def fetch(symbol, requested_interval):
-        prices = [100, 110] if symbol == "AAPL" else [200, 180]
+        symbols = [symbol] if isinstance(symbol, str) else symbol
         return QueryResponse(
             intent="market",
             answer="Available",
@@ -292,9 +296,14 @@ def test_comparison_chart_uses_validated_histories(monkeypatch, interval, provid
                             "low": price,
                             "close": price,
                         }
-                        for day, price in zip(["2026-01-02", "2026-01-09"], prices, strict=True)
+                        for day, price in zip(
+                            ["2026-01-02", "2026-01-09"],
+                            [100, 110] if symbol == "AAPL" else [200, 180],
+                            strict=True,
+                        )
                     ],
                 }
+                for symbol in symbols
             ],
         )
 

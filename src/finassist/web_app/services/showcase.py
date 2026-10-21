@@ -102,12 +102,6 @@ def scope_market_question(question: str) -> str:
     """Constrain Market-page requests without adding unsupported API fields."""
     return (
         "Market scope: United States, NASDAQ-listed equities only, currency USD. "
-        "Exclude all other exchanges, countries, depositary receipts, and alternate listings. "
-        "If there is no matching US NASDAQ listing, say so; do not substitute another market. "
-        "Keep the answer under 120 words. For an exact ticker return only that NASDAQ listing; "
-        "for a company-name search return at most three matching NASDAQ listings. "
-        "For quotes show only symbol/name, exchange, latest price/currency, change, "
-        "observation time and market/freshness status when available. "
-        "Omit OHLC, volume, and 52-week statistics unless explicitly requested. "
-        "Do not invent missing timestamps or real-time status.\nQuestion: " + question
+        "No depositary receipts. Keep answer under 120 words; at most three symbol matches. "
+        "Omit OHLC, volume and 52-week statistics unless requested.\nQuestion: " + question
     )

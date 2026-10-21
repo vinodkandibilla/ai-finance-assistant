@@ -192,6 +192,19 @@
               }
             ],
             "title": "Manager Id"
+          },
+          "market_scope": {
+            "anyOf": [
+              {
+                "const": "us_nasdaq_usd",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Market Scope"
           }
         },
         "type": "object",

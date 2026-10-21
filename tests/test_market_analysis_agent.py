@@ -69,7 +69,6 @@ async def test_quote_tool_conversation_and_allowlist(monkeypatch):
         "get_quote",
         "search_symbol",
         "get_time_series",
-        "resolve_market_timeframe",
         "calculate_price_growth",
         "calculate_price_extrema",
     }
@@ -203,16 +202,6 @@ async def test_history_uses_deterministic_parameters(monkeypatch):
                 content="",
                 tool_calls=[
                     {
-                        "name": "resolve_market_timeframe",
-                        "args": {"request": "last 100 weeks"},
-                        "id": "resolve",
-                    }
-                ],
-            ),
-            AIMessage(
-                content="",
-                tool_calls=[
-                    {
                         "name": "get_time_series",
                         "args": {
                             "symbol": "QQQ",
@@ -232,10 +221,9 @@ async def test_history_uses_deterministic_parameters(monkeypatch):
     session.call_tool.assert_awaited_once_with(
         "get_time_series", {"symbol": "QQQ", "interval": "1week", "outputsize": 12}
     )
-    assert '"outputsize": 12' in model.messages[-3].content
 
 
-async def test_history_requires_resolver_first(monkeypatch):
+async def test_history_automatically_requests_missing_timeframe(monkeypatch):
     agent, session, model = make_agent(
         monkeypatch,
         [
@@ -248,9 +236,10 @@ async def test_history_requires_resolver_first(monkeypatch):
             AIMessage(content="Please specify a timeframe."),
         ],
     )
-    await agent.ainvoke({"query": "AAPL history"})
+    result = await agent.ainvoke({"query": "AAPL history"})
     session.call_tool.assert_not_awaited()
-    assert "resolve_market_timeframe first" in model.messages[-1].content
+    assert result["status"] == "clarify"
+    assert "from/to dates" in result["clarification_question"]
 
 
 async def test_unknown_fiscal_period_stops_before_provider_call(monkeypatch):
@@ -260,11 +249,7 @@ async def test_unknown_fiscal_period_stops_before_provider_call(monkeypatch):
             AIMessage(
                 content="",
                 tool_calls=[
-                    {
-                        "name": "resolve_market_timeframe",
-                        "args": {"request": "Q2 2025"},
-                        "id": "resolve",
-                    }
+                    {"name": "get_time_series", "args": {"symbol": "AAPL"}, "id": "history"}
                 ],
             ),
         ],
@@ -310,16 +295,6 @@ async def test_growth_uses_provider_prices_and_returns_python_math(monkeypatch):
                 content="",
                 tool_calls=[
                     {
-                        "name": "resolve_market_timeframe",
-                        "args": {"request": "last 1 day"},
-                        "id": "window",
-                    }
-                ],
-            ),
-            AIMessage(
-                content="",
-                tool_calls=[
-                    {
                         "name": "calculate_price_growth",
                         "args": {"symbol": "AAPL", "start_price": 999},
                         "id": "growth",
@@ -342,10 +317,6 @@ async def test_multiple_growth_calls_include_both_assets(monkeypatch):
     agent, session, _ = make_agent(
         monkeypatch,
         [
-            AIMessage(
-                content="",
-                tool_calls=[{"name": "resolve_market_timeframe", "args": {}, "id": "window"}],
-            ),
             AIMessage(
                 content="",
                 tool_calls=[

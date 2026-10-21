@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     finance_collection: str = "finance_education_hybrid"
     finance_checkpoint_path: str = ".cache/finance_agent_checkpoints.sqlite"
     market_quotes_enabled: bool = True
+    market_tool_catalog_ttl_seconds: float = Field(default=1800, gt=0, allow_inf_nan=False)
     market_cache_max_entries: int = Field(default=100, gt=0)
     twelve_data_api_key: SecretStr | None = None
     tavily_api_key: SecretStr | None = None

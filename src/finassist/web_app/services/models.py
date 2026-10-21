@@ -30,6 +30,7 @@ class HealthResponse(WireModel):
 
 class QueryRequest(WireModel):
     query: Question
+    market_scope: Literal["us_nasdaq_usd"] | None = None
     user_role: Literal["portfolio_manager", "individual_customer"] | None = None
     customer_id: Identifier | None = None
     manager_id: Identifier | None = None

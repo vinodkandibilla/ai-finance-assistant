@@ -14,6 +14,7 @@ from finassist.agents.finance_qa.reranker import FinanceCrossEncoderReranker
 from finassist.agents.finance_qa.retrieval import FinanceHybridRetriever
 from finassist.agents.goal_planning import GoalPlanningAgent
 from finassist.agents.market_analysis.agent import MarketAnalysisAgent
+from finassist.agents.market_analysis.session import MarketSessionManager
 from finassist.agents.news_synthesizer import NewsSynthesizerAgent
 from finassist.agents.portfolio_analysis.agent import PortfolioAnalysisAgent
 from finassist.agents.portfolio_analysis.authorization import UserContext
@@ -31,6 +32,7 @@ router = APIRouter(tags=["assistant"])
 
 class QueryRequest(BaseModel):
     query: str = Field(min_length=1, max_length=4000)
+    market_scope: Literal["us_nasdaq_usd"] | None = None
     user_role: Literal["portfolio_manager", "individual_customer"] | None = None
     customer_id: str | None = Field(default=None, min_length=1, max_length=100)
     manager_id: str | None = Field(default=None, min_length=1, max_length=100)
@@ -67,10 +69,15 @@ async def get_simulated_user_context(request: Request) -> UserContext | None:
     return getattr(request.app.state, "portfolio_user_context", None)
 
 
+def get_market_sessions(request: Request) -> MarketSessionManager | None:
+    return getattr(request.app.state, "market_sessions", None)
+
+
 @lru_cache
 def get_query_graph(
     checkpointer: Annotated[AsyncSqliteSaver | None, Depends(get_query_checkpointer)] = None,
     portfolio_store: Annotated[PortfolioStore | None, Depends(get_portfolio_store)] = None,
+    market_sessions: Annotated[MarketSessionManager | None, Depends(get_market_sessions)] = None,
 ):
     settings = get_settings()
     if settings.openai_api_key is None:
@@ -121,7 +128,7 @@ def get_query_graph(
         )
     return build_graph(
         classifier,
-        market_agent=MarketAnalysisAgent(llm=llm, settings=settings),
+        market_agent=MarketAnalysisAgent(llm=llm, settings=settings, sessions=market_sessions),
         finance_agent=finance_agent,
         goal_agent=GoalPlanningAgent(llm=llm),
         news_agent=NewsSynthesizerAgent(llm=llm, settings=settings),

@@ -1,14 +1,15 @@
 """Quote and historical market agent backed by the official Twelve Data MCP server."""
 
 import asyncio
-import json
+import logging
 import os
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from copy import deepcopy
 from typing import Any, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
-from langchain_core.utils.function_calling import convert_to_openai_tool
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -20,6 +21,12 @@ from finassist.agents.market_analysis.growth import (
     calculate_price_growth,
     is_rate_limit,
 )
+from finassist.agents.market_analysis.presentation import (
+    compact_tool_result,
+    format_snapshot,
+    market_response,
+)
+from finassist.agents.market_analysis.session import MarketSessionManager
 from finassist.agents.market_analysis.timeframe import (
     MAX_RECORDS,
     resolve_market_timeframe,
@@ -27,6 +34,8 @@ from finassist.agents.market_analysis.timeframe import (
 from finassist.core.config import Settings
 from finassist.prompts import MARKET_AGENT_SYSTEM_PROMPT
 from finassist.workflow.state import FinanceAssistantState
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_TOOLS = frozenset({"get_quote", "search_symbol", "get_time_series"})
 UNAVAILABLE = "I couldn't retrieve a market quote. Please try again later."
@@ -50,9 +59,16 @@ async def twelve_data_session(settings: Settings) -> AsyncIterator[ClientSession
 
 
 class MarketAnalysisAgent:
-    def __init__(self, *, llm: Any, settings: Settings) -> None:
+    def __init__(
+        self,
+        *,
+        llm: Any,
+        settings: Settings,
+        sessions: MarketSessionManager | None = None,
+    ) -> None:
         self.llm = llm
         self.settings = settings
+        self.sessions = sessions
 
     async def ainvoke(self, state: FinanceAssistantState) -> FinanceAssistantState:
         if not self.settings.market_quotes_enabled:
@@ -64,7 +80,10 @@ class MarketAnalysisAgent:
             }
         try:
             async with asyncio.timeout(self.settings.market_agent_timeout_seconds):
-                async with twelve_data_session(self.settings) as session:
+                connection = (
+                    self.sessions.borrow() if self.sessions else twelve_data_session(self.settings)
+                )
+                async with connection as session:
                     async with market_request_budget(
                         self.settings.market_provider_max_calls_per_request
                     ):
@@ -76,6 +95,7 @@ class MarketAnalysisAgent:
                 "status": "error",
             }
         except Exception as error:
+            logger.warning("market_agent_failed category=%s", type(error).__name__)
             # Never return exception text: upstream errors can contain credentials.
             answer = RATE_LIMIT_RESPONSE if is_rate_limit(error) else UNAVAILABLE
             return {"answer": answer, "status": "error"}
@@ -83,6 +103,13 @@ class MarketAnalysisAgent:
     async def _run(
         self, state: FinanceAssistantState, session: ClientSession
     ) -> FinanceAssistantState:
+        nasdaq_only = state.get("market_scope") == "us_nasdaq_usd" or bool(
+            re.search(
+                r"(?:Market scope|Scope):\s*United States,?\s+NASDAQ-listed equities only",
+                state["query"],
+                re.IGNORECASE,
+            )
+        )
         catalog = await session.list_tools()
         sized_tools = {
             tool.name
@@ -95,13 +122,34 @@ class MarketAnalysisAgent:
                 "function": {
                     "name": tool.name,
                     "description": tool.description or "",
-                    "parameters": tool.inputSchema,
+                    "parameters": deepcopy(tool.inputSchema),
                 },
             }
             for tool in catalog.tools
             if tool.name in ALLOWED_TOOLS
         ]
-        descriptors.append(convert_to_openai_tool(resolve_market_timeframe))
+        for descriptor in descriptors:
+            function = descriptor["function"]
+            if function["name"] == "get_time_series":
+                function["description"] += (
+                    " Timeframe is resolved automatically from the original request; "
+                    "do not infer dates, interval or record counts."
+                )
+            if function["name"] in {"get_quote", "get_time_series"}:
+                function["parameters"].setdefault("properties", {})["finish_response"] = {
+                    "type": "boolean",
+                    "description": (
+                        "Set true on the LAST data call only when all requested assets/data "
+                        "will be complete and a standard quote/chart summary is enough. "
+                        "Python then renders the response without another model turn. "
+                        "Standard OHLC/volume chart data is routine and stays in the structured "
+                        "response. Use false only for pending tools/clarification, analysis, "
+                        "explanations, custom prose/tables, growth or extrema."
+                    ),
+                }
+                required = function["parameters"].setdefault("required", [])
+                if "finish_response" not in required:
+                    required.append("finish_response")
         descriptors.append(
             {
                 "type": "function",
@@ -109,7 +157,7 @@ class MarketAnalysisAgent:
                     "name": "calculate_price_growth",
                     "description": (
                         "Retrieve prices and calculate single/multi-asset growth. "
-                        "Call resolve_market_timeframe first. Do not supply prices or dates."
+                        "Timeframe is resolved automatically. Do not supply prices or dates."
                     ),
                     "parameters": {
                         "type": "object",
@@ -136,7 +184,7 @@ class MarketAnalysisAgent:
                 "function": {
                     "name": "calculate_price_extrema",
                     "description": "Compute a historical minimum/maximum from provider history. "
-                    "Resolve the symbol and call resolve_market_timeframe first. "
+                    "Resolve the symbol; timeframe is resolved automatically. "
                     "Never supply prices.",
                     "parameters": {
                         "type": "object",
@@ -167,53 +215,37 @@ class MarketAnalysisAgent:
                     return {"answer": UNAVAILABLE, "status": "error"}
                 if not retrieved_data:
                     return {"answer": answer, "clarification_question": answer, "status": "clarify"}
-                for observation in observations:
-                    quote = next(
-                        (
-                            item
-                            for item in observations
-                            if item["interval"] == "quote"
-                            and item["symbol"] == observation["symbol"]
-                        ),
-                        {},
-                    )
-                    for field in ("currency", "exchange"):
-                        if not observation.get(field) and quote.get(field):
-                            observation[field] = quote[field]
-                return {
-                    "answer": answer,
-                    "status": "answered",
-                    **({"calculations": observations} if observations else {}),
-                }
-            growth_calls = [
-                call for call in response.tool_calls if call["name"] == "calculate_price_growth"
-            ]
-            if len(growth_calls) > 1 and timeframe is not None:
-                symbols: list[str] = []
-                for call in growth_calls:
-                    value = call["args"]["symbol"]
-                    symbols.extend([value] if isinstance(value, str) else value)
-                if "start_date" in cast(dict[str, Any], timeframe["parameters"]):
-                    return await calculate_price_growth(
-                        session,
-                        symbols,
-                        cast(dict[str, Any], timeframe["parameters"]),
-                        str(timeframe["as_of"]),
-                    )
-            for call in response.tool_calls:
+                return cast(FinanceAssistantState, market_response(answer, observations))
+            calls = response.tool_calls
+            if timeframe is None and any(
+                c["name"]
+                in {"get_time_series", "calculate_price_growth", "calculate_price_extrema"}
+                for c in calls
+            ):
+                timeframe = await resolve_market_timeframe.ainvoke({"request": state["query"]})
+                if timeframe["status"] == "clarify":
+                    question = str(timeframe["clarification_question"])
+                    return {
+                        "answer": question,
+                        "clarification_question": question,
+                        "status": "clarify",
+                    }
+            last_data_call = next(
+                (
+                    call
+                    for call in reversed(calls)
+                    if call["name"] in {"get_quote", "get_time_series"}
+                ),
+                None,
+            )
+            finish_snapshot = False
+            batch_valid = True
+            for call in calls:
                 result = None
-                if call["name"] == "resolve_market_timeframe":
-                    timeframe = await resolve_market_timeframe.ainvoke({"request": state["query"]})
-                    if timeframe["status"] == "clarify":
-                        question = str(timeframe["clarification_question"])
-                        return {
-                            "answer": question,
-                            "clarification_question": question,
-                            "status": "clarify",
-                        }
-                    payload = json.dumps(timeframe)
-                elif call["name"] == "calculate_price_extrema":
-                    if timeframe is None or "start_date" not in timeframe["parameters"]:
+                if call["name"] == "calculate_price_extrema":
+                    if timeframe is None or "start_date" not in cast(
+                        dict[str, Any], timeframe["parameters"]
+                    ):
                         payload = '{"error": "Resolve a date-bounded historical window first."}'
                     elif "get_time_series" not in available:
                         payload = '{"error": "Historical MCP data is unavailable."}'
@@ -233,15 +265,22 @@ class MarketAnalysisAgent:
                     elif "get_time_series" not in available:
                         payload = '{"error": "Historical MCP data is unavailable."}'
                     else:
+                        # Preserve every comparison asset even when growth and timeframe
+                        # were selected together in the first turn.
+                        symbols: list[str] = []
+                        growth_calls = [c for c in calls if c["name"] == "calculate_price_growth"]
+                        for growth_call in growth_calls:
+                            value = growth_call["args"]["symbol"]
+                            symbols.extend([value] if isinstance(value, str) else value)
                         return await calculate_price_growth(
                             session,
-                            call["args"]["symbol"],
+                            symbols if len(growth_calls) > 1 else call["args"]["symbol"],
                             cast(dict[str, Any], timeframe["parameters"]),
                             str(timeframe["as_of"]),
                         )
                 elif call["name"] == "get_time_series" and call["name"] in available:
                     if timeframe is None:
-                        payload = '{"error": "Call resolve_market_timeframe first."}'
+                        payload = '{"error": "Historical timeframe unavailable."}'
                     else:
                         # The LLM selects the asset; Python owns all window parameters.
                         arguments = {
@@ -250,15 +289,25 @@ class MarketAnalysisAgent:
                             if key in {"symbol", "exchange", "country", "mic_code"}
                         }
                         arguments.update(cast(dict[str, object], timeframe["parameters"]))
+                        if nasdaq_only:
+                            arguments.update(exchange="NASDAQ", country="United States")
+                            arguments.pop("mic_code", None)
                         result = await market_cache.call_tool(session, call["name"], arguments)
                         if is_rate_limit(result):
                             return {"answer": RATE_LIMIT_RESPONSE, "status": "error"}
                         retrieved_data = True
-                        payload = json.dumps(result.model_dump(mode="json"))
+                        payload = compact_tool_result(result)
                 elif call["name"] not in available:
                     payload = '{"error": "This tool is not available."}'
                 else:
-                    arguments = dict(call["args"])
+                    arguments = {
+                        key: value
+                        for key, value in call["args"].items()
+                        if key != "finish_response"
+                    }
+                    if nasdaq_only:
+                        arguments.update(exchange="NASDAQ", country="United States")
+                        arguments.pop("mic_code", None)
                     if call["name"] in sized_tools:
                         arguments["outputsize"] = min(
                             MAX_RECORDS, max(1, int(arguments.get("outputsize") or MAX_RECORDS))
@@ -267,15 +316,46 @@ class MarketAnalysisAgent:
                     if is_rate_limit(result):
                         return {"answer": RATE_LIMIT_RESPONSE, "status": "error"}
                     retrieved_data = retrieved_data or call["name"] == "get_quote"
-                    payload = json.dumps(result.model_dump(mode="json"))
+                    payload = compact_tool_result(result)
                 if call["name"] in {"get_quote", "get_time_series"} and result is not None:
-                    observation = chart_observation(
+                    market_observation = chart_observation(
                         result,
                         tool=call["name"],
                         symbol=str(call["args"].get("symbol", "")),
                         interval=str(arguments.get("interval", "1day")),
                     )
-                    if observation:
-                        observations.append(observation)
+                    if market_observation:
+                        if nasdaq_only and market_observation.get("currency") not in {None, "USD"}:
+                            return {
+                                "answer": "The Market page requires USD observations; "
+                                "data in another currency cannot be substituted.",
+                                "status": "error",
+                            }
+                        if nasdaq_only and market_observation.get("exchange") not in {
+                            None,
+                            "NASDAQ",
+                            "XNAS",
+                        }:
+                            return {
+                                "answer": (
+                                    "No matching NASDAQ listing was returned for this request. "
+                                    "The Market page supports NASDAQ-listed equities only; "
+                                    "data from another exchange cannot be substituted."
+                                ),
+                                "status": "error",
+                            }
+                        observations.append(market_observation)
+                        if call["args"].get("finish_response") is True and call is last_data_call:
+                            finish_snapshot = True
+                    else:
+                        batch_valid = False
+                elif result is None or getattr(result, "isError", False):
+                    # A pending/failed operation must not be hidden by a successful quote.
+                    batch_valid = False
                 messages.append(ToolMessage(content=payload, tool_call_id=call["id"]))
+            if finish_snapshot and batch_valid:
+                return cast(
+                    FinanceAssistantState,
+                    market_response(format_snapshot(observations), observations),
+                )
         return {"answer": UNAVAILABLE, "status": "error"}

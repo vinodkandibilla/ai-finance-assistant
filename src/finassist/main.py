@@ -6,6 +6,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
+from finassist.agents.market_analysis.agent import twelve_data_session
+from finassist.agents.market_analysis.session import MarketSessionManager
 from finassist.agents.portfolio_analysis.authorization import UserContext
 from finassist.api.health import router as health_router
 from finassist.api.query import get_query_graph
@@ -36,9 +38,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await saver.setup()
         app.state.query_checkpointer = saver
         app.state.portfolio_store = PortfolioStore()
+        app.state.market_sessions = MarketSessionManager(settings, twelve_data_session)
         try:
             yield
         finally:
+            await app.state.market_sessions.aclose()
+            del app.state.market_sessions
             get_query_graph.cache_clear()
             app.state.portfolio_store.close()
             del app.state.portfolio_store

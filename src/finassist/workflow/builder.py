@@ -158,6 +158,9 @@ def build_graph(
     async def classify_node(state: FinanceAssistantState) -> FinanceAssistantState:
         return await _classify_intent(state, classifier=classifier)
 
+    def select_agent_route(state: FinanceAssistantState) -> str:
+        return END if state.get("standalone_greeting") else state["executed_handler"]
+
     async def market_analysis_handler(
         state: FinanceAssistantState,
     ) -> FinanceAssistantState:
@@ -182,29 +185,40 @@ def build_graph(
     workflow: StateGraph[
         FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState
     ] = StateGraph(FinanceAssistantState)
-    workflow.add_node("intent_router", classify_node)
+    workflow.add_node("intent_router", RunnableLambda(classify_node, name="Classify request"))
     workflow.add_node(
         "finance_qa_node",
-        finance_agent.graph if finance_agent is not None else RunnableLambda(empty_finance_qa_node),
+        finance_agent.graph.with_config(run_name="Finance education")
+        if finance_agent is not None
+        else RunnableLambda(empty_finance_qa_node),
     )
     workflow.add_node(
         "portfolio_analysis_node",
-        portfolio_agent.graph
+        portfolio_agent.graph.with_config(run_name="Portfolio analysis")
         if portfolio_agent is not None
         else RunnableLambda(lambda state: {**portfolio_analysis_node(state), "status": "error"}),
     )
-    workflow.add_node("market_analysis_node", build_clarification_graph(market_analysis_handler))
+    workflow.add_node(
+        "market_analysis_node",
+        build_clarification_graph(market_analysis_handler).with_config(run_name="Market analysis"),
+    )
     workflow.add_node(
         "goals_node",
-        goal_agent.graph if goal_agent is not None else RunnableLambda(unavailable_goal_node),
+        goal_agent.graph.with_config(run_name="Goal planning")
+        if goal_agent is not None
+        else RunnableLambda(unavailable_goal_node),
     )
     workflow.add_node(
         "news_synthesizer_node",
-        news_agent.graph if news_agent is not None else RunnableLambda(unavailable_news_node),
+        news_agent.graph.with_config(run_name="News synthesis")
+        if news_agent is not None
+        else RunnableLambda(unavailable_news_node),
     )
     workflow.add_node(
         "tax_education_node",
-        tax_agent.graph if tax_agent is not None else RunnableLambda(unavailable_tax_node),
+        tax_agent.graph.with_config(run_name="Tax education")
+        if tax_agent is not None
+        else RunnableLambda(unavailable_tax_node),
     )
     workflow.add_node(
         "clarify_node", RunnableLambda(lambda state: {**clarify_node(state), "status": "answered"})
@@ -216,7 +230,7 @@ def build_graph(
     workflow.add_edge(START, "intent_router")
     workflow.add_conditional_edges(
         "intent_router",
-        lambda state: END if state.get("standalone_greeting") else state["executed_handler"],
+        RunnableLambda(select_agent_route, name="Choose specialist agent"),
     )
     workflow.add_edge("finance_qa_node", END)
     workflow.add_edge("portfolio_analysis_node", END)
