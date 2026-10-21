@@ -4,6 +4,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from finassist.api.query import get_query_graph
+from finassist.evaluation.router.evaluation import (
+    RouterEvalCase,
+    evaluate_classifier,
+    evaluate_routes,
+)
 from finassist.main import create_app
 from finassist.workflow.builder import build_graph
 from finassist.workflow.classifier import ClassificationTimeoutError, LLMIntentClassifier
@@ -87,3 +92,62 @@ def test_invalid_configured_deadline_is_rejected(timeout):
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, router_timeout_seconds=timeout)
+
+
+@pytest.mark.parametrize("evaluate", [evaluate_classifier, evaluate_routes])
+async def test_evaluation_deadline_cancels_provider_and_continues(evaluate):
+    class RecoveringSlowModel(SlowModel):
+        calls = 0
+
+        async def ainvoke(self, messages):
+            self.calls += 1
+            if self.calls == 1:
+                return await super().ainvoke(messages)
+            return {"intent": "finance_qa"}
+
+    model = RecoveringSlowModel()
+    classifier = LLMIntentClassifier(model, "Classify", timeout_seconds=0.01)
+    results = await evaluate([evaluation_case("first"), evaluation_case("second")], classifier)
+    assert model.cancelled
+    assert model.calls == 2
+    assert results[0].status == "error"
+    assert results[0].error_category == "timeout"
+    assert results[0].predicted_handler is None
+    assert results[1].status == "passed"
+
+
+@pytest.mark.parametrize("evaluate", [evaluate_classifier, evaluate_routes])
+async def test_evaluation_client_cancellation_propagates_and_stops_batch(evaluate, caplog):
+    started = asyncio.Event()
+
+    class StartedModel(SlowModel):
+        calls = 0
+
+        async def ainvoke(self, messages):
+            self.calls += 1
+            started.set()
+            return await super().ainvoke(messages)
+
+    model = StartedModel()
+    classifier = LLMIntentClassifier(model, "Classify", timeout_seconds=10)
+    task = asyncio.create_task(
+        evaluate([evaluation_case("first"), evaluation_case("second")], classifier)
+    )
+    await asyncio.wait_for(started.wait(), timeout=1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert model.cancelled
+    assert model.calls == 1
+    assert "router_classification_failed" not in caplog.text
+
+
+def evaluation_case(case_id):
+    return RouterEvalCase(
+        id=case_id,
+        query="Explain ETFs",
+        expected_classified_intent="finance_qa",
+        expected_handler="finance_qa_node",
+        tags=["timeout"],
+        critical=True,
+    )

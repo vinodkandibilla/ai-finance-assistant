@@ -1,0 +1,4 @@
+{
+  "commit": "95ca4710098dc0e08de4c4dd8106d2c1223b2f5e",
+  "working_tree": " M tests/test_classifier_failures.py\n M tests/test_classifier_timeout.py\n M tests/test_greetings.py\n?? evals/\n?? src/finassist/evaluation/\n?? tests/test_router_decisions.py\n?? tests/test_router_evaluation.py\n?? tests/test_router_reporting.py\n"
+}

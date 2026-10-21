@@ -122,3 +122,30 @@ def test_invalid_deadlines_rejected(settings, value):
 def test_deadline_environment_configuration(settings, prefix, monkeypatch):
     monkeypatch.setenv(f"{prefix}_AGENT_TIMEOUT_SECONDS", "12.5")
     assert settings().agent_timeout_seconds == 12.5
+
+
+async def test_finance_deadline_cancels_actual_pending_retrieval(monkeypatch):
+    from test_finance_autonomous_agent import make_agent as make_finance_agent
+
+    agent, retriever, _ = make_finance_agent(
+        [call("finance_rag_query", {"query": "ETF"}, "search"), AIMessage(content="Done")],
+        FinanceAgentResult(status="answered", answer="Invented answer"),
+        agent_timeout_seconds=0.3,
+    )
+    started, cancelled = asyncio.Event(), asyncio.Event()
+
+    async def slow_retrieve(*args, **kwargs):
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        finally:
+            cancelled.set()
+
+    monkeypatch.setattr(retriever, "retrieve", slow_retrieve)
+    result = await agent.graph.ainvoke({"query": "What is an ETF?"})
+    assert started.is_set()
+    assert cancelled.is_set()
+    assert result["status"] == "error"
+    assert result["errors"] == ["agent_timeout"]
+    assert not result["citations"]
+    assert "Invented answer" not in result["answer"]

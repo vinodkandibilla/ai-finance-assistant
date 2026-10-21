@@ -1,0 +1,86 @@
+{
+  "scope": "Finance Q&A handbook retrieval; not routing or answer generation",
+  "topics": {
+    "interest": [
+      "interest_comparison"
+    ],
+    "banking": [
+      "apy_paraphrase",
+      "fdic_two_concepts"
+    ],
+    "funds": [
+      "etf_nav_comparison",
+      "fund_expense_ratio"
+    ],
+    "stocks": [
+      "pe_caveat"
+    ],
+    "indexes": [
+      "active_passive"
+    ],
+    "risk": [
+      "diversification_paraphrase"
+    ],
+    "borrowing": [
+      "loan_apr"
+    ],
+    "negative": [
+      "absent_current_offer",
+      "absent_live_quote",
+      "absent_private_holdings"
+    ],
+    "foundations": [
+      "budget_categories",
+      "net_worth_negative"
+    ],
+    "growth": [
+      "inflation_cash"
+    ],
+    "saving": [
+      "saving_time_horizon"
+    ],
+    "bonds": [
+      "bond_rates"
+    ],
+    "portfolio-concepts": [
+      "risk_capacity_tolerance"
+    ],
+    "practical-investing": [
+      "market_limit_order"
+    ],
+    "retirement-income": [
+      "longevity_risk"
+    ],
+    "complex-products": [
+      "leveraged_daily_reset"
+    ],
+    "options": [
+      "call_put_rights",
+      "option_contract_cost"
+    ],
+    "investor-protection": [
+      "fraud_red_flags"
+    ],
+    "cross-topic": [
+      "cross_interest_fees"
+    ]
+  },
+  "scenario_tags": [
+    "definition",
+    "comparison",
+    "paraphrase",
+    "misconception",
+    "caveat",
+    "causal",
+    "worked-example",
+    "multi-concept",
+    "absent-from-corpus"
+  ],
+  "excluded": [
+    "Tax-account eligibility/contribution/withdrawal rules",
+    "Personalized goal projections",
+    "Private holdings analysis",
+    "Live market and news data"
+  ],
+  "limitations": "Agent-authored reference passages are non-exhaustive; review unjudged hits. No measured traffic coverage."
+}

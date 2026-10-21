@@ -11,6 +11,11 @@ from openai import (
 )
 
 from finassist.api.query import get_query_graph
+from finassist.evaluation.router.evaluation import (
+    RouterEvalCase,
+    evaluate_classifier,
+    evaluate_routes,
+)
 from finassist.main import create_app
 from finassist.workflow.builder import build_graph
 from finassist.workflow.classifier import LLMIntentClassifier
@@ -29,19 +34,19 @@ class Model:
         return self.result
 
 
-@pytest.mark.parametrize(
-    "result",
-    [
-        None,
-        {"intent": "investment"},
-        {"answer": "Private text"},
-        {"intent": None},
-        {"intent": ["tax"]},
-        [],
-        "not JSON",
-        42,
-    ],
-)
+INVALID_RESULTS = [
+    None,
+    {"intent": "investment"},
+    {"answer": "Private text"},
+    {"intent": None},
+    {"intent": ["tax"]},
+    [],
+    "not JSON",
+    42,
+]
+
+
+@pytest.mark.parametrize("result", INVALID_RESULTS)
 def test_invalid_result_returns_502_without_dispatch(result):
     app = create_app()
     app.dependency_overrides[get_query_graph] = lambda: build_graph(
@@ -54,44 +59,38 @@ def test_invalid_result_returns_502_without_dispatch(result):
     }
 
 
-@pytest.mark.parametrize(
-    "error,code",
-    [
-        (APIConnectionError(request=httpx.Request("POST", "https://provider.example")), 503),
-        (
-            RateLimitError(
-                "Private provider details",
-                response=httpx.Response(
-                    429, request=httpx.Request("POST", "https://provider.example")
-                ),
-                body=None,
-            ),
-            503,
+PROVIDER_FAILURES = [
+    (APIConnectionError(request=httpx.Request("POST", "https://provider.example")), 503),
+    (
+        RateLimitError(
+            "Private provider details",
+            response=httpx.Response(429, request=httpx.Request("POST", "https://provider.example")),
+            body=None,
         ),
-        (OutputParserException("Private model output"), 502),
-        (APITimeoutError(request=httpx.Request("POST", "https://provider.example")), 504),
-        (
-            AuthenticationError(
-                "Private credentials",
-                response=httpx.Response(
-                    401, request=httpx.Request("POST", "https://provider.example")
-                ),
-                body=None,
-            ),
-            503,
+        503,
+    ),
+    (OutputParserException("Private model output"), 502),
+    (APITimeoutError(request=httpx.Request("POST", "https://provider.example")), 504),
+    (
+        AuthenticationError(
+            "Private credentials",
+            response=httpx.Response(401, request=httpx.Request("POST", "https://provider.example")),
+            body=None,
         ),
-        (
-            InternalServerError(
-                "Private upstream error",
-                response=httpx.Response(
-                    500, request=httpx.Request("POST", "https://provider.example")
-                ),
-                body=None,
-            ),
-            503,
+        503,
+    ),
+    (
+        InternalServerError(
+            "Private upstream error",
+            response=httpx.Response(500, request=httpx.Request("POST", "https://provider.example")),
+            body=None,
         ),
-    ],
-)
+        503,
+    ),
+]
+
+
+@pytest.mark.parametrize("error,code", PROVIDER_FAILURES)
 def test_provider_and_parser_failures_have_separate_safe_responses(error, code):
     app = create_app()
     app.dependency_overrides[get_query_graph] = lambda: build_graph(
@@ -135,3 +134,52 @@ async def test_classifier_failure_never_invokes_domain_agent():
     with pytest.raises(ClassificationOutputError):
         await graph.ainvoke({"query": "Explain ETFs"})
     assert not calls
+
+
+@pytest.mark.parametrize("evaluate", [evaluate_classifier, evaluate_routes])
+@pytest.mark.parametrize("result", INVALID_RESULTS)
+async def test_invalid_provider_output_is_recorded_by_evaluation(evaluate, result):
+    await assert_evaluation_failure(evaluate, Model(result), "invalid_output")
+
+
+@pytest.mark.parametrize("evaluate", [evaluate_classifier, evaluate_routes])
+@pytest.mark.parametrize("error,code", PROVIDER_FAILURES)
+async def test_provider_failure_is_recorded_by_evaluation(evaluate, error, code):
+    category = {502: "invalid_output", 503: "provider_unavailable", 504: "timeout"}[code]
+    await assert_evaluation_failure(evaluate, Model(error=error), category)
+
+
+async def assert_evaluation_failure(evaluate, model, category):
+    class RecoveringModel(Model):
+        async def ainvoke(self, messages):
+            if self.calls == 0:
+                self.calls += 1
+                return await model.ainvoke(messages)
+            self.calls += 1
+            return {"intent": "finance_qa"}
+
+    recovering = RecoveringModel()
+    recovering.calls = 0
+    cases = [
+        RouterEvalCase(
+            id=str(index),
+            query="Explain ETFs",
+            expected_classified_intent="finance_qa",
+            expected_handler="finance_qa_node",
+            tags=["failure"],
+            critical=True,
+        )
+        for index in range(2)
+    ]
+    results = await evaluate(cases, LLMIntentClassifier(recovering, "Classify"))
+    failed, recovered = results
+    assert failed.status == "error"
+    assert failed.error_category == category
+    assert failed.predicted_intent is None
+    assert failed.predicted_handler is None
+    assert failed.intent_matches is None
+    assert failed.handler_matches is None
+    assert failed.elapsed_ms >= 0
+    assert "Private" not in failed.model_dump_json()
+    assert recovered.status == "passed"
+    assert recovering.calls == 2

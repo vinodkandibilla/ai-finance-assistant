@@ -1,0 +1,1444 @@
+{
+  "metadata": {
+    "started_at": "2026-10-21T00:07:23.985901Z",
+    "mode": "routes",
+    "model": "gpt-4o-mini",
+    "prompt_sha256": "c5e0415d3610bd51ffa02b00b7efd01ee572c6e90ede32672d637d0ad2f9a6fa",
+    "dataset_sha256": "5370d7b1ce6b16af1ce44255e18cfc485948624a10291591683de7b12f719733",
+    "router_timeout_seconds": 5.0,
+    "market_quotes_enabled": true
+  },
+  "scores": {
+    "accuracy": 0.9841269841269841,
+    "critical_accuracy": 1.0,
+    "evaluated": 63,
+    "critical_evaluated": 43,
+    "passed": 62,
+    "failed": 1,
+    "error": 0,
+    "skipped": 0
+  },
+  "issues": [
+    {
+      "case_id": "clarify_how_much",
+      "critical": false,
+      "status": "failed",
+      "expected_intent": "clarify",
+      "actual_intent": "goals",
+      "expected_handler": "clarify_node",
+      "actual_handler": "goals_node",
+      "error_category": null
+    }
+  ],
+  "results": [
+    {
+      "case": {
+        "id": "finance_etf_definition",
+        "query": "What is an ETF?",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "finance_qa",
+          "clear-domain",
+          "definition"
+        ],
+        "critical": true,
+        "notes": "General investing education."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 605.9720828197896,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "finance_diversification",
+        "query": "Explain diversification in investing.",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "finance_qa",
+          "clear-domain",
+          "risk"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 509.1926250606775,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "finance_rates_technology",
+        "query": "How can higher interest rates affect technology stocks?",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "finance_qa",
+          "news-boundary",
+          "causal-explanation"
+        ],
+        "critical": true,
+        "notes": "General explanation, not recent news."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 717.302082804963,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "finance_rates_recent_news",
+        "query": "What recent news links higher interest rates to technology stocks?",
+        "expected_classified_intent": "news",
+        "expected_handler": "news_synthesizer_node",
+        "tags": [
+          "news",
+          "finance-boundary",
+          "recent-events"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "news",
+      "predicted_handler": "news_synthesizer_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 511.68008404783905,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "finance_etf_comparison",
+        "query": "Compare QQQ and VTI as investments.",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "finance_qa",
+          "comparison"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 527.7882080990821,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "finance_compound_interest",
+        "query": "How much will $10,000 grow at 5% for 10 years?",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "finance_qa",
+          "calculation"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 618.9234589692205,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "tax_capital_gains",
+        "query": "Explain short-term versus long-term capital gains.",
+        "expected_classified_intent": "tax",
+        "expected_handler": "tax_education_node",
+        "tags": [
+          "tax",
+          "clear-domain",
+          "capital-gains"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "tax",
+      "predicted_handler": "tax_education_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 636.4122088998556,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "tax_standard_deduction",
+        "query": "What is the 2026 US standard deduction?",
+        "expected_classified_intent": "tax",
+        "expected_handler": "tax_education_node",
+        "tags": [
+          "tax",
+          "tax-year"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "tax",
+      "predicted_handler": "tax_education_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 667.1865000389516,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "tax_roth_rules",
+        "query": "What are the Roth IRA contribution and withdrawal rules?",
+        "expected_classified_intent": "tax",
+        "expected_handler": "tax_education_node",
+        "tags": [
+          "tax",
+          "retirement"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "tax",
+      "predicted_handler": "tax_education_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 534.7681250423193,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "tax_bracket",
+        "query": "What tax bracket applies to my income?",
+        "expected_classified_intent": "tax",
+        "expected_handler": "tax_education_node",
+        "tags": [
+          "tax",
+          "clarification-needed"
+        ],
+        "critical": false,
+        "notes": "Missing inputs remain in tax; the domain agent clarifies."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "tax",
+      "predicted_handler": "tax_education_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 494.85599994659424,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "tax_incidental_investing",
+        "query": "Explain investing risk; mention that taxes may apply.",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "finance_qa",
+          "tax-boundary",
+          "incidental-tax"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 490.3481670189649,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "market_aapl_quote",
+        "query": "What is Apple's current stock price?",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "market",
+          "quote",
+          "clear-domain"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 676.3470831792802,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "market_nvda_month",
+        "query": "How did NVDA perform over the last month?",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "market",
+          "historical",
+          "timeframe"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 671.7022079974413,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "market_tesla_high",
+        "query": "What was Tesla's highest price last week?",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "market",
+          "extrema",
+          "timeframe"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 611.0402918420732,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "market_compare",
+        "query": "Compare AAPL and MSFT over the last three months.",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "market",
+          "comparison",
+          "historical"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 462.9049168433994,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "market_symbol_search",
+        "query": "Find the ticker symbol for Apple.",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "market",
+          "symbol-search"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 560.5072921607643,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "market_generic_price",
+        "query": "What is the stock price?",
+        "expected_classified_intent": "market",
+        "expected_handler": "clarify_node",
+        "tags": [
+          "market",
+          "generic",
+          "clarification"
+        ],
+        "critical": true,
+        "notes": "The LLM identifies market, then deterministic routing asks for a symbol."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "clarify_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 529.1660418733954,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "market_news_boundary",
+        "query": "Why did the stock market fall today?",
+        "expected_classified_intent": "news",
+        "expected_handler": "news_synthesizer_node",
+        "tags": [
+          "news",
+          "market-boundary",
+          "recent-events"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "news",
+      "predicted_handler": "news_synthesizer_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 775.6885830312967,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "news_apple_latest",
+        "query": "What is the latest Apple news?",
+        "expected_classified_intent": "news",
+        "expected_handler": "news_synthesizer_node",
+        "tags": [
+          "news",
+          "clear-domain",
+          "company-news"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "news",
+      "predicted_handler": "news_synthesizer_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 893.2547501754016,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "news_semiconductor",
+        "query": "What recent news affected semiconductor stocks?",
+        "expected_classified_intent": "news",
+        "expected_handler": "news_synthesizer_node",
+        "tags": [
+          "news",
+          "market-boundary",
+          "recent-events"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "news",
+      "predicted_handler": "news_synthesizer_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 483.4590838290751,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "news_earnings",
+        "query": "Summarize the latest earnings announcements in the technology sector.",
+        "expected_classified_intent": "news",
+        "expected_handler": "news_synthesizer_node",
+        "tags": [
+          "news",
+          "earnings"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "news",
+      "predicted_handler": "news_synthesizer_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 492.73504107259214,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "news_missing_window",
+        "query": "Give me financial news.",
+        "expected_classified_intent": "news",
+        "expected_handler": "news_synthesizer_node",
+        "tags": [
+          "news",
+          "clarification-needed"
+        ],
+        "critical": false,
+        "notes": "Identifiable news remains in news while the agent handles timeframe details."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "news",
+      "predicted_handler": "news_synthesizer_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 1014.6674590650946,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "portfolio_allocation",
+        "query": "Show my portfolio allocation.",
+        "expected_classified_intent": "portfolio",
+        "expected_handler": "portfolio_analysis_node",
+        "tags": [
+          "portfolio",
+          "clear-domain"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "portfolio",
+      "predicted_handler": "portfolio_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 514.7752501070499,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "portfolio_performance",
+        "query": "How is my portfolio performing?",
+        "expected_classified_intent": "portfolio",
+        "expected_handler": "portfolio_analysis_node",
+        "tags": [
+          "portfolio",
+          "performance"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "portfolio",
+      "predicted_handler": "portfolio_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 499.82233298942447,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "portfolio_customers",
+        "query": "Which of my customers have concentrated portfolios?",
+        "expected_classified_intent": "portfolio",
+        "expected_handler": "portfolio_analysis_node",
+        "tags": [
+          "portfolio",
+          "manager-scope"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "portfolio",
+      "predicted_handler": "portfolio_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 815.2562079485506,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "portfolio_missing_identity",
+        "query": "Analyze my portfolio.",
+        "expected_classified_intent": "portfolio",
+        "expected_handler": "portfolio_analysis_node",
+        "tags": [
+          "portfolio",
+          "clarification-needed"
+        ],
+        "critical": false,
+        "notes": "Portfolio-specific requests stay in portfolio even when identity is missing."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "portfolio",
+      "predicted_handler": "portfolio_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 491.6275842115283,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "goals_target",
+        "query": "Can I save $100,000 in five years?",
+        "expected_classified_intent": "goals",
+        "expected_handler": "goals_node",
+        "tags": [
+          "goals",
+          "clear-domain",
+          "target"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "goals",
+      "predicted_handler": "goals_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 681.441165972501,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "goals_contribution",
+        "query": "How much should I contribute monthly to reach my savings goal?",
+        "expected_classified_intent": "goals",
+        "expected_handler": "goals_node",
+        "tags": [
+          "goals",
+          "clarification-needed"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "goals",
+      "predicted_handler": "goals_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 587.8302920609713,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "goals_time",
+        "query": "How long will it take to reach my savings target?",
+        "expected_classified_intent": "goals",
+        "expected_handler": "goals_node",
+        "tags": [
+          "goals",
+          "clarification-needed"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "goals",
+      "predicted_handler": "goals_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 590.7777920365334,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "goals_generic",
+        "query": "How should I plan?",
+        "expected_classified_intent": "goals",
+        "expected_handler": "goals_node",
+        "tags": [
+          "goals",
+          "ambiguous"
+        ],
+        "critical": false,
+        "notes": "Goals has no generic phrase redirect; the goal agent handles clarification."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "goals",
+      "predicted_handler": "goals_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 511.4725411403924,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "clarify_which_better",
+        "query": "Which is better?",
+        "expected_classified_intent": "clarify",
+        "expected_handler": "clarify_node",
+        "tags": [
+          "clarify",
+          "domain-unclear"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "clarify",
+      "predicted_handler": "clarify_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 477.96833305619657,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "clarify_how_much",
+        "query": "How much should I invest?",
+        "expected_classified_intent": "clarify",
+        "expected_handler": "clarify_node",
+        "tags": [
+          "clarify",
+          "domain-unclear"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "failed",
+      "predicted_intent": "goals",
+      "predicted_handler": "goals_node",
+      "intent_matches": false,
+      "handler_matches": false,
+      "elapsed_ms": 540.6240001320839,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "other_weather",
+        "query": "What is the weather today?",
+        "expected_classified_intent": "other",
+        "expected_handler": "unsupported_node",
+        "tags": [
+          "other",
+          "unsupported"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "other",
+      "predicted_handler": "unsupported_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 509.1391659807414,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "other_code",
+        "query": "Write a Python web scraper for me.",
+        "expected_classified_intent": "other",
+        "expected_handler": "unsupported_node",
+        "tags": [
+          "other",
+          "unsupported"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "other",
+      "predicted_handler": "unsupported_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 513.3171249181032,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_hi",
+        "query": "Hi",
+        "expected_classified_intent": null,
+        "expected_handler": null,
+        "tags": [
+          "greeting",
+          "classifier-bypass"
+        ],
+        "critical": true,
+        "notes": "Standalone greeting is handled before LLM classification."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": null,
+      "predicted_handler": null,
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 0.06283284164965153,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_finpilot",
+        "query": "Hello FinPilot!",
+        "expected_classified_intent": null,
+        "expected_handler": null,
+        "tags": [
+          "greeting",
+          "classifier-bypass"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": null,
+      "predicted_handler": null,
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 0.08249981328845024,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_morning",
+        "query": "Good morning",
+        "expected_classified_intent": null,
+        "expected_handler": null,
+        "tags": [
+          "greeting",
+          "classifier-bypass"
+        ],
+        "critical": false,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": null,
+      "predicted_handler": null,
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 0.039999838918447495,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "ui_wrapped_market",
+        "query": "Market scope: U.S. NASDAQ only\nQuestion: What is AAPL's current price?",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "market",
+          "ui-wrapper",
+          "quote"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 545.2274170238525,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "ui_wrapped_finance",
+        "query": "Market scope: U.S. NASDAQ only\nQuestion: What is an index fund?",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "finance_qa",
+          "ui-wrapper",
+          "market-boundary"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 650.4265828989446,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "market_tax_incidental",
+        "query": "What is the current AAPL price after tax?",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "market",
+          "incidental-tax",
+          "quote"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 521.7934160027653,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "news_retirement_boundary",
+        "query": "What recent news affects retirement accounts?",
+        "expected_classified_intent": "news",
+        "expected_handler": "news_synthesizer_node",
+        "tags": [
+          "news",
+          "tax-boundary",
+          "recent-events"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "news",
+      "predicted_handler": "news_synthesizer_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 543.6187090817839,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_compounding_single",
+        "query": "How much will a single $5,000 deposit grow at 6% over ten years?",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "goals-boundary",
+          "single-principal"
+        ],
+        "critical": true,
+        "notes": "A single principal belongs to finance education/calculation."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 857.8425410669297,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_compounding_monthly",
+        "query": "How much will I save with $5,000 initially and $200 contributed monthly over ten years?",
+        "expected_classified_intent": "goals",
+        "expected_handler": "goals_node",
+        "tags": [
+          "finance-boundary",
+          "recurring-contributions"
+        ],
+        "critical": true,
+        "notes": "Recurring contributions belong to goal planning."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "goals",
+      "predicted_handler": "goals_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 530.1104579120874,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_roth_limits",
+        "query": "What are the contribution limits for a Roth IRA?",
+        "expected_classified_intent": "tax",
+        "expected_handler": "tax_education_node",
+        "tags": [
+          "goals-boundary",
+          "retirement-rules"
+        ],
+        "critical": true,
+        "notes": "Account rules belong to tax education."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "tax",
+      "predicted_handler": "tax_education_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 584.6981659997255,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_retirement_savings",
+        "query": "How much should I save monthly to reach $500,000 for retirement in twenty years?",
+        "expected_classified_intent": "goals",
+        "expected_handler": "goals_node",
+        "tags": [
+          "tax-boundary",
+          "incidental-retirement"
+        ],
+        "critical": true,
+        "notes": "Retirement context does not change a savings target into tax education."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "goals",
+      "predicted_handler": "goals_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 553.6589580588043,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_portfolio_concept",
+        "query": "What does portfolio diversification mean?",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "portfolio-boundary",
+          "definition"
+        ],
+        "critical": true,
+        "notes": "General concepts do not require personal holdings."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 494.80145797133446,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_portfolio_holdings",
+        "query": "Is my portfolio diversified across sectors?",
+        "expected_classified_intent": "portfolio",
+        "expected_handler": "portfolio_analysis_node",
+        "tags": [
+          "finance-boundary",
+          "holdings"
+        ],
+        "critical": true,
+        "notes": "Personal holdings analysis belongs to portfolio."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "portfolio",
+      "predicted_handler": "portfolio_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 628.6393750924617,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_portfolio_apple",
+        "query": "What percentage of my portfolio is Apple?",
+        "expected_classified_intent": "portfolio",
+        "expected_handler": "portfolio_analysis_node",
+        "tags": [
+          "market-boundary",
+          "holdings"
+        ],
+        "critical": true,
+        "notes": "A company mention does not turn holdings analysis into a quote."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "portfolio",
+      "predicted_handler": "portfolio_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 509.38541698269546,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_market_return",
+        "query": "What was AAPL's percentage return over the last month?",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "portfolio-boundary",
+          "historical"
+        ],
+        "critical": true,
+        "notes": "Asset price return does not require personal portfolio data."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 555.3518750239164,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_market_earnings",
+        "query": "What is NVDA's current stock price after earnings?",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "news-boundary",
+          "quote"
+        ],
+        "critical": true,
+        "notes": "The requested task is a quote despite the earnings context."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 672.332915943116,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_news_earnings",
+        "query": "Summarize the latest news about NVDA earnings.",
+        "expected_classified_intent": "news",
+        "expected_handler": "news_synthesizer_node",
+        "tags": [
+          "market-boundary",
+          "earnings"
+        ],
+        "critical": true,
+        "notes": "The requested task is recent news rather than price data."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "news",
+      "predicted_handler": "news_synthesizer_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 557.0051248650998,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_tax_incidental_retirement",
+        "query": "Explain ETF expense ratios for someone saving for retirement.",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "tax-boundary",
+          "incidental-retirement"
+        ],
+        "critical": true,
+        "notes": "Retirement context is incidental to fund education."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 630.0994160119444,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "boundary_wrapped_tax",
+        "query": "Market scope: U.S. NASDAQ only\nQuestion: How are capital gains taxed?",
+        "expected_classified_intent": "tax",
+        "expected_handler": "tax_education_node",
+        "tags": [
+          "ui-wrapper",
+          "market-boundary"
+        ],
+        "critical": true,
+        "notes": "Scope instructions must not override the actual tax question."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "tax",
+      "predicted_handler": "tax_education_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 576.9172080326825,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_case_whitespace",
+        "query": "  hELLo, FinPilot!!!  ",
+        "expected_classified_intent": null,
+        "expected_handler": null,
+        "tags": [
+          "greeting",
+          "classifier-bypass",
+          "normalization"
+        ],
+        "critical": true,
+        "notes": "Case, whitespace and punctuation remain a standalone greeting."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": null,
+      "predicted_handler": null,
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 0.03754184581339359,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_there",
+        "query": "Hey there!",
+        "expected_classified_intent": null,
+        "expected_handler": null,
+        "tags": [
+          "greeting",
+          "classifier-bypass"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": null,
+      "predicted_handler": null,
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 0.030708033591508865,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_afternoon",
+        "query": "Good afternoon",
+        "expected_classified_intent": null,
+        "expected_handler": null,
+        "tags": [
+          "greeting",
+          "classifier-bypass"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": null,
+      "predicted_handler": null,
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 0.023958971723914146,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_evening",
+        "query": "Good evening!",
+        "expected_classified_intent": null,
+        "expected_handler": null,
+        "tags": [
+          "greeting",
+          "classifier-bypass"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": null,
+      "predicted_handler": null,
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 0.026625115424394608,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_wrapped",
+        "query": "Market scope: U.S. NASDAQ only\nQuestion: Hello!",
+        "expected_classified_intent": null,
+        "expected_handler": null,
+        "tags": [
+          "greeting",
+          "classifier-bypass",
+          "ui-wrapper"
+        ],
+        "critical": true,
+        "notes": "The actual question is a standalone greeting."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": null,
+      "predicted_handler": null,
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 0.018584076315164566,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_task_finance",
+        "query": "Hi, what is an ETF?",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "greeting",
+          "greeting-with-task"
+        ],
+        "critical": true,
+        "notes": "A greeting prefix must not swallow a finance question."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 562.9283341113478,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_task_market",
+        "query": "Hello, quote AAPL",
+        "expected_classified_intent": "market",
+        "expected_handler": "market_analysis_node",
+        "tags": [
+          "greeting",
+          "greeting-with-task"
+        ],
+        "critical": true,
+        "notes": "A greeting prefix must not swallow a quote request."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "market",
+      "predicted_handler": "market_analysis_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 484.8583750426769,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_task_tax",
+        "query": "Good morning, explain capital gains tax.",
+        "expected_classified_intent": "tax",
+        "expected_handler": "tax_education_node",
+        "tags": [
+          "greeting",
+          "greeting-with-task"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "tax",
+      "predicted_handler": "tax_education_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 549.5359578635544,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_task_other",
+        "query": "Hi, what is the weather?",
+        "expected_classified_intent": "other",
+        "expected_handler": "unsupported_node",
+        "tags": [
+          "greeting",
+          "greeting-with-task",
+          "unsupported"
+        ],
+        "critical": true,
+        "notes": null
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "other",
+      "predicted_handler": "unsupported_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 644.4097920320928,
+      "error_category": null
+    },
+    {
+      "case": {
+        "id": "greeting_wrapped_task",
+        "query": "Market scope: U.S. NASDAQ only\nQuestion: Hi, what is an index fund?",
+        "expected_classified_intent": "finance_qa",
+        "expected_handler": "finance_qa_node",
+        "tags": [
+          "greeting",
+          "greeting-with-task",
+          "ui-wrapper"
+        ],
+        "critical": true,
+        "notes": "Wrapped greeting plus task must reach classification."
+      },
+      "mode": "routes",
+      "status": "passed",
+      "predicted_intent": "finance_qa",
+      "predicted_handler": "finance_qa_node",
+      "intent_matches": true,
+      "handler_matches": true,
+      "elapsed_ms": 778.761874884367,
+      "error_category": null
+    }
+  ]
+}

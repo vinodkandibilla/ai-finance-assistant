@@ -1,0 +1,995 @@
+{
+  "report_type": "offline_test_summary",
+  "pytest_exit_code": 0,
+  "unique_test_counts": {
+    "passed": 129,
+    "failed": 0,
+    "error": 0,
+    "skipped": 0
+  },
+  "areas": {
+    "retrieval_checks": {
+      "kind": "offline",
+      "status": "passed",
+      "counts": {
+        "passed": 15,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      }
+    },
+    "grounding_checks": {
+      "kind": "offline",
+      "status": "passed",
+      "counts": {
+        "passed": 25,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      }
+    },
+    "calculations": {
+      "kind": "offline",
+      "status": "passed",
+      "counts": {
+        "passed": 63,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      }
+    },
+    "clarification_scope": {
+      "kind": "offline",
+      "status": "passed",
+      "counts": {
+        "passed": 35,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      }
+    },
+    "failures": {
+      "kind": "offline",
+      "status": "passed",
+      "counts": {
+        "passed": 37,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
+      }
+    },
+    "retrieval_quality": {
+      "kind": "live",
+      "status": "not_run",
+      "note": "25 labeled questions ready; actual retrieval scoring/baseline pending."
+    },
+    "grounding_quality": {
+      "kind": "live",
+      "status": "not_run",
+      "note": "LLM judge implemented; live answers and judge calibration not run."
+    },
+    "live_tool_selection": {
+      "kind": "live",
+      "status": "not_run",
+      "note": "Deferred for MVP; scripted calls do not measure LLM tool/input choice."
+    }
+  },
+  "tests": [
+    {
+      "id": "tests.test_agent_deadlines::test_deadline_cancels_loop_and_returns_safe_error[finance_qa]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.051,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_deadline_cancels_loop_and_returns_safe_error[tax]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.041,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_one_budget_covers_loop_and_final_formatter",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.112,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_clarification_wait_is_excluded_and_resume_has_fresh_budget",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.3,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_invalid_deadlines_rejected[0-FinanceAgentSettings]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.002,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_invalid_deadlines_rejected[0-TaxAgentSettings]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_invalid_deadlines_rejected[-1-FinanceAgentSettings]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_invalid_deadlines_rejected[-1-TaxAgentSettings]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_invalid_deadlines_rejected[inf-FinanceAgentSettings]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_invalid_deadlines_rejected[inf-TaxAgentSettings]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_invalid_deadlines_rejected[nan-FinanceAgentSettings]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_invalid_deadlines_rejected[nan-TaxAgentSettings]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_deadline_environment_configuration[FinanceAgentSettings-FINANCE]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_deadline_environment_configuration[TaxAgentSettings-TAX]",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_agent_deadlines::test_finance_deadline_cancels_actual_pending_retrieval",
+      "suite": "test_agent_deadlines",
+      "outcome": "passed",
+      "seconds": 0.326,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_agent_directly_calls_calculator_with_rag_and_preserves_its_answer",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.046,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_third_reply_can_complete_direct_calculation",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.037,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_third_invalid_reply_ends_with_unresolved_fields",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.03,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_fourth_clarification_and_later_calculation_cannot_reset_budget",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.03,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_invalid_inputs_return_validation_errors_without_arithmetic",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.019,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_agent_repairs_validation_errors_after_clarification",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.025,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_partial_explanation_and_state_reach_api",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.098,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_unsupported_features_require_agent_to_obtain_agreement",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.024,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_clarification_survives_sqlite_restart",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.051,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_invalid_third_reply_cannot_be_followed_by_invented_valid_inputs",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.032,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_changed_task_after_calculation_clarification_is_out_of_scope",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.021,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_labeled_calculation_tool_inputs_and_results[simple_half_year]",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.02,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_labeled_calculation_tool_inputs_and_results[compound_monthly]",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.019,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_labeled_calculation_tool_inputs_and_results[compound_daily]",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.018,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_labeled_calculation_tool_inputs_and_results[apy_not_double_counted]",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.019,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_labeled_calculation_tool_inputs_and_results[decimal_rate]",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.019,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_labeled_calculation_tool_inputs_and_results[half_up_cent]",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.018,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_labeled_calculation_tool_inputs_and_results[simple_apy_invalid]",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.019,
+      "reason": null
+    },
+    {
+      "id": "tests.test_calculation_agent::test_labeled_calculation_tool_inputs_and_results[fees_not_ignored]",
+      "suite": "test_calculation_agent",
+      "outcome": "passed",
+      "seconds": 0.019,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_default_annual_apr_example_and_decimal_rate_equivalence",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_monthly_apr_and_apy_are_distinct",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change0]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change1]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change2]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change3]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change4]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change5]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change6]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change7]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change8]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_invalid_or_unsupported_inputs_have_no_numerical_results[change9]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_required_values_are_not_defaulted[principal]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_required_values_are_not_defaulted[annual_rate]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_required_values_are_not_defaulted[rate_units]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_required_values_are_not_defaulted[duration_years]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_fractional_year_currency_rounding_and_zero_values",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_large_output_is_bounded",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_all_independently_invalid_numeric_fields_are_reported_together",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_round_half_up_and_daily_periods_are_explicit",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_non_usd_currency_is_rejected_without_conversion[EUR]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_non_usd_currency_is_rejected_without_conversion[GBP]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_non_usd_currency_is_rejected_without_conversion[JPY]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_non_usd_currency_is_rejected_without_conversion[CAD]",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_principal_is_rounded_explicitly_instead_of_rejected",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_compound_interest::test_no_arbitrary_duration_or_rate_limit_for_valid_results",
+      "suite": "test_compound_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_model_selects_searches_and_follow_up_terms",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.021,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_answer_without_search_is_rejected",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.014,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_model_can_report_out_of_scope_without_searching",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.015,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_search_budget_caps_retriever_calls",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.017,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_parent_clarification_interrupt_resumes_inside_agent",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.022,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_targeted_evidence_is_collected_by_shared_runtime",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.017,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_new_question_guidance_does_not_open_another_clarification",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.018,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_changed_task_after_general_clarification_stops_without_search",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.022,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_empty_search_cannot_be_presented_as_a_supported_answer",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.017,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_failed_search_returns_error_without_fabricated_answer[RuntimeError]",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.083,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_autonomous_agent::test_failed_search_returns_error_without_fabricated_answer[TimeoutError]",
+      "suite": "test_finance_autonomous_agent",
+      "outcome": "passed",
+      "seconds": 0.017,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_evidence_recovery::test_expansion_reuses_plan_and_returns_only_novel_evidence",
+      "suite": "test_finance_evidence_recovery",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_evidence_recovery::test_targeted_search_preserves_original_metadata_and_requires_gap",
+      "suite": "test_finance_evidence_recovery",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_evidence_recovery::test_recovery_requires_baseline_and_total_limit_is_shared",
+      "suite": "test_finance_evidence_recovery",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_evidence_recovery::test_evidence_size_budget_and_parallel_retrieval_are_enforced",
+      "suite": "test_finance_evidence_recovery",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_evidence_recovery::test_targeted_action_limit_and_semantic_limit",
+      "suite": "test_finance_evidence_recovery",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_evidence_recovery::test_baseline_cannot_bypass_recovery_limits",
+      "suite": "test_finance_evidence_recovery",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_evidence_recovery::test_provider_failure_is_reported_without_fabricating_evidence",
+      "suite": "test_finance_evidence_recovery",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[valid_unreviewed]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[reviewed_supported]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[reviewed_unsupported]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[invalid_citation]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[missing_citation]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[missing_evidence]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[abstention_unreviewed]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[abstention_reviewed]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[out_of_scope]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_mvp_grounding[empty_answer]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_malformed_page_cannot_validate_a_citation[None]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_malformed_page_cannot_validate_a_citation[9]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_malformed_page_cannot_validate_a_citation[True]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_malformed_page_cannot_validate_a_citation[0]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_malformed_page_cannot_validate_a_citation[-1]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_llm_verdict_and_cited_evidence_only[supported-passed-True]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_llm_verdict_and_cited_evidence_only[unsupported-failed-False]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_llm_verdict_and_cited_evidence_only[uncertain-needs_review-None]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_invalid_judge_output_needs_review[None]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_invalid_judge_output_needs_review[raw1]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_invalid_judge_output_needs_review[raw2]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_invalid_judge_output_needs_review[raw3]",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_provider_failure_needs_review_without_private_details",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_judge_is_not_called_for_invalid_citations",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_grounding_evaluation::test_judge_timeout_cancels_pending_call",
+      "suite": "test_finance_grounding_evaluation",
+      "outcome": "passed",
+      "seconds": 0.011,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_rag_tool::test_tool_preserves_search_plan_filters_and_evidence",
+      "suite": "test_finance_rag_tool",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_rag_tool::test_tool_defaults_to_question_and_preserves_retrieval_errors",
+      "suite": "test_finance_rag_tool",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_retrieval_dataset::test_relevance_labels_resolve_to_frozen_handbook_passages",
+      "suite": "test_finance_retrieval_dataset",
+      "outcome": "passed",
+      "seconds": 1.038,
+      "reason": null
+    },
+    {
+      "id": "tests.test_finance_retrieval_dataset::test_coverage_map_tracks_every_case_and_required_scenario",
+      "suite": "test_finance_retrieval_dataset",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_rag_tool_pipeline::test_standalone_tool_retrieves_then_reranks_and_cites_only_selected_evidence[finance]",
+      "suite": "test_rag_tool_pipeline",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_rag_tool_pipeline::test_standalone_tool_retrieves_then_reranks_and_cites_only_selected_evidence[tax]",
+      "suite": "test_rag_tool_pipeline",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_rag_tool_pipeline::test_standalone_reranking_failure_does_not_leak_unranked_results[finance]",
+      "suite": "test_rag_tool_pipeline",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_rag_tool_pipeline::test_standalone_reranking_failure_does_not_leak_unranked_results[tax]",
+      "suite": "test_rag_tool_pipeline",
+      "outcome": "passed",
+      "seconds": 0.001,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_simple_interest_formula_defaults_and_decimal_rate",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_fractional_duration_and_rounding",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_invalid_inputs_are_not_silently_reinterpreted[change0]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_invalid_inputs_are_not_silently_reinterpreted[change1]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_invalid_inputs_are_not_silently_reinterpreted[change2]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_invalid_inputs_are_not_silently_reinterpreted[change3]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_invalid_inputs_are_not_silently_reinterpreted[change4]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_invalid_inputs_are_not_silently_reinterpreted[change5]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_invalid_inputs_are_not_silently_reinterpreted[change6]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_required_inputs_are_not_defaulted[principal]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_required_inputs_are_not_defaulted[annual_rate]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_required_inputs_are_not_defaulted[rate_units]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest::test_required_inputs_are_not_defaulted[duration_years]",
+      "suite": "test_simple_interest",
+      "outcome": "passed",
+      "seconds": 0.0,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest_agent::test_simple_calculator_runs_directly_without_preparation_or_rag",
+      "suite": "test_simple_interest_agent",
+      "outcome": "passed",
+      "seconds": 0.02,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest_agent::test_simple_tool_schema_and_defaults",
+      "suite": "test_simple_interest_agent",
+      "outcome": "passed",
+      "seconds": 0.003,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest_agent::test_comparison_keeps_both_results_and_agent_presentation",
+      "suite": "test_simple_interest_agent",
+      "outcome": "passed",
+      "seconds": 0.076,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest_agent::test_simple_clarification_limit",
+      "suite": "test_simple_interest_agent",
+      "outcome": "passed",
+      "seconds": 0.028,
+      "reason": null
+    },
+    {
+      "id": "tests.test_simple_interest_agent::test_apy_is_rejected_without_arithmetic",
+      "suite": "test_simple_interest_agent",
+      "outcome": "passed",
+      "seconds": 0.02,
+      "reason": null
+    }
+  ],
+  "started_at": "2026-10-21T02:13:46.347489+00:00",
+  "completed_at": "2026-10-21T02:13:53.455228+00:00",
+  "python": "3.12.13",
+  "source_commit": "95ca4710098dc0e08de4c4dd8106d2c1223b2f5e",
+  "working_tree_dirty": true,
+  "model": null,
+  "model_note": "No live model used",
+  "input_sha256": {
+    "evals/finance/calculations/cases.jsonl": "456a62f1012364994bb067f1f127964df7c9007f41ceefa92eca0a377dc57385",
+    "evals/finance/grounding/cases.jsonl": "0c3803280870de678792dc413e8d158e4c219b658506381f7ef797d635d38b10",
+    "evals/finance/retrieval/cases.jsonl": "a80da757996fbf9aafe93d32ca4c684343ff92a709f2cf4171b39a4317aee6a1",
+    "evals/finance/retrieval/corpus.json": "da7360c679ace23f35564c6223013e58cd1f34d0937228d56b98e5ea06a56f31"
+  }
+}
