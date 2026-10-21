@@ -1,3 +1,4 @@
+import pytest
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
@@ -164,6 +165,8 @@ async def test_parent_clarification_interrupt_resumes_inside_agent():
     config = {"configurable": {"thread_id": "autonomous-clarification"}}
     paused = await graph.ainvoke({"query": "Which is better?"}, config)
     assert paused["__interrupt__"][0].value["question"] == "Which funds?"
+    assert not retriever.calls  # Missing details must pause before searching.
+    assert not paused.get("calculation")
     result = await graph.ainvoke(Command(resume="ETFs and mutual funds"), config)
     assert result["status"] == "answered"
     assert retriever.calls[0][0] == ["ETFs versus mutual funds"]
@@ -210,3 +213,85 @@ async def test_targeted_evidence_is_collected_by_shared_runtime():
         isinstance(message, ToolMessage) and message.name == "finance_targeted_search"
         for message in model.seen[-1]
     )
+
+
+async def test_new_question_guidance_does_not_open_another_clarification():
+    agent, retriever, model = make_agent(
+        [
+            call(
+                "ask_finance_clarification",
+                {"question": "Please submit a new question about current prices."},
+                "redirect",
+            ),
+            AIMessage(content="Outside scope"),
+        ],
+        FinanceAgentResult(status="out_of_scope"),
+    )
+    result = await agent.graph.ainvoke({"query": "What is Apple's current stock price?"})
+    assert not result.get("__interrupt__")
+    assert result["status"] == "out_of_scope"
+    assert "new question" in result["answer"]
+    assert not retriever.calls
+    assert not result.get("clarification_question")
+    replies = [message for message in model.seen[-1] if isinstance(message, ToolMessage)]
+    assert replies[0].artifact["kind"] == "policy_guidance"
+
+
+async def test_changed_task_after_general_clarification_stops_without_search():
+    agent, retriever, model = make_agent(
+        [
+            call("ask_finance_clarification", {"question": "Which funds?"}, "clarify"),
+            AIMessage(content="The new request is outside scope"),
+        ],
+        FinanceAgentResult(status="out_of_scope"),
+    )
+    graph = build_graph(Classifier(), finance_agent=agent, checkpointer=MemorySaver())
+    config = {"configurable": {"thread_id": "finance-scope-change"}}
+    paused = await graph.ainvoke({"query": "Compare these funds"}, config)
+    assert paused.get("__interrupt__")
+    result = await graph.ainvoke(Command(resume="Instead, give me the weather"), config)
+    assert result["status"] == "out_of_scope"
+    assert not result.get("__interrupt__")
+    assert not result.get("clarification_question")
+    assert not retriever.calls
+    assert any(
+        isinstance(message, ToolMessage) and message.content == "Instead, give me the weather"
+        for message in model.seen[-1]
+    )
+
+
+async def test_empty_search_cannot_be_presented_as_a_supported_answer():
+    agent, retriever, _ = make_agent(
+        [
+            call("finance_rag_query", {"query": "ETF"}, "search"),
+            AIMessage(content="Invented answer"),
+        ],
+        FinanceAgentResult(status="answered", answer="Invented answer", citations=["invented"]),
+    )
+    result = await agent.graph.ainvoke({"query": "What is an ETF?"})
+    assert len(retriever.calls) == 1
+    assert result["status"] == "insufficient"
+    assert not result["citations"]
+    assert "Invented answer" not in result["answer"]
+
+
+@pytest.mark.parametrize("exception", [RuntimeError, TimeoutError])
+async def test_failed_search_returns_error_without_fabricated_answer(exception, monkeypatch):
+    agent, retriever, _ = make_agent(
+        [
+            call("finance_rag_query", {"query": "ETF"}, "search"),
+            AIMessage(content="Invented answer"),
+        ],
+        FinanceAgentResult(status="answered", answer="Invented answer", citations=["invented"]),
+    )
+
+    async def fail(*args, **kwargs):
+        raise exception("private provider payload")
+
+    monkeypatch.setattr(retriever, "retrieve", fail)
+    result = await agent.graph.ainvoke({"query": "What is an ETF?"})
+    assert result["status"] == "error"
+    assert result["errors"]
+    assert not result["citations"]
+    assert "Invented answer" not in result["answer"]
+    assert "private provider payload" not in str(result)

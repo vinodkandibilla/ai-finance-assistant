@@ -1,4 +1,9 @@
-from langchain_core.messages import AIMessage
+import json
+from decimal import Decimal
+from pathlib import Path
+
+import pytest
+from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
@@ -254,3 +259,38 @@ async def test_changed_task_after_calculation_clarification_is_out_of_scope():
     result = await g.ainvoke(Command(resume="What is Apple's current price?"), config)
     assert result["status"] == "out_of_scope"
     assert "new question" in result["answer"]
+
+
+# Labeled calculation regression cases reuse the existing scripted agent harness.
+# Scripted calls exercise execution/input preservation, not LLM selection accuracy.
+CALCULATION_CASES = [
+    json.loads(line)
+    for line in (Path(__file__).resolve().parents[1] / "evals/finance/calculations/cases.jsonl")
+    .read_text()
+    .splitlines()
+]
+
+
+@pytest.mark.parametrize("case", CALCULATION_CASES, ids=lambda case: case["id"])
+async def test_labeled_calculation_tool_inputs_and_results(case):
+    m = model([call(case["expected_tool"], case["inputs"], "calculation")])
+    result = await graph(m).ainvoke(
+        {"query": case["query"]},
+        {"configurable": {"thread_id": case["id"]}},
+    )
+    calculation = result["calculation"]
+    for field, expected in case["expected"].items():
+        assert calculation[field] == expected
+    tool_messages = [msg for msg in m.seen[-1] if isinstance(msg, ToolMessage)]
+    assert [msg.name for msg in tool_messages] == [case["expected_tool"]]
+    assert tool_messages[0].artifact["calculation_id"] == "calculation"
+    if calculation["status"] == "success":
+        for field, value in case["inputs"].items():
+            expected = f"{Decimal(value):.2f}" if field == "principal" else value
+            assert calculation["validated_inputs"][field] == expected
+        assert calculation["rounding"]["mode"] == "ROUND_HALF_UP"
+        assert result["status"] == "answered"
+    else:
+        assert "final_balance" not in calculation
+        assert "interest_earned" not in calculation
+        assert result["status"] != "answered"

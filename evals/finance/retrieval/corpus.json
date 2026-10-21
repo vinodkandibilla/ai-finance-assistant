@@ -1,0 +1,9 @@
+{
+  "source": "src/finassist/data/corpora/finance_qa/Financial_Education_Handbook_integrated.pdf",
+  "sha256": "57fa390715eb49beba9158db889b35f569a5f5c750ec0f718266e0f37b0272cf",
+  "chunk_size": 800,
+  "chunk_overlap": 120,
+  "chunk_count": 327,
+  "label_status": "initial agent-authored labels; human review recommended",
+  "case_count": 25
+}

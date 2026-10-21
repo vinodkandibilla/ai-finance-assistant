@@ -1,0 +1,20 @@
+........................................................................ [ 55%]
+.........................................................                [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/langgraph/checkpoint/base/__init__.py:17
+  /Users/vinod-kandibilla/Documents/Vinod-Kandibilla/Work/ik/capstone-projects/ai-finance-assistant/.venv/lib/python3.12/site-packages/langgraph/checkpoint/base/__init__.py:17: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+
+<frozen abc>:106
+  <frozen abc>:106: LangGraphDeprecatedSinceV10: AgentStatePydantic has been moved to `langchain.agents`. Please update your import to `from langchain.agents import AgentStatePydantic`. Deprecated in LangGraph V1.0 to be removed in V2.0.
+
+tests/test_agent_deadlines.py: 5 warnings
+tests/test_calculation_agent.py: 20 warnings
+tests/test_finance_autonomous_agent.py: 11 warnings
+tests/test_simple_interest_agent.py: 4 warnings
+  /Users/vinod-kandibilla/Documents/Vinod-Kandibilla/Work/ik/capstone-projects/ai-finance-assistant/src/finassist/agents/common/runtime.py:202: LangGraphDeprecatedSinceV10: create_react_agent has been moved to `langchain.agents`. Please update your import to `from langchain.agents import create_agent`. Deprecated in LangGraph V1.0 to be removed in V2.0.
+    self.agent = create_react_agent(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /Users/vinod-kandibilla/Documents/Vinod-Kandibilla/Work/ik/capstone-projects/ai-finance-assistant/evals/finance/reports/20261021T021346347489Z/pytest.xml -
+129 passed, 42 warnings in 6.10s

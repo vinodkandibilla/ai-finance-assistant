@@ -1585,3 +1585,10 @@ News search date handling: explicit dates are inclusive calendar days. The Tavil
 adapter sends the following day as the exclusive end bound, so a single-day query
 never sends identical start/end dates (which Tavily rejects). Rolling time ranges
 remain unchanged. See [Tavily date parameters](https://docs.tavily.com/documentation/api-reference/endpoint/search).
+
+### Finance Q&A evaluation status
+
+Run `.venv/bin/python scripts/evaluate_finance.py` for the offline check report.
+See [implemented checks and pending live evaluations](evals/finance/README.md).
+This command does not run the 25 retrieval questions against the real index or
+invoke the grounding LLM judge. Live quality areas remain explicitly `not_run`.

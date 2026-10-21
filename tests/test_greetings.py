@@ -12,7 +12,17 @@ from finassist.workflow.greetings import WELCOME, is_standalone_greeting
 
 @pytest.mark.parametrize(
     "query",
-    ["Hi", "Hello!", "Good morning", "Hi, FinPilot!", "Hey there", scope_market_question("Hello!")],
+    [
+        "Hi",
+        "Hello!",
+        "Good morning",
+        "Hi, FinPilot!",
+        "Hey there",
+        "  hELLo, FinPilot!!!  ",
+        "Good afternoon",
+        "Good evening!",
+        scope_market_question("Hello!"),
+    ],
 )
 async def test_greetings_skip_classifier_and_domain_tools(query):
     classifier = AsyncMock()
@@ -20,6 +30,9 @@ async def test_greetings_skip_classifier_and_domain_tools(query):
     result = await graph.ainvoke({"query": query})
     assert result["answer"] == WELCOME
     assert not result.get("executed_handler")
+    assert "classified_intent" not in result
+    assert result["standalone_greeting"] is True
+    assert result["status"] == "answered"
     classifier.classify.assert_not_awaited()
 
 
@@ -30,6 +43,11 @@ async def test_greetings_skip_classifier_and_domain_tools(query):
         "Hello, quote AAPL",
         "Good morning, show AAPL history",
         "highest stock price",
+        "Hi, what is the weather?",
+        "Good morning, explain capital gains tax.",
+        scope_market_question("Hi, what is an index fund?"),
+        "Highlight ETF risks.",
+        "HelloWorld stock price",
     ],
 )
 def test_greeting_with_question_is_not_intercepted(query):
