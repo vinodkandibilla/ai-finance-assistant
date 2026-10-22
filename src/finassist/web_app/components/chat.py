@@ -8,10 +8,12 @@ from streamlit.errors import StreamlitAPIException
 
 from finassist.web_app.components.chat_viewport import fit_chat_viewport
 from finassist.web_app.components.focus import focus_chat_composer
+from finassist.web_app.components.portfolio import comparison_rows
 from finassist.web_app.config import WebSettings
 from finassist.web_app.services.api_client import ApiError, FinanceApiClient
 from finassist.web_app.services.citations import label_citations
 from finassist.web_app.services.models import QueryRequest, QueryResponse, ResumeRequest
+from finassist.web_app.services.portfolio import snapshots
 from finassist.web_app.services.showcase import safe_source, scope_market_question
 
 LABELS = {
@@ -74,7 +76,10 @@ def _send(state: ChatState, request: QueryRequest | ResumeRequest) -> None:
     st.session_state["scroll_to_latest_turn"] = True
     try:
         with st.spinner("FinPilot is working on your question…"):
-            with FinanceApiClient(WebSettings.from_environment()) as client:
+            with FinanceApiClient(
+                WebSettings.from_environment(),
+                portfolio_manager_id=st.session_state.get("portfolio_manager_override"),
+            ) as client:
                 response = (
                     client.resume(request)
                     if isinstance(request, ResumeRequest)
@@ -124,6 +129,8 @@ def _render_message(message: Message) -> None:
             if response.clarification_question:
                 st.info("More information is needed. Reply below to continue.")
                 st.text(response.clarification_question)
+            portfolios = snapshots(response)
+            comparison = bool(portfolios)
             if response.citations:
                 with st.expander("Sources"):
                     for index, citation in enumerate(response.citations, 1):
@@ -132,9 +139,24 @@ def _render_message(message: Message) -> None:
                             st.link_button(citation, citation)
                         else:
                             st.text(f"{index}. {citation}")
-            else:
+            elif not comparison:
                 st.caption("No sources were supplied with this response.")
-            if response.calculation is not None or response.calculations is not None:
+            if comparison:
+                st.dataframe(comparison_rows(portfolios), hide_index=True, width="stretch")
+                st.caption(
+                    "Synthetic portfolios · frozen reference prices. Gains/losses are unrealized, "
+                    "not historical returns. Holding count alone does not measure diversification."
+                )
+                if any(not p.performance_complete for p in portfolios):
+                    st.caption(
+                        "Unrealized gain/loss is unavailable where cost basis is incomplete."
+                    )
+                for item in ([response.calculation] if response.calculation else []) + (
+                    response.calculations or []
+                ):
+                    if item.get("excluded_portfolios"):
+                        st.warning(f"Unavailable portfolios: {item['excluded_portfolios']}")
+            elif response.calculation is not None or response.calculations is not None:
                 with st.expander("Calculation details"):
                     if response.calculation is not None:
                         st.json(response.calculation)
@@ -272,21 +294,6 @@ def _conversational_screen(page: str, *, heading: str) -> None:
         st.session_state[composer_key] = draft
     if st.session_state.pop("reset_chat_composer", False):
         st.session_state[composer_key] = ""
-    if page == "portfolio":
-        with st.container(key="chat_scope"):
-            with st.expander("Optional portfolio request scope"):
-                st.caption(
-                    "Requested scope only. These fields do not establish identity or grant access."
-                )
-                st.selectbox(
-                    "Requested role",
-                    ["API default", "portfolio_manager", "individual_customer"],
-                    key="portfolio_scope_role",
-                )
-                st.text_input(
-                    "Customer ID (optional)", max_chars=100, key="portfolio_scope_customer"
-                )
-                st.text_input("Manager ID (optional)", max_chars=100, key="portfolio_scope_manager")
     with st.container(key="chat_composer", gap="xsmall"):
         text = st.chat_input(
             "Reply to FinPilot…" if state.thread_id else "Ask a financial question…",
@@ -323,23 +330,6 @@ def _conversational_screen(page: str, *, heading: str) -> None:
                 else QueryRequest.model_validate(
                     {
                         "query": scope_market_question(text) if page == "market" else text,
-                        **(
-                            {
-                                "user_role": st.session_state.get("portfolio_scope_role")
-                                if st.session_state.get("portfolio_scope_role") != "API default"
-                                else None,
-                                "customer_id": st.session_state.get(
-                                    "portfolio_scope_customer", ""
-                                ).strip()
-                                or None,
-                                "manager_id": st.session_state.get(
-                                    "portfolio_scope_manager", ""
-                                ).strip()
-                                or None,
-                            }
-                            if page == "portfolio"
-                            else {}
-                        ),
                     }
                 )
             )

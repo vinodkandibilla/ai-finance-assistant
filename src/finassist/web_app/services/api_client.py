@@ -9,6 +9,7 @@ from pydantic import BaseModel, ValidationError
 from finassist.web_app.config import WebSettings
 from finassist.web_app.services.models import (
     HealthResponse,
+    PortfolioManagerDirectory,
     QueryRequest,
     QueryResponse,
     ResumeRequest,
@@ -32,11 +33,16 @@ class BackendUnavailable(ApiError):
 
 class FinanceApiClient:
     def __init__(
-        self, settings: WebSettings, *, transport: httpx.BaseTransport | None = None
+        self,
+        settings: WebSettings,
+        *,
+        transport: httpx.BaseTransport | None = None,
+        portfolio_manager_id: str | None = None,
     ) -> None:
         self._settings = settings
         self._client = httpx.Client(
             base_url=settings.api_base_url + "/",
+            headers={"X-Portfolio-Manager": portfolio_manager_id} if portfolio_manager_id else None,
             timeout=httpx.Timeout(
                 connect=settings.connect_timeout,
                 read=settings.read_timeout,
@@ -63,6 +69,9 @@ class FinanceApiClient:
 
     def health(self) -> HealthResponse:
         return self._request("GET", "health", HealthResponse, timeout=self._settings.health_timeout)
+
+    def portfolio_managers(self) -> PortfolioManagerDirectory:
+        return self._request("GET", "portfolio/managers", PortfolioManagerDirectory)
 
     def query(self, request: QueryRequest) -> QueryResponse:
         return self._request("POST", "query", QueryResponse, request=request)

@@ -65,3 +65,42 @@ async def test_shared_model_load_and_prediction_are_serialized(monkeypatch):
         assert peak == 1
     finally:
         runtime._load_cross_encoder.cache_clear()
+
+
+async def test_reranker_exposes_finite_scores_in_rank_order():
+    from finassist.agents.finance_qa.schemas import FinanceDocument
+
+    reranker = runtime.FinanceCrossEncoderReranker(
+        "test",
+        model=SimpleNamespace(predict=lambda pairs, **kwargs: [-1.5, 3.2]),
+    )
+    documents = [FinanceDocument(content=text, source="handbook") for text in ["first", "second"]]
+    result = await reranker.rerank("ETF", documents, limit=2)
+    assert [(d.content, d.score, d.rank) for d in result] == [
+        ("second", 3.2, 1),
+        ("first", -1.5, 2),
+    ]
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), -float("inf")])
+async def test_nonfinite_scores_preserve_retrieval_order_and_identify_fallback(invalid, caplog):
+    import json
+
+    from finassist.agents.finance_qa.schemas import FinanceDocument
+
+    reranker = runtime.FinanceCrossEncoderReranker(
+        "test",
+        model=SimpleNamespace(predict=lambda pairs, **kwargs: [invalid, 4.0]),
+    )
+    documents = [
+        FinanceDocument(content="first", source="handbook", score=0.02),
+        FinanceDocument(content="second", source="handbook", score=invalid),
+    ]
+    result = await reranker.rerank("ETF", documents, limit=2)
+    assert [(d.content, d.score, d.rank) for d in result] == [
+        ("first", 0.02, 1),
+        ("second", None, 2),
+    ]
+    assert all("rerank_fallback_nonfinite" in d.provenance for d in result)
+    json.dumps([d.model_dump() for d in result], allow_nan=False)
+    assert "reranker_nonfinite_scores" in caplog.text

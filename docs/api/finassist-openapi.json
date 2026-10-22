@@ -34,15 +34,35 @@
         ],
         "summary": "Query Assistant",
         "operationId": "query_assistant_query_post",
+        "parameters": [
+          {
+            "name": "X-Portfolio-Manager",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Local simulated manager selection; unavailable outside local mode.",
+              "title": "X-Portfolio-Manager"
+            },
+            "description": "Local simulated manager selection; unavailable outside local mode."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/QueryRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -75,15 +95,35 @@
         ],
         "summary": "Resume Query",
         "operationId": "resume_query_query_resume_post",
+        "parameters": [
+          {
+            "name": "X-Portfolio-Manager",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Local simulated manager selection; unavailable outside local mode.",
+              "title": "X-Portfolio-Manager"
+            },
+            "description": "Local simulated manager selection; unavailable outside local mode."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResumeRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -92,6 +132,57 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/QueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portfolio/managers": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Portfolio Managers",
+        "operationId": "portfolio_managers_portfolio_managers_get",
+        "parameters": [
+          {
+            "name": "X-Portfolio-Manager",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Local simulated manager selection; unavailable outside local mode.",
+              "title": "X-Portfolio-Manager"
+            },
+            "description": "Local simulated manager selection; unavailable outside local mode."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioManagerDirectory"
                 }
               }
             }
@@ -417,6 +508,56 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "PortfolioManager": {
+        "properties": {
+          "manager_id": {
+            "type": "string",
+            "title": "Manager Id"
+          },
+          "manager_name": {
+            "type": "string",
+            "title": "Manager Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "manager_id",
+          "manager_name"
+        ],
+        "title": "PortfolioManager"
+      },
+      "PortfolioManagerDirectory": {
+        "properties": {
+          "managers": {
+            "items": {
+              "$ref": "#/components/schemas/PortfolioManager"
+            },
+            "type": "array",
+            "title": "Managers"
+          },
+          "current_manager_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Manager Id"
+          },
+          "can_switch": {
+            "type": "boolean",
+            "title": "Can Switch",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "managers"
+        ],
+        "title": "PortfolioManagerDirectory"
       }
     }
   }

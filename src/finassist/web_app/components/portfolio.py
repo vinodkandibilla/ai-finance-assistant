@@ -8,11 +8,32 @@ from finassist.web_app.services.api_client import ApiError
 from finassist.web_app.services.portfolio import (
     PortfolioSnapshot,
     fetch_current_portfolios,
+    fetch_portfolio_managers,
     performance_label,
     snapshots,
 )
 
 COLORS = ["#153E75", "#0F766E", "#2563EB", "#7C3AED", "#B45309"]
+
+
+def comparison_rows(portfolios: list[PortfolioSnapshot]) -> list[dict[str, str]]:
+    """Compact display values; incomplete performance is never shown as zero."""
+    return [
+        {
+            "Customer": (
+                f"{p.customer_name} ({p.customer_id})" if p.customer_name else p.customer_id
+            ),
+            "Value (USD)": f"${p.portfolio_value:,.2f}",
+            "Largest holding": f"{max(h.holding_allocation_pct for h in p.holdings):.1f}%",
+            "Holdings": str(len(p.holdings)),
+            "Unrealized gain/loss (USD)": (
+                f"${p.unrealized_gain_loss:,.2f}"
+                if p.performance_complete and p.unrealized_gain_loss is not None
+                else "Unavailable"
+            ),
+        }
+        for p in portfolios
+    ]
 
 
 def holdings_table(snapshot: PortfolioSnapshot) -> None:
@@ -159,8 +180,54 @@ def _select_customer(customer_id: str) -> None:
     st.session_state["portfolio_selected_customer"] = customer_id
 
 
+def _change_manager() -> None:
+    st.session_state["portfolio_manager_override"] = st.session_state.get("portfolio_manager_id")
+    for key in (
+        "portfolio_landing_response",
+        "portfolio_selected_customer",
+        "portfolio_customer_search",
+        "conversation",
+        "draft_portfolio",
+        "question_portfolio",
+        "chat_input_portfolio",
+    ):
+        st.session_state.pop(key, None)
+
+
+def _manager_selector() -> None:
+    if "portfolio_manager_directory" not in st.session_state:
+        try:
+            st.session_state["portfolio_manager_directory"] = fetch_portfolio_managers()
+        except ApiError:
+            st.warning("Portfolio manager list is unavailable.")
+            return
+    directory = st.session_state["portfolio_manager_directory"]
+    if not directory.managers:
+        return
+    managers = {m.manager_id: m.manager_name for m in directory.managers}
+    if st.session_state.get("portfolio_manager_id") not in managers:
+        st.session_state["portfolio_manager_id"] = directory.current_manager_id or next(
+            iter(managers)
+        )
+    conversation = st.session_state.get("conversation")
+    blocked = bool(
+        conversation
+        and (conversation.thread_id or conversation.failed_request or conversation.pending_request)
+    )
+    selected = st.selectbox(
+        "Portfolio manager",
+        list(managers),
+        format_func=lambda identifier: f"{managers[identifier]} · {identifier}",
+        key="portfolio_manager_id",
+        on_change=_change_manager,
+        disabled=blocked or not directory.can_switch,
+    )
+    st.session_state["portfolio_manager_override"] = selected if directory.can_switch else None
+
+
 def portfolio_dashboard() -> None:
     st.subheader("Portfolio analytics")
+    _manager_selector()
     with st.expander("Portfolio Data", expanded=True, key="portfolio_data_details"):
         st.write(
             "Portfolios use illustrative holdings and frozen reference prices. "
@@ -170,7 +237,10 @@ def portfolio_dashboard() -> None:
         st.session_state.pop("portfolio_landing_response", None)
         try:
             with st.spinner("Loading your portfolio workspace…"):
-                st.session_state["portfolio_landing_response"] = fetch_current_portfolios()
+                manager = st.session_state.get("portfolio_manager_override")
+                st.session_state["portfolio_landing_response"] = (
+                    fetch_current_portfolios(manager) if manager else fetch_current_portfolios()
+                )
         except (ApiError, ValueError):
             st.error(
                 "Portfolio data is unavailable. "
@@ -185,7 +255,7 @@ def portfolio_dashboard() -> None:
         )
         with st.expander("Data needed for these charts"):
             st.write(
-                "The API has no portfolio GET route. A successful /query calculation needs "
+                "Portfolio charts need a complete structured snapshot containing "
                 "customer_id, data_source, price_basis, portfolio_value, and holdings with symbol, "
                 "market_value and holding_allocation_pct. Values must reconcile. Manager "
                 "comparisons may return these snapshots inside portfolios. Cost basis and "

@@ -633,7 +633,7 @@ device selection. This can reduce concurrent reranking throughput; retrieval and
 remain unchanged. Restart FastAPI after changing the reranker runtime. Hugging Face HTTP 307
 redirects followed by HTTP 200 are normal and do not indicate a failed model download.
 
-Tool factories require a reranker dependency and accept `rerank_top_n` (default 5). Shared [`rag_tools.py`](src/finassist/agents/common/rag_tools.py) packages the results through [`EvidenceResult`](src/finassist/agents/common/schemas.py): `candidates`, `metadata_filters`, `citations`, and `errors`. Candidate records retain content, source metadata, and retrieval identifiers/scores when supplied. A reranking failure returns an error and no unranked evidence; empty retrieval skips reranking. Omitted lexical keywords default to the search question; an explicit empty keyword list disables that sparse query.
+Tool factories require a reranker dependency and accept `rerank_top_n` (default 5). Shared [`rag_tools.py`](src/finassist/agents/common/rag_tools.py) packages the results through [`EvidenceResult`](src/finassist/agents/common/schemas.py): `candidates`, `metadata_filters`, `citations`, and `errors`. Candidate records retain content, source metadata, and retrieval identifiers/scores when supplied. When a reranker is enabled, its execution failure returns an error and no unranked evidence; empty retrieval skips reranking. With `reranker=None`, the original RRF order and scores are preserved and sliced to the evidence limit. Omitted lexical keywords default to the search question; an explicit empty keyword list disables that sparse query.
 
 Search limits count requested domain search calls, including failed calls. Recursion limits bound the agent loop; a separate configurable execution deadline covers active model/tool calls and final formatting, but does not bound exact provider token cost. Answers marked `answered` without retrieved evidence are rejected. Citation-list validation verifies retrieved source identifiers; it does not independently verify answer claims or inline citations.
 
@@ -1726,3 +1726,229 @@ Trace display labels include `Classify request`, `Choose specialist agent`,
 `Clarify or finish`, and `Assess portfolio answer`. Internal graph node IDs stay
 unchanged for routing/checkpoint compatibility and may still appear as enclosing
 spans. These labels affect newly generated traces after restarting the API.
+
+### Finance retrieval stage traces
+
+With LangSmith tracing enabled, `finance_rag_query` now exposes metadata extraction,
+retrieval slot wait, dense query embedding, sparse encoding, Qdrant hybrid search
+and RRF, result conversion, and evidence reranking. Reranking includes separate
+worker-thread spans for lock wait, cached model lookup/loading, and pair scoring.
+`Get or load reranker model` includes initialization only when the model is not
+already cached; compare first-request and warm-request timings.
+
+Stage inputs contain counts, lengths, collection/model names and filter presence;
+metadata extraction records matched field names, not values. The new spans do not
+record query text, vectors or full documents. Existing outer tool/model traces
+retain their existing payload behavior. Qdrant dense/sparse search and RRF run in
+one server request, so their individual server timings are not available here.
+Shared hybrid-search and reranker spans also appear for tax requests using those
+components. No extra LLM calls are introduced. Restart the API and inspect a new
+request; historical traces are unchanged.
+
+### Finance answer completion without a formatter call
+
+Finance education now finishes with the `submit_finance_answer` tool using the
+existing `FinanceAgentResult` schema. The agent generates its explanation, citations
+and status in that tool call; Python validates the payload and applies the existing
+retrieval, citation and calculator checks. No separate formatter LLM is constructed
+or invoked for finance. Clarification still uses the existing interrupt tools;
+changed-task scope decisions remain the agent's responsibility.
+
+The completion tool must be called alone after the required tools finish. Missing
+completion or a submitted clarification status receives one protocol-repair retry;
+schema validation errors are returned by the tool loop for correction within the
+existing recursion/deadline limits. Failure to complete returns the existing safe
+error response. Finance and tax both use terminal completion tools. A normal retrieval answer needs
+one planning LLM call and one structured answer LLM call, plus Python tool execution.
+Live latency and output quality still need comparison; retries or recovery can add
+turns. In LangSmith, expect `submit_finance_answer` after the final finance LLM call,
+with no subsequent formatter LLM call.
+
+Finance binds its tools with `tool_choice="required"` and
+`parallel_tool_calls=False`. Each model turn must select one available action:
+retrieval/recovery, calculation, clarification or `submit_finance_answer`.
+This prevents ordinary plain-text completion from triggering an extra packaging
+turn. Python validation, bounded protocol recovery, retrieval safeguards and the
+execution deadline remain in place. Tax uses the same binding protocol; other
+agents retain their existing behavior. Restart the API to apply the setting; live timing is not yet measured.
+
+RAG candidates retain the cross-encoder's finite relevance `score` (a raw score,
+not a probability). If any prediction is NaN/infinite, reranking falls back to the
+original retrieval order for the whole batch. Finite original retrieval scores
+are preserved; unavailable/nonfinite scores become null. Candidates include
+`rerank_fallback_nonfinite` in provenance and the reranker span records
+`ranking_status=fallback_nonfinite_scores`. A warning identifies this fallback.
+This prevents invalid score ordering; it does not diagnose why the model produced
+nonfinite predictions or use relevance scores as evidence-sufficiency thresholds.
+
+
+### Finance reranking deferred for the MVP
+
+Finance cross-encoder reranking is **disabled by default** via
+`FINANCE_RERANKER_ENABLED=false`. Local tests of
+`cross-encoder/ms-marco-MiniLM-L-6-v2` reproduced NaN raw logits and predictions
+for short stock/ETF examples despite finite model weights and CPU float32.
+Changing attention implementations, using one CPU thread, and disabling MKLDNN
+did not resolve it. The underlying inference/dependency issue remains unproven.
+Previously every request paid loading/inference cost before falling back to RRF;
+disabling it avoids that work without pretending reranking is functioning.
+
+Finance retains dense + sparse retrieval fused by Qdrant RRF at unchanged depths:
+initial dense/sparse limits 10/10, up to 20 fused candidates; expansion 20/20,
+up to 40 fused candidates. It now exposes the top **3 initial/targeted passages**
+and **5 novel expansion passages** in RRF order, subject to existing deduplication
+and evidence budgets. Configure these with the legacy-named
+`FINANCE_RERANK_TOP_N=3` and `FINANCE_EXPANSION_RERANK_TOP_N=5`; these limits also
+apply without reranking. RRF scores remain retrieval-fusion scores, not confidence
+or semantic-sufficiency scores. Traces show `Select top RRF evidence`; finance
+performs no cross-encoder loading or inference. Tax also disables cross-encoder
+reranking by default, while retaining its existing 5/10 evidence limits.
+
+Future work: reproduce the issue in an isolated compatible dependency environment,
+verify finite model outputs, then compare RRF-only and reranked retrieval on the
+labeled cases for relevant-evidence coverage and latency before setting
+`FINANCE_RERANKER_ENABLED=true`. Also validate the smaller 3/5 evidence limits on
+live queries: complex answers may need more recovery. Deterministic tests check
+ordering, limits and budgets; they do not establish live retrieval-quality parity.
+Restart the API after changing these settings.
+
+Finance expansion and targeted recovery require `missing_aspect` explaining the
+necessary unsupported fact and what the current passages lack. Their shared blank-gap
+check rejects empty/whitespace input before retrieval. The model must identify a necessary unsupported fact;
+Tool guidance directs the agent to submit its final answer when the evidence already covers the request.
+Python validates that a gap is stated, not whether it is semantically justified;
+unnecessary expansion attempts can still add a model turn. Search budgets and
+execution limits remain enforced. Answer guidance asks for citations only to
+passages used, excluding bibliography-only text; semantic citation validation
+remains outside this guard.
+
+Paired recovery decision fixtures are in
+[`evals/finance/recovery`](evals/finance/recovery/README.md): a stock definition
+present in baseline evidence should finish; a dividends-only passage should allow
+recovery for the absent ownership definition. Expansion guidance now includes both
+examples and the system prompt consolidates the stopping rules. These fixtures
+still require live decision evaluation; deterministic checks do not establish
+semantic gap detection. Recovery remains enabled, and no keyword-based rule
+blocks legitimate definitions or forces a particular answer.
+
+### Finance semantic answer cache (Qdrant)
+
+The answer cache uses a separate `finance_answer_cache` Qdrant collection through
+the existing application client. OpenAI `text-embedding-3-small` (or the configured
+embedding model) generates vectors; **Qdrant performs cosine similarity search**.
+There is no custom Python embedding model, vector scan, or in-memory LRU cache.
+The collection is created lazily using the embedding dimensions.
+
+Lookup remains after routing and before the finance agent. A semantic hit returns
+the stored answer/citations and skips retrieval and finance LLM calls; the router
+still runs. Normalized exact repeats use a deterministic point ID without another
+embedding call. Semantic lookup filters by topic, version namespace, unexpired
+entries and the configured similarity threshold.
+
+```dotenv
+FINANCE_ANSWER_CACHE_ENABLED=true
+FINANCE_ANSWER_CACHE_COLLECTION=finance_answer_cache
+FINANCE_ANSWER_CACHE_TTL_SECONDS=3600
+FINANCE_ANSWER_CACHE_SIMILARITY=0.92
+FINANCE_ANSWER_CACHE_EMBEDDING_TIMEOUT_SECONDS=2
+```
+
+Local Qdrant mode persists in `.qdrant` across API restarts; use one API worker
+with local mode. Qdrant **server mode** allows multiple workers to share entries.
+Payloads contain normalized query, topic, version namespace, expiry timestamp and
+public result. Namespace fingerprints cover prompt, configured models/settings
+and corpus. Restart after policy/corpus changes. Use a new cache collection name
+if embedding dimensions change. Existing in-memory entries are not migrated.
+
+Expired entries are filtered out immediately and deleted on successful writes;
+there is no background cleanup or hard entry-capacity limit. The previous
+`FINANCE_ANSWER_CACHE_CAPACITY` setting has been removed. Embedding/Qdrant failures
+fall through to normal RAG, and store failures do not discard the generated answer.
+
+Existing eligibility checks remain: context-free definitions only, same supported
+topic, successful answers with known corpus citations, no reported errors or
+calculation payload. Comparisons, extra constraints, personalized requests and
+clarification resumes bypass the cache. Citation membership is checked, not semantic
+claim support. Tax now shares the cache implementation with its own policy below.
+Similarity thresholds still require live
+calibration; unsupported wording can miss.
+
+LangSmith shows `Finance semantic answer cache` (`miss`, `semantic_hit`, `exact_hit`,
+`bypass`, `cache_error`), `Embed cache query`, and `Store finance cached answer`.
+Set `FINANCE_ANSWER_CACHE_ENABLED=false` and restart for fresh retrieval/recovery
+demos. Offline checks cover Qdrant lookup, persistence across client restart,
+expiry, semantic scope, failure fallback and clarification resume; no live OpenAI
+or remote Qdrant timing benchmark was performed.
+
+Cache misses now record `similarity_threshold` and `miss_reason` in LangSmith.
+`below_threshold` includes the nearest eligible `similarity`; `no_eligible_entry`
+means no unexpired entry matched topic and version (it does not distinguish an
+empty collection from expired or differently scoped/versioned entries). Qdrant
+returns the nearest filtered candidate and Python applies the same acceptance
+threshold; this adds diagnostics without broadening cache reuse.
+
+
+### Tax optimization and shared semantic answer cache
+
+Tax now uses `submit_tax_answer` with the existing `TaxAgentResult` schema. The
+shared education runtime requires one tool per turn, validates terminal results,
+and retains evidence/citation, calculation, clarification, scope and deadline
+checks. The old separate formatter implementation was removed from the shared
+runtime because both education agents now use terminal tools. Existing missing-tool
+and protocol repair remain bounded; live behavior still needs measurement.
+
+Tax retrieval defaults to hybrid/RRF order, avoiding the shared cross-encoder's
+reproduced NaN inference failure. Set `TAX_RERANKER_ENABLED=true` only after finite
+predictions and retrieval quality are verified. Tax retains **5 initial / 10
+expanded passages**, rather than adopting finance's smaller limits without
+validation. Both recovery tools remain enabled and require a specific missing
+aspect. The duplicate tax baseline shortcut was removed so baseline retrieval
+records the search plan needed for genuine expansion and preserves original
+metadata constraints. Definitions stop when directly supported and default to
+2-3 sentences; multipart questions may recover evidence for specific gaps.
+
+The Qdrant implementation lives in `agents/common/answer_cache.py`; finance and
+tax modules now contain only their eligibility policies. Tax uses a separate
+`tax_answer_cache` collection and namespace covering the tax prompt, models,
+settings, corpus/year metadata and US federal jurisdiction. No extra judge LLM is
+used. Cacheable examples: `What is Form W-2?`, `Define W2`, `What is a tax deduction?`,
+`What is a tax credit?`. Explicit years, filing status, jurisdiction modifiers,
+amounts, thresholds, eligibility, comparisons, calculations and clarification
+resumes bypass caching. Only general definitions are shared across requests.
+Corpus citation membership does not prove semantic claim support.
+
+```dotenv
+TAX_RERANKER_ENABLED=false
+TAX_ANSWER_CACHE_ENABLED=true
+TAX_ANSWER_CACHE_COLLECTION=tax_answer_cache
+TAX_ANSWER_CACHE_TTL_SECONDS=3600
+TAX_ANSWER_CACHE_SIMILARITY=0.90
+TAX_ANSWER_CACHE_EMBEDDING_TIMEOUT_SECONDS=2
+```
+
+The existing resume API bypass flag applies to both caches. Tax lookup/store spans
+use `Tax semantic answer cache` and `Store tax cached answer`, including similarity
+and miss reasons. Restart the API after changing these settings. Offline checks
+cover tax terminal calls, retained year filters/calculator behavior, recovery,
+cache scope/version isolation and finance regressions; live quality, similarity
+calibration and latency comparisons are still pending.
+
+
+### Portfolio manager workspace selector
+
+The Portfolio page now loads a searchable manager dropdown from
+`GET /portfolio/managers`. Selecting a manager reloads the existing customer
+directory, metrics, holdings and charts for that manager. The previous optional
+portfolio request-scope expander (role/customer/manager fields) is removed.
+
+In `APP_ENV=local`, a simulated portfolio-manager identity may select another
+seeded manager. The UI sends `X-Portfolio-Manager` on dashboard and chat requests;
+the backend validates the manager against the store and resolves a request-local
+simulated identity. It never changes shared application identity. Selection is
+blocked during pending/failed chat requests; switching clears prior customer and
+conversation state. Resume ownership checks still apply to the selected identity.
+Customer identities cannot switch managers. Outside local mode, only the current
+manager is listed and selection overrides are rejected; this demo selector is not
+production authentication or permission delegation. The API returns only manager
+ID/name, not directory email fields. Existing portfolio access checks remain active.
+Restart the API and refresh Streamlit to load the updated contract and controls.

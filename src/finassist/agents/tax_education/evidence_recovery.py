@@ -17,31 +17,8 @@ TARGET = "tax_targeted_search"
 ACTIONS = {BASELINE, EXPAND, TARGET}
 
 
-def create_tax_evidence_recovery(retriever, reranker, settings, baseline_tool=None):
+def create_tax_evidence_recovery(retriever, reranker, settings):
     async def execute(action, query, state, dense=None, sparse=None, missing_aspect=""):
-        if action == BASELINE and baseline_tool is not None:
-            prior_calls = sum(
-                call["name"] in ACTIONS
-                for message in state["messages"]
-                for call in getattr(message, "tool_calls", [])
-            )
-            if prior_calls > settings.agent_max_searches:
-                payload = EvidenceResult(errors=["Tax search budget exhausted."]).model_dump()
-                payload["action"] = BASELINE
-                return payload, payload
-            original = str(state["messages"][0].content)
-            for reply in user_replies(state["messages"], "ask_tax_clarification"):
-                original += "\nAdditional details: " + reply
-            payload = await baseline_tool.ainvoke(
-                {
-                    "query": original,
-                    "search_query": query,
-                    "dense_queries": dense or [query],
-                    "sparse_keywords": sparse or [query],
-                }
-            )
-            payload["action"] = BASELINE
-            return payload, payload
         messages = state["messages"]
         calls, plans, seen, used_chars = read_retrieval_history(messages, ACTIONS)
         reason = _validate(action, query, missing_aspect, calls, plans, seen, used_chars, settings)
@@ -125,8 +102,8 @@ def _validate(action, query, missing_aspect, calls, plans, seen, used_chars, set
         return "Targeted-search action limit reached."
     if action != EXPAND and not query.strip():
         return "Supply a nonempty search query."
-    if action == TARGET and not missing_aspect.strip():
-        return "Identify the missing aspect before targeted search."
+    if action in {TARGET, EXPAND} and not missing_aspect.strip():
+        return "Identify the specific missing aspect before recovery."
     if (
         len(seen) >= settings.max_evidence_passages
         or used_chars >= settings.max_evidence_characters

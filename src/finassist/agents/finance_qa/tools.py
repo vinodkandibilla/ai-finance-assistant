@@ -1,6 +1,7 @@
 """Tools for querying the indexed finance handbook."""
 
 from langchain_core.tools import StructuredTool
+from langsmith import trace
 from pydantic import BaseModel, Field
 
 from finassist.agents.common.rag_tools import finance_citations, rerank_evidence
@@ -31,22 +32,39 @@ def create_finance_rag_query_tool(
         dense_queries: list[str] | None = None,
         sparse_keywords: list[str] | None = None,
     ) -> dict:
-        metadata = metadata_extractor.extract(query)
+        with trace(
+            "Extract finance metadata", run_type="chain", inputs={"query_length": len(query)}
+        ) as span:
+            metadata = metadata_extractor.extract(query)
+            metadata_filter = metadata_extractor.build_qdrant_filter(metadata)
+            span.add_outputs({"filter_fields": sorted(metadata)})
         try:
-            documents, errors = await retriever.retrieve(
-                dense_queries or [query],
-                sparse_keywords if sparse_keywords is not None else [query],
-                metadata_filter=metadata_extractor.build_qdrant_filter(metadata),
-            )
-            return await rerank_evidence(
-                query=query,
-                documents=documents,
-                metadata=metadata,
-                errors=errors,
-                reranker=reranker,
-                limit=rerank_top_n,
-                citations=finance_citations,
-            )
+            with trace(
+                "Retrieve finance candidates",
+                run_type="retriever",
+                inputs={"dense_query_count": len(dense_queries or [query])},
+            ):
+                documents, errors = await retriever.retrieve(
+                    dense_queries or [query],
+                    sparse_keywords if sparse_keywords is not None else [query],
+                    metadata_filter=metadata_filter,
+                )
+            with trace(
+                "Rerank and prepare finance evidence"
+                if reranker is not None
+                else "Select and prepare finance evidence",
+                run_type="retriever",
+                inputs={"candidate_count": len(documents), "limit": rerank_top_n},
+            ):
+                return await rerank_evidence(
+                    query=query,
+                    documents=documents,
+                    metadata=metadata,
+                    errors=errors,
+                    reranker=reranker,
+                    limit=rerank_top_n,
+                    citations=finance_citations,
+                )
         except Exception as error:
             return EvidenceResult(
                 metadata_filters=metadata, errors=[f"Finance search failed: {type(error).__name__}"]

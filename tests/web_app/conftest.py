@@ -2,7 +2,7 @@
 
 import pytest
 
-from finassist.web_app.services.models import QueryResponse
+from finassist.web_app.services.models import PortfolioManagerDirectory, QueryResponse
 
 
 @pytest.fixture(autouse=True)
@@ -17,6 +17,10 @@ def market_dashboard_stub(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def portfolio_dashboard_stub(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "finassist.web_app.components.portfolio.fetch_portfolio_managers",
+        lambda: PortfolioManagerDirectory(managers=[]),
+    )
     monkeypatch.setattr(
         "finassist.web_app.components.portfolio.fetch_current_portfolios",
         lambda: QueryResponse(intent="portfolio", answer="No portfolio data in UI smoke tests."),

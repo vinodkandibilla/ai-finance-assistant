@@ -7,13 +7,15 @@ import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
-from langchain_core.tools import tool
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
+from langchain_core.tools import StructuredTool, tool
 from langgraph.errors import GraphInterrupt, GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import InjectedState, create_react_agent
+from pydantic import Field
 
 from finassist.agents.common.clarification import clarification_reply
 from finassist.agents.common.schemas import AgentResult, AgentState, EvidenceResult
@@ -25,6 +27,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class AgentPolicy:
     intent: str
+    completion_tool_name: str
     label: str
     name: str
     prompt: str
@@ -119,14 +122,22 @@ class AutonomousEducationAgent:
             async def recover(
                 query: str,
                 state: Annotated[dict, InjectedState],
-                missing_aspect: str = "",
+                missing_aspect: Annotated[
+                    str,
+                    Field(
+                        description=(
+                            "Necessary unsupported fact and what the current evidence lacks. "
+                            "Explain the gap, not just a topic label such as definition."
+                        )
+                    ),
+                ],
                 dense_queries: list[str] | None = None,
                 sparse_keywords: list[str] | None = None,
             ) -> tuple[dict, dict]:
                 """Recover evidence: expand a previous search or target an explicit missing aspect.
 
                 Expansion reuses the last successful search plan; query is ignored.
-                Targeted search requires missing_aspect and a focused query.
+                Both actions require missing_aspect; targeted search also needs a focused query.
                 Original user constraints and shared budgets are enforced by the application.
                 """
                 return await policy.evidence_recovery(
@@ -134,10 +145,19 @@ class AutonomousEducationAgent:
                 )
 
             if "expand" in name:
+                example = (
+                    "'A share represents company ownership' answers 'What is a stock?'; "
+                    "definition is NOT missing. If passages mention only dividends, "
+                    "the ownership definition may be missing. "
+                    if policy.intent == "finance_qa"
+                    else "'Form W-2 reports wages and withholding' answers 'What is Form W-2?'; "
+                    "definition is NOT missing. Recover only for an unsupported requested fact. "
+                )
                 recover.description = (
-                    "Deepen the last successful evidence search using the expansion profile. "
-                    "Use when relevant evidence is too shallow. Reuses previous search terms; "
-                "query is ignored. The shared runtime enforces the total action budget."
+                    "Deepen the last search only for a necessary unsupported fact. Explain "
+                    "missing_aspect against the returned passages. Example: "
+                    + example
+                    + "Submit the answer when supported. Reuses prior terms; query is ignored."
                 )
             else:
                 recover.description = (
@@ -198,18 +218,71 @@ class AutonomousEducationAgent:
                 )
             return messages
 
+        async def submit_answer(
+            **fields: Any,
+        ) -> tuple[dict[str, Any], dict[str, Any]]:
+            payload = result_schema.model_validate(fields).model_dump()
+            return payload, payload
+
+        completion_tool = StructuredTool.from_function(
+            coroutine=submit_answer,
+            name=policy.completion_tool_name,
+            description="Submit the final task outcome alone after needed tools. "
+            "Use the latest user reply; clarification must use the interrupt tool.",
+            args_schema=result_schema,
+            response_format="content_and_artifact",
+            return_direct=True,
+        )
+
         self.retrieval_tool = search
+        tools = [search, *recovery_tools, clarify, *additional_tools, completion_tool]
+        model = llm.bind_tools(tools, tool_choice="required", parallel_tool_calls=False)
         self.agent = create_react_agent(
-            model=llm,
-            tools=[search, *recovery_tools, clarify, *additional_tools],
+            model=model,
+            tools=tools,
             prompt=agent_prompt,
             name=policy.name,
         )
-        self._formatter = llm.with_structured_output(result_schema)
         self.graph = self._build_graph()
 
     async def ainvoke(self, state: dict, config: dict) -> dict:
         return await self.graph.ainvoke(state, config=config)
+
+    async def _invoke_with_completion(
+        self, messages: list[BaseMessage], config: RunnableConfig
+    ) -> tuple[dict[str, Any], AgentResult]:
+        """Accept a terminal tool result; allow one bounded protocol repair."""
+        for attempt in range(2):
+            output = await self.agent.ainvoke(
+                {"messages": messages},
+                config={**config, "recursion_limit": self._settings.agent_recursion_limit},
+            )
+            history = output["messages"]
+            last = history[-1]
+            decision = next((m for m in reversed(history) if isinstance(m, AIMessage)), None)
+            if (
+                isinstance(last, ToolMessage)
+                and last.name == self._policy.completion_tool_name
+                and last.status != "error"
+                and decision is not None
+                and len(decision.tool_calls) == 1
+                and last.tool_call_id == decision.tool_calls[0]["id"]
+            ):
+                result = self._result_schema.model_validate(last.artifact)
+                if result.status != "clarification":
+                    return output, result
+            if attempt == 0:
+                messages = [
+                    *history,
+                    HumanMessage(
+                        content=f"Use {self._policy.completion_tool_name} to submit the outcome "
+                        "alone, with valid fields. Use the clarification interrupt tool "
+                        "for missing user details; do not submit clarification status. "
+                        f"For an in-scope explanation, first call {self._policy.search_tool_name} "
+                        "if no retrieval has run. Do not claim missing evidence before searching."
+                    ),
+                ]
+        raise ValueError("Missing valid structured completion")
 
     def _build_graph(self):
         policy = self._policy
@@ -224,44 +297,21 @@ class AutonomousEducationAgent:
                 async with deadline:
                     input_messages = [HumanMessage(content=query)]
                     for attempt in range(2 if policy.recover_skipped_retrieval else 1):
-                        output = await self.agent.ainvoke(
-                            {"messages": input_messages},
-                            config={
-                                **config,
-                                "recursion_limit": self._settings.agent_recursion_limit,
-                            },
-                        )
-                        replies = user_replies(
-                            output["messages"],
-                            policy.clarification_tool_name,
-                            policy.additional_reply_tools,
-                        )
-                        final = await self._formatter.ainvoke(
-                            [
-                                SystemMessage(
-                                    content=policy.prompt
-                                    + "\nFormat the task. A latest reply replacing the task "
-                                    "outside your scope requires out_of_scope, not insufficient. "
-                                    "Clarification must use the interrupt tool."
-                                ),
-                                *output["messages"],
-                                HumanMessage(
-                                    content="Original question: "
-                                    + query
-                                    + "\nActual clarification replies: "
-                                    + repr(replies)
-                                    + "\nHonor the latest user reply if it changes the task. "
-                                    "Return the current task outcome, not the abandoned task."
-                                ),
-                            ]
-                        )
+                        output, final = await self._invoke_with_completion(input_messages, config)
                         result = schema.model_validate(final)
                         if (
                             policy.recover_skipped_retrieval
                             and attempt == 0
-                            and result.status == "answered"
+                            and result.status in {"answered", "insufficient"}
                             and not any(
-                                isinstance(message, ToolMessage) for message in output["messages"]
+                                isinstance(message, ToolMessage)
+                                and message.name
+                                not in {
+                                    policy.completion_tool_name,
+                                    policy.clarification_tool_name,
+                                    *policy.additional_reply_tools,
+                                }
+                                for message in output["messages"]
                             )
                         ):
                             logger.info(
@@ -272,7 +322,7 @@ class AutonomousEducationAgent:
                                 *output["messages"],
                                 SystemMessage(
                                     content=(
-                                        "Answer rejected: no tool was called. "
+                                        "Answer rejected: no tool was called for evidence. "
                                         "For explanations, call the retrieval tool now "
                                         "and ground your answer in returned passages. Do not use "
                                         "the unsupported answer as evidence. For a supported "

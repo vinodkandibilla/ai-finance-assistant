@@ -4,7 +4,7 @@ import math
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from finassist.web_app.services.models import QueryResponse
+from finassist.web_app.services.models import PortfolioManagerDirectory, QueryResponse
 
 
 class Holding(BaseModel):
@@ -133,7 +133,7 @@ def sample_snapshot() -> PortfolioSnapshot:
     )
 
 
-def fetch_current_portfolios() -> QueryResponse:
+def fetch_current_portfolios(manager_id: str | None = None) -> QueryResponse:
     """Use server-provided identity; no frontend identity or store access."""
     from finassist.web_app.config import WebSettings
     from finassist.web_app.services.api_client import FinanceApiClient
@@ -148,7 +148,9 @@ def fetch_current_portfolios() -> QueryResponse:
         "Do not ask me for my ID when application identity supplies it. "
         "Use portfolio tools and return their structured calculations; do not invent data."
     )
-    with FinanceApiClient(WebSettings.from_environment()) as client:
+    with FinanceApiClient(
+        WebSettings.from_environment(), portfolio_manager_id=manager_id
+    ) as client:
         return client.query(QueryRequest(query=query))
 
 
@@ -166,3 +168,11 @@ def performance_label(snapshot: PortfolioSnapshot) -> str:
     if negative:
         return "Losses"
     return "Unchanged"
+
+
+def fetch_portfolio_managers() -> PortfolioManagerDirectory:
+    from finassist.web_app.config import WebSettings
+    from finassist.web_app.services.api_client import FinanceApiClient
+
+    with FinanceApiClient(WebSettings.from_environment()) as client:
+        return client.portfolio_managers()

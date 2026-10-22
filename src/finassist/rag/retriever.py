@@ -5,6 +5,7 @@ from typing import Protocol
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_qdrant import FastEmbedSparse, QdrantVectorStore
+from langsmith import trace
 from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, Prefetch, Rrf, RrfQuery, ScoredPoint, SparseVector
 
@@ -40,9 +41,14 @@ class QdrantHybridSearch:
     ) -> list[ScoredPoint]:
         try:
             async with asyncio.timeout(timeout_seconds):
-                dense_vectors = await asyncio.gather(
-                    *(self._embeddings.aembed_query(query) for query in dense_queries)
-                )
+                with trace(
+                    "Embed dense queries",
+                    run_type="embedding",
+                    inputs={"query_count": len(dense_queries)},
+                ):
+                    dense_vectors = await asyncio.gather(
+                        *(self._embeddings.aembed_query(query) for query in dense_queries)
+                    )
                 prefetch = [
                     Prefetch(
                         query=vector,
@@ -54,9 +60,14 @@ class QdrantHybridSearch:
                     if vector
                 ]
                 if sparse_query.strip():
-                    sparse_vector = await asyncio.to_thread(
-                        self._sparse_embeddings.embed_query, sparse_query
-                    )
+                    with trace(
+                        "Encode sparse query",
+                        run_type="embedding",
+                        inputs={"query_length": len(sparse_query)},
+                    ):
+                        sparse_vector = await asyncio.to_thread(
+                            self._sparse_embeddings.embed_query, sparse_query
+                        )
                     if sparse_vector.indices:
                         prefetch.append(
                             Prefetch(
@@ -71,15 +82,26 @@ class QdrantHybridSearch:
                         )
                 if not prefetch:
                     return []
-                response = await asyncio.to_thread(
-                    self._client.query_points,
-                    collection_name=self._collection_name,
-                    prefetch=prefetch,
-                    query=RrfQuery(rrf=Rrf(k=rrf_k)),
-                    query_filter=query_filter,
-                    limit=candidate_limit,
-                    with_payload=True,
-                )
+                with trace(
+                    "Qdrant hybrid search and RRF",
+                    run_type="retriever",
+                    inputs={
+                        "collection": self._collection_name,
+                        "prefetch_count": len(prefetch),
+                        "candidate_limit": candidate_limit,
+                        "filtered": query_filter is not None,
+                    },
+                ) as span:
+                    response = await asyncio.to_thread(
+                        self._client.query_points,
+                        collection_name=self._collection_name,
+                        prefetch=prefetch,
+                        query=RrfQuery(rrf=Rrf(k=rrf_k)),
+                        query_filter=query_filter,
+                        limit=candidate_limit,
+                        with_payload=True,
+                    )
+                    span.add_outputs({"result_count": len(response.points)})
             return response.points
         except Exception:
             logger.exception(

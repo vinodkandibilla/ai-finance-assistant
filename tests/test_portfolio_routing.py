@@ -57,7 +57,7 @@ async def test_documented_examples_retain_domain_routes(query, intent, handler, 
         result = await build_graph(classifier).ainvoke({"query": query})
         assert result["classified_intent"] == intent
         assert result["executed_handler"] == handler
-        assert query in model.seen[0][0].content
+        assert model.seen[0][-1].content == query
     finally:
         get_settings.cache_clear()
 

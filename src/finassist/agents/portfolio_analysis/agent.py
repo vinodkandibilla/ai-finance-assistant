@@ -22,7 +22,6 @@ from finassist.data.portfolio_store import PortfolioStore
 from finassist.prompts import PORTFOLIO_ANALYSIS_AGENT_PROMPT as AGENT_PROMPT
 
 TOOL_GUIDANCE = (
-    "Use deterministic tool results; never recalculate metrics. "
     "For routine portfolio listings, screens or dashboard retrieval, explicitly set "
     "finish_response=true on screen_manager_portfolios or compare_manager_portfolios "
     "when that single tool covers the entire request. Use false when interpretation, "
@@ -37,6 +36,9 @@ class PortfolioState(AgentState, total=False):
 
 
 class PortfolioAnalysisResult(AgentResult):
+    answer: str = Field(
+        description="Direct user-facing answer, not a review of coverage or sufficiency."
+    )
     profile_alignment_customer_ids: list[str] = Field(
         default_factory=list,
         description="Customer IDs needing profile-alignment interpretation in the latest request.",
@@ -230,6 +232,10 @@ class PortfolioAnalysisAgent:
                                 HumanMessage(
                                     content="Check coverage and alignment with the request "
                                     "and user replies. Do not recalculate tool math. "
+                                    "Put the direct answer in answer; keep assessment in the "
+                                    "assessment fields. For a how-many question, lead with the "
+                                    "customer count and relevant names/losses from the results. "
+                                    "Never narrate that the response is sufficient or aligned. "
                                     "If incomplete, specify the next clarification or tool action."
                                 ),
                             ]

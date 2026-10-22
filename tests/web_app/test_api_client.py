@@ -176,7 +176,7 @@ def test_models_match_committed_openapi_contract() -> None:
     contract = json.loads(
         (Path(__file__).resolve().parents[2] / "docs/api/finassist-openapi.json").read_text()
     )
-    assert set(contract["paths"]) == {"/health", "/query", "/query/resume"}
+    assert set(contract["paths"]) == {"/health", "/query", "/query/resume", "/portfolio/managers"}
     for model in (HealthResponse, QueryRequest, ResumeRequest, QueryResponse):
         actual = model.model_json_schema()
         expected = contract["components"]["schemas"][model.__name__]

@@ -1,9 +1,10 @@
-from typing import Literal
+from typing import Any, Literal
 
-from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables import RunnableConfig, RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from finassist.agents.common.answer_cache import SemanticAnswerCache
 from finassist.agents.common.clarification import build_clarification_graph
 from finassist.agents.finance_qa import FinanceQaAgent
 from finassist.agents.goal_planning import GoalPlanningAgent
@@ -149,7 +150,9 @@ def build_graph(
     *,
     market_agent: MarketAnalysisAgent | None = None,
     finance_agent: FinanceQaAgent | None = None,
+    finance_answer_cache: SemanticAnswerCache | None = None,
     tax_agent: TaxEducationAgent | None = None,
+    tax_answer_cache: SemanticAnswerCache | None = None,
     goal_agent: GoalPlanningAgent | None = None,
     news_agent: NewsSynthesizerAgent | None = None,
     portfolio_agent: PortfolioAnalysisAgent | None = None,
@@ -182,13 +185,31 @@ def build_graph(
     def unavailable_news_node(_: FinanceAssistantState) -> FinanceAssistantState:
         return {"answer": "News synthesizer agent is not configured.", "status": "error"}
 
+    def cached_handler(agent, cache):
+        async def handle(state: FinanceAssistantState, config: RunnableConfig) -> dict[str, Any]:
+            async def compute():
+                return await agent.graph.ainvoke(state, config=config)
+
+            result = await cache.run(
+                state["query"],
+                compute,
+                bypass=bool(config.get("configurable", {}).get("bypass_answer_cache")),
+            )
+            return {**result, "user_query": state["query"], "search_query": state["query"]}
+
+        return handle
+
     workflow: StateGraph[
         FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState
     ] = StateGraph(FinanceAssistantState)
     workflow.add_node("intent_router", RunnableLambda(classify_node, name="Classify request"))
     workflow.add_node(
         "finance_qa_node",
-        finance_agent.graph.with_config(run_name="Finance education")
+        RunnableLambda(
+            cached_handler(finance_agent, finance_answer_cache), name="Finance education"
+        )
+        if finance_agent is not None and finance_answer_cache is not None
+        else finance_agent.graph.with_config(run_name="Finance education")
         if finance_agent is not None
         else RunnableLambda(empty_finance_qa_node),
     )
@@ -216,7 +237,9 @@ def build_graph(
     )
     workflow.add_node(
         "tax_education_node",
-        tax_agent.graph.with_config(run_name="Tax education")
+        RunnableLambda(cached_handler(tax_agent, tax_answer_cache), name="Tax education")
+        if tax_agent is not None and tax_answer_cache is not None
+        else tax_agent.graph.with_config(run_name="Tax education")
         if tax_agent is not None
         else RunnableLambda(unavailable_tax_node),
     )

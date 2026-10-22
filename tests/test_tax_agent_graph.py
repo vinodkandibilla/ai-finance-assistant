@@ -57,7 +57,11 @@ async def test_model_directs_searches_without_changing_original_year():
                 {"query": "2025 deduction", "dense_queries": ["eligibility"]},
                 "one",
             ),
-            call("tax_rag_query", {"query": "More tax evidence"}, "two"),
+            call(
+                "tax_targeted_search",
+                {"query": "More tax evidence", "missing_aspect": "Deduction eligibility details"},
+                "two",
+            ),
             AIMessage(content="Done"),
         ],
         TaxAgentResult(status="answered", answer="Supported answer", citations=["invented"]),
@@ -286,3 +290,47 @@ async def test_out_of_scope_does_not_trigger_retrieval_recovery():
     assert result["status"] == "out_of_scope"
     assert not retriever.calls
     assert len(model.seen) == 1
+
+
+async def test_tax_terminal_answer_has_no_separate_formatter():
+    agent, retriever, model = make_agent(
+        [
+            call("tax_rag_query", {"query": "What is Form W-2?"}, "search"),
+            call(
+                "submit_tax_answer",
+                {
+                    "status": "answered",
+                    "answer": "Form W-2 reports wages.",
+                    "citations": ["MFJ brackets"],
+                },
+                "done",
+            ),
+        ],
+        TaxAgentResult(status="error"),
+    )
+    result = await agent.graph.ainvoke({"query": "What is Form W-2?"})
+    assert not hasattr(agent, "_formatter")
+    assert len(model.seen) == 2
+    assert model.tool_binding_options == {"tool_choice": "required", "parallel_tool_calls": False}
+    assert result["status"] == "answered"
+    assert result["answer"] == "Form W-2 reports wages."
+
+
+async def test_tax_expansion_can_reuse_baseline_search_plan():
+    agent, retriever, _ = make_agent(
+        [
+            call("tax_rag_query", {"query": "US federal deductions"}, "search"),
+            call(
+                "tax_expand_evidence",
+                {"query": "ignored", "missing_aspect": "Itemizing rules"},
+                "expand",
+            ),
+            AIMessage(content="Done"),
+        ],
+        TaxAgentResult(status="answered", answer="Supported explanation"),
+    )
+    result = await agent.graph.ainvoke({"query": "Explain US federal deduction rules."})
+    assert result["status"] == "answered"
+    assert len(retriever.calls) == 2
+    assert retriever.calls[1][0] == retriever.calls[0][0]
+    assert retriever.calls[1][1]["limit"] == 40

@@ -28,6 +28,17 @@ class HealthResponse(WireModel):
     version: str
 
 
+class PortfolioManager(WireModel):
+    manager_id: str
+    manager_name: str
+
+
+class PortfolioManagerDirectory(WireModel):
+    managers: list[PortfolioManager]
+    current_manager_id: str | None = None
+    can_switch: bool = False
+
+
 class QueryRequest(WireModel):
     query: Question
     market_scope: Literal["us_nasdaq_usd"] | None = None

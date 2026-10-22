@@ -28,6 +28,7 @@ class TaxEducationAgent(AutonomousEducationAgent):
         )
         policy = AgentPolicy(
             intent="tax",
+            completion_tool_name="submit_tax_answer",
             recover_skipped_retrieval=True,
             label="Tax",
             name="tax_education_agent",
@@ -40,9 +41,7 @@ class TaxEducationAgent(AutonomousEducationAgent):
             clarification_response=_clarification_response,
             process_tool_results=process_tax_calculation_results,
             recovery_tool_names=(EXPAND, TARGET),
-            evidence_recovery=create_tax_evidence_recovery(
-                retriever, reranker, settings, baseline_tool
-            ),
+            evidence_recovery=create_tax_evidence_recovery(retriever, reranker, settings),
         )
         super().__init__(
             llm=llm,

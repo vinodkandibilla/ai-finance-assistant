@@ -55,3 +55,31 @@ async def test_tool_defaults_to_question_and_preserves_retrieval_errors():
     result = await tool.ainvoke({"query": "What is compound interest?"})
     assert result["candidates"] == []
     assert result["errors"] == ["hybrid retrieval failed: TimeoutError"]
+
+
+async def test_rrf_only_selection_preserves_order_scores_and_limit():
+    documents = [
+        FinanceDocument(
+            content=f"Evidence {i}", source="handbook", score=0.1 / i, metadata={"page_number": i}
+        )
+        for i in range(1, 6)
+    ]
+
+    class Retriever:
+        async def retrieve(self, *args, **kwargs):
+            return documents, []
+
+    tool = create_finance_rag_query_tool(
+        Retriever(),
+        FinanceMetadataExtractor([]),
+        reranker=None,
+        rerank_top_n=3,
+    )
+    result = await tool.ainvoke({"query": "ETF"})
+    assert [d["content"] for d in result["candidates"]] == [
+        "Evidence 1",
+        "Evidence 2",
+        "Evidence 3",
+    ]
+    assert [d["score"] for d in result["candidates"]] == [d.score for d in documents[:3]]
+    assert result["errors"] == []
