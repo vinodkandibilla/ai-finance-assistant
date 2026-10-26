@@ -371,6 +371,31 @@ def _safe_error_response(error: Exception) -> QueryResponse:
     return QueryResponse(intent="other", answer=detail, status="error")
 
 
+def _trace_usage_summary(result: dict) -> None:
+    """Aggregate token metadata from returned model messages without logging content."""
+    totals = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "model_calls": 0}
+    for message in result.get("messages", []):
+        usage = (
+            message.get("usage_metadata", {})
+            if isinstance(message, dict)
+            else getattr(message, "usage_metadata", None)
+        ) or {}
+        if usage:
+            totals["input_tokens"] += int(usage.get("input_tokens", 0))
+            totals["output_tokens"] += int(usage.get("output_tokens", 0))
+            totals["total_tokens"] += int(usage.get("total_tokens", 0))
+            totals["model_calls"] += 1
+    if not totals["model_calls"] or not get_settings().trace_tags_enabled:
+        return
+    with trace(
+        "request_cost_summary",
+        run_type="chain",
+        inputs={},
+        metadata={"token_usage_summary": True},
+    ) as span:
+        span.add_outputs(totals)
+
+
 @router.post("/query", response_model=QueryResponse, response_model_exclude_none=True)
 async def query_assistant(
     request: QueryRequest,
@@ -400,6 +425,7 @@ async def query_assistant(
         )
     except Exception as error:
         return _safe_error_response(error)
+    _trace_usage_summary(result)
     interrupt_payload = await _get_interrupt_payload(graph, thread_id, result)
     status = "clarification" if interrupt_payload else result.get("status")
     if status in {None, "answered", "not_implemented"}:
@@ -470,6 +496,7 @@ async def resume_query(
         )
     except Exception as error:
         return _safe_error_response(error)
+    _trace_usage_summary(result)
     interrupt_payload = await _get_interrupt_payload(graph, request.thread_id, result)
     status = "clarification" if interrupt_payload else result.get("status")
     if status in {None, "answered", "not_implemented"}:
