@@ -15,7 +15,7 @@ class RouterRunMetadata(BaseModel):
     started_at: datetime
     mode: Literal["classifier", "routes"]
     model: str
-    prompt_sha256: str
+    prompt_version: str = "v1"
     dataset_sha256: str
     router_timeout_seconds: float
     market_quotes_enabled: bool
@@ -61,16 +61,16 @@ def create_run_metadata(
     *,
     mode: Literal["classifier", "routes"],
     model: str,
-    system_prompt: str,
     router_timeout_seconds: float,
     market_quotes_enabled: bool,
+    prompt_version: str = "v1",
 ) -> RouterRunMetadata:
     """Capture before running; supply the actual classifier and routing configuration."""
     return RouterRunMetadata(
         started_at=datetime.now(UTC),
         mode=mode,
         model=model,
-        prompt_sha256=hashlib.sha256(system_prompt.encode("utf-8")).hexdigest(),
+        prompt_version=prompt_version,
         dataset_sha256=_dataset_hash(cases),
         router_timeout_seconds=router_timeout_seconds,
         market_quotes_enabled=market_quotes_enabled,

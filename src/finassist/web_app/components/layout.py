@@ -363,7 +363,7 @@ def compact_spacing() -> None:
     }
     .st-key-chat_history [data-testid="stChatMessage"]:has(
         [data-testid="stChatMessageAvatarUser"]
-    ) { background: #E5F2F0; }
+    ) { background: #E5F2F0; padding-block: 0.375rem; height: auto; min-height: 0; }
     .st-key-chat_composer {
         background: #EAF0F6;
         padding: 0.5rem;

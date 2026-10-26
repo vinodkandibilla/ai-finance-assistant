@@ -1,9 +1,11 @@
+import logging
 from functools import lru_cache
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langsmith import trace
 from pydantic import BaseModel, Field, field_validator
 
 from finassist.agents.common.answer_cache import SemanticAnswerCache, cache_namespace
@@ -25,6 +27,7 @@ from finassist.agents.tax_education.config import TaxAgentSettings
 from finassist.agents.tax_education.graph import TaxEducationAgent
 from finassist.core.config import get_settings
 from finassist.data.portfolio_store import PortfolioStore
+from finassist.guardrails.pii import redact_pii
 from finassist.prompts import FINANCE_QA_AGENT_PROMPT, TAX_EDUCATION_AGENT_PROMPT
 from finassist.rag.qdrant import get_qdrant_client
 from finassist.rag.tax_education import get_tax_retriever, load_tax_documents
@@ -33,10 +36,11 @@ from finassist.workflow.classifier import IntentClassifier, create_intent_classi
 from finassist.workflow.state import ExecutedHandler, FinanceIntent
 
 router = APIRouter(tags=["assistant"])
+logger = logging.getLogger(__name__)
 
 
 class QueryRequest(BaseModel):
-    query: str = Field(min_length=1, max_length=4000)
+    query: str = Field(min_length=1, max_length=2000)
     market_scope: Literal["us_nasdaq_usd"] | None = None
     user_role: Literal["portfolio_manager", "individual_customer"] | None = None
     customer_id: str | None = Field(default=None, min_length=1, max_length=100)
@@ -190,7 +194,7 @@ def get_query_graph(
                 OpenAIEmbeddings(
                     model=settings.openai_embedding_model,
                     api_key=settings.openai_api_key.get_secret_value(),
-                    max_retries=0,
+                    max_retries=2,
                     timeout=finance_settings.answer_cache_embedding_timeout_seconds,
                 ),
                 scope=finance_cache_scope,
@@ -229,7 +233,7 @@ def get_query_graph(
                 OpenAIEmbeddings(
                     model=settings.openai_embedding_model,
                     api_key=settings.openai_api_key.get_secret_value(),
-                    max_retries=0,
+                    max_retries=2,
                     timeout=tax_settings.answer_cache_embedding_timeout_seconds,
                 ),
                 client=qdrant_client,
@@ -270,40 +274,146 @@ def get_query_graph(
     )
 
 
+def _trace_config(source: str, *, pii_entities: tuple[str, ...] = ()) -> dict:
+    settings = get_settings()
+    if not settings.trace_tags_enabled:
+        return {}
+    return {
+        "tags": [
+            settings.trace_app_tag,
+            f"env:{settings.trace_environment or settings.app_env}",
+            f"source:{'web-chat' if source == 'web-chat' else 'api'}",
+        ],
+        "metadata": {
+            "finpilot_agent_tags": True,
+            "prompt_version": settings.intent_router_prompt_version,
+            "pii_redacted": bool(pii_entities),
+            "pii_entity_types": list(pii_entities),
+        },
+    }
+
+
+def _trace_regex_block(*, source: str, reason: str, query_length: int) -> None:
+    """Create a redacted guardrail trace without recording query contents."""
+    settings = get_settings()
+    if not settings.trace_tags_enabled:
+        return
+    with trace(
+        "regex_guard",
+        run_type="chain",
+        inputs={"query_length": query_length},
+        tags=[
+            settings.trace_app_tag,
+            f"env:{settings.trace_environment or settings.app_env}",
+            f"source:{'web-chat' if source == 'web-chat' else 'api'}",
+            "guardrail",
+        ],
+        metadata={
+            "guardrail_blocked": True,
+            "guardrail_reason": reason,
+            "prompt_version": settings.intent_router_prompt_version,
+        },
+    ) as span:
+        span.add_outputs({"status": "blocked", "reason": reason})
+
+
+def _trace_guardrail(name: str, *, decision: str, metadata: dict | None = None) -> None:
+    settings = get_settings()
+    if not settings.trace_tags_enabled:
+        return
+    with trace(
+        name,
+        run_type="chain",
+        inputs={},
+        tags=[settings.trace_app_tag, "guardrail"],
+        metadata={"decision": decision, **(metadata or {})},
+    ) as span:
+        span.add_outputs({"decision": decision})
+
+
+def _redact_output(text: str) -> str:
+    """Sanitize the final user-visible answer using the input PII guard."""
+    redacted = redact_pii(text)
+    _trace_guardrail(
+        "output_guard",
+        decision="redacted" if redacted.entities else "allowed",
+        metadata={"entity_types": list(redacted.entities)},
+    )
+    return redacted.text
+
+
+def _finalize_response(response: QueryResponse, raw_status: str | None) -> QueryResponse:
+    """Apply the small set of shared MVP response checks."""
+    if raw_status in {None, "answered", "not_implemented"} and not response.answer.strip():
+        _trace_guardrail("output_guard", decision="fallback", metadata={"reason": "empty_answer"})
+        return QueryResponse(
+            intent=response.intent,
+            classified_intent=response.classified_intent,
+            executed_handler=response.executed_handler,
+            answer="I could not produce a verified answer from the available information.",
+            status="insufficient",
+            thread_id=response.thread_id,
+        )
+    # Re-validate the public boundary model after all sanitization.
+    return QueryResponse.model_validate(response.model_dump(exclude_none=True))
+
+
+def _safe_error_response(error: Exception) -> QueryResponse:
+    """Log details internally and expose only a safe MVP error message."""
+    logger.exception("assistant_execution_failed", exc_info=error)
+    _trace_guardrail("output_guard", decision="fallback", metadata={"reason": "execution_error"})
+    error_name = type(error).__name__.lower()
+    detail = (
+        "The service is temporarily unavailable. Please try again shortly."
+        if "ratelimit" in error_name or "quota" in error_name
+        else "The request could not be completed right now."
+    )
+    return QueryResponse(intent="other", answer=detail, status="error")
+
+
 @router.post("/query", response_model=QueryResponse, response_model_exclude_none=True)
 async def query_assistant(
     request: QueryRequest,
     graph: Annotated[FinanceAssistantGraph, Depends(get_query_graph)],
     user_context: Annotated[UserContext | None, Depends(get_simulated_user_context)] = None,
+    source: Annotated[str, Header(alias="X-FinPilot-Source")] = "api",
 ) -> QueryResponse:
     import uuid
 
     thread_id = str(uuid.uuid4())
-    result = await graph.ainvoke(
-        {
-            "query": request.query,
-            "thread_id": thread_id,
-            "portfolio_user_context": user_context.model_dump() if user_context else None,
-            **request.model_dump(exclude_none=True, exclude={"query"}),
-        },
-        config={
-            "configurable": {
+    redacted = redact_pii(request.query)
+    try:
+        result = await graph.ainvoke(
+            {
+                "query": redacted.text,
                 "thread_id": thread_id,
                 "portfolio_user_context": user_context.model_dump() if user_context else None,
-            }
-        },
-    )
+                **request.model_dump(exclude_none=True, exclude={"query"}),
+            },
+            config={
+                **_trace_config(source, pii_entities=redacted.entities),
+                "configurable": {
+                    "thread_id": thread_id,
+                    "portfolio_user_context": user_context.model_dump() if user_context else None,
+                },
+            },
+        )
+    except Exception as error:
+        return _safe_error_response(error)
     interrupt_payload = await _get_interrupt_payload(graph, thread_id, result)
     status = "clarification" if interrupt_payload else result.get("status")
     if status in {None, "answered", "not_implemented"}:
         status = None
-    return QueryResponse(
+    answer = (
+        (interrupt_payload.get("answer") or result.get("answer", ""))
+        if interrupt_payload
+        else result.get("answer", "")
+    )
+    response = QueryResponse(
         intent=result["intent"],
         classified_intent=result.get("classified_intent"),
         executed_handler=result.get("executed_handler"),
-        answer=(interrupt_payload.get("answer") or result.get("answer", ""))
-        if interrupt_payload
-        else result.get("answer", ""),
+        answer=_redact_output(answer),
         calculations=result.get("calculations"),
         calculation=interrupt_payload.get("calculation")
         if interrupt_payload
@@ -319,6 +429,7 @@ async def query_assistant(
             else result.get("clarification_question") or None
         ),
     )
+    return _finalize_response(response, result.get("status"))
 
 
 class ResumeRequest(BaseModel):
@@ -336,6 +447,7 @@ async def resume_query(
     request: ResumeRequest,
     graph: Annotated[FinanceAssistantGraph, Depends(get_query_graph)],
     user_context: Annotated[UserContext | None, Depends(get_simulated_user_context)] = None,
+    source: Annotated[str, Header(alias="X-FinPilot-Source")] = "api",
 ) -> QueryResponse:
     from langgraph.types import Command
 
@@ -343,27 +455,35 @@ async def resume_query(
     snapshot = await graph.aget_state({"configurable": {"thread_id": request.thread_id}})
     if snapshot.values.get("portfolio_user_context") != identity:
         raise HTTPException(status_code=403, detail="You do not have access to this query thread.")
-    result = await graph.ainvoke(
-        Command(resume=request.reply),
-        config={
-            "configurable": {
-                "thread_id": request.thread_id,
-                "portfolio_user_context": identity,
-                "bypass_answer_cache": True,
-            }
-        },
-    )
+    redacted = redact_pii(request.reply)
+    try:
+        result = await graph.ainvoke(
+            Command(resume=redacted.text),
+            config={
+                **_trace_config(source, pii_entities=redacted.entities),
+                "configurable": {
+                    "thread_id": request.thread_id,
+                    "portfolio_user_context": identity,
+                    "bypass_answer_cache": True,
+                },
+            },
+        )
+    except Exception as error:
+        return _safe_error_response(error)
     interrupt_payload = await _get_interrupt_payload(graph, request.thread_id, result)
     status = "clarification" if interrupt_payload else result.get("status")
     if status in {None, "answered", "not_implemented"}:
         status = None
-    return QueryResponse(
+    answer = (
+        (interrupt_payload.get("answer") or result.get("answer", ""))
+        if interrupt_payload
+        else result.get("answer", "")
+    )
+    response = QueryResponse(
         intent=result.get("intent", "finance_qa"),
         classified_intent=result.get("classified_intent"),
         executed_handler=result.get("executed_handler"),
-        answer=(interrupt_payload.get("answer") or result.get("answer", ""))
-        if interrupt_payload
-        else result.get("answer", ""),
+        answer=_redact_output(answer),
         calculations=result.get("calculations"),
         calculation=interrupt_payload.get("calculation")
         if interrupt_payload
@@ -379,6 +499,7 @@ async def resume_query(
             else result.get("clarification_question") or None
         ),
     )
+    return _finalize_response(response, result.get("status"))
 
 
 async def _get_interrupt_payload(

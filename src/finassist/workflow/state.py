@@ -58,3 +58,5 @@ class FinanceAssistantState(TypedDict, total=False):
     citations: list[str]
     status: str
     thread_id: str
+    guardrail_blocked: bool
+    pii_entity_types: list[str]

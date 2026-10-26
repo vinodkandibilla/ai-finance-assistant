@@ -52,6 +52,7 @@ def test_requests_responses_and_timeouts() -> None:
         ("POST", "/prefix/query/resume"),
     ]
     assert json.loads(seen[1].content) == {"query": "Save money"}
+    assert all(request.headers["X-FinPilot-Source"] == "web-chat" for request in seen)
     assert json.loads(seen[2].content) == {
         "query": "Analyze",
         "user_role": "portfolio_manager",
@@ -137,7 +138,7 @@ def test_safe_failures_without_retry(method: str, failure: str | int, code: str)
     [
         (QueryRequest, {}),
         (QueryRequest, {"query": "  "}),
-        (QueryRequest, {"query": "x" * 4001}),
+        (QueryRequest, {"query": "x" * 2001}),
         (QueryRequest, {"query": "x", "user_role": "admin"}),
         (QueryRequest, {"query": "x", "customer_id": ""}),
         (QueryRequest, {"query": "x", "manager_id": "x" * 101}),

@@ -36,6 +36,16 @@
         "operationId": "query_assistant_query_post",
         "parameters": [
           {
+            "name": "X-FinPilot-Source",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "api",
+              "title": "X-Finpilot-Source"
+            }
+          },
+          {
             "name": "X-Portfolio-Manager",
             "in": "header",
             "required": false,
@@ -96,6 +106,16 @@
         "summary": "Resume Query",
         "operationId": "resume_query_query_resume_post",
         "parameters": [
+          {
+            "name": "X-FinPilot-Source",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "api",
+              "title": "X-Finpilot-Source"
+            }
+          },
           {
             "name": "X-Portfolio-Manager",
             "in": "header",
@@ -239,7 +259,7 @@
         "properties": {
           "query": {
             "type": "string",
-            "maxLength": 4000,
+            "maxLength": 2000,
             "minLength": 1,
             "title": "Query"
           },
@@ -457,7 +477,7 @@
           },
           "reply": {
             "type": "string",
-            "maxLength": 4000,
+            "maxLength": 2000,
             "minLength": 1,
             "title": "Reply"
           }

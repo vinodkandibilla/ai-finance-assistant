@@ -15,7 +15,7 @@ Handler = Literal[
     "clarify_node",
     "unsupported_node",
 ]
-Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 Identifier = Annotated[str, Field(min_length=1, max_length=100)]
 
 

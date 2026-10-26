@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from streamlit.errors import StreamlitAPIException
 
 from finassist.web_app.components.chat_viewport import fit_chat_viewport
+from finassist.web_app.components.clipboard import copy_message
 from finassist.web_app.components.focus import focus_chat_composer
 from finassist.web_app.components.portfolio import comparison_rows
 from finassist.web_app.config import WebSettings
@@ -108,17 +109,19 @@ def _render_message(message: Message) -> None:
     with st.chat_message(message.role), st.container(gap="xsmall"):
         response = message.response
         if response:
-            st.caption(f"FinPilot · {LABELS[response.intent]}")
+            header = [f"FinPilot · {LABELS[response.intent]}"]
             if response.classified_intent:
-                st.caption(f"Classified intent: {response.classified_intent}")
+                header.append(f"Intent: {response.classified_intent}")
             if response.executed_handler:
-                st.caption(f"Agent: {response.executed_handler}")
+                header.append(f"Agent: {response.executed_handler}")
+            st.caption(" · ".join(header))
         # Assistant answers contain Markdown citations; raw HTML remains disabled.
         if message.text:
             if response:
                 st.markdown(label_citations(message.text), unsafe_allow_html=False)
+                copy_message(message.text)
             else:
-                st.text(message.text)
+                copy_message(message.text, display_text=True)
         if response:
             if response.status:
                 st.text(f"Status: {response.status}")

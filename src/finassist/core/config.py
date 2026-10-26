@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from finassist.prompts import INTENT_ROUTER_SYSTEM_PROMPT
+from finassist.prompts import INTENT_ROUTER_PROMPT_VERSION, INTENT_ROUTER_SYSTEM_PROMPT
 
 
 class Settings(BaseSettings):
@@ -13,9 +13,16 @@ class Settings(BaseSettings):
         "PORTFOLIO_MANAGER"
     )
     app_env: Literal["local", "test", "staging", "production"] = "local"
+    trace_tags_enabled: bool = True
+    trace_app_tag: str = Field(default="finpilot", min_length=1, max_length=64)
+    trace_environment: str | None = Field(default=None, min_length=1, max_length=64)
     log_level: str = "INFO"
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4o-mini"
+    moderation_enabled: bool = True
+    moderation_model: str = "omni-moderation-latest"
+    injection_classifier_enabled: bool = True
+    injection_classifier_model: str = "gpt-4o-mini"
     router_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
     openai_embedding_model: str = "text-embedding-3-small"
     finance_query_analysis_model: str = "gpt-4o-mini"
@@ -41,6 +48,7 @@ class Settings(BaseSettings):
         default=INTENT_ROUTER_SYSTEM_PROMPT,
         min_length=1,
     )
+    intent_router_prompt_version: str = Field(default=INTENT_ROUTER_PROMPT_VERSION, min_length=1)
     qdrant_mode: Literal["local", "server"] = "local"
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: SecretStr | None = None

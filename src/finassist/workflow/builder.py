@@ -13,6 +13,10 @@ from finassist.agents.news_synthesizer import NewsSynthesizerAgent
 from finassist.agents.portfolio_analysis.agent import PortfolioAnalysisAgent
 from finassist.agents.tax_education.graph import TaxEducationAgent
 from finassist.core.config import get_settings
+from finassist.guardrails.injection import classify_injection
+from finassist.guardrails.moderation import moderate_text
+from finassist.guardrails.pii import redact_pii
+from finassist.guardrails.regex import check_regex_guards
 from finassist.workflow.classifier import IntentClassifier
 from finassist.workflow.state import FinanceAssistantState
 
@@ -161,8 +165,61 @@ def build_graph(
     async def classify_node(state: FinanceAssistantState) -> FinanceAssistantState:
         return await _classify_intent(state, classifier=classifier)
 
+    async def input_guardrail_node(state: FinanceAssistantState) -> FinanceAssistantState:
+        redacted = redact_pii(state["query"])
+        regex_result = check_regex_guards(redacted.text)
+        if regex_result.blocked:
+            return {
+                "query": redacted.text,
+                "intent": "other",
+                "classified_intent": "other",
+                "executed_handler": "unsupported_node",
+                "answer": "I can’t help with that request.",
+                "status": "blocked",
+                "guardrail_blocked": True,
+                "pii_entity_types": list(redacted.entities),
+            }
+        settings = get_settings()
+        if settings.openai_api_key and settings.moderation_enabled:
+            moderation = await moderate_text(
+                redacted.text,
+                api_key=settings.openai_api_key.get_secret_value(),
+                model=settings.moderation_model,
+            )
+            if moderation.flagged:
+                return {
+                    "query": redacted.text,
+                    "intent": "other",
+                    "classified_intent": "other",
+                    "executed_handler": "unsupported_node",
+                    "answer": "I can’t help with that request.",
+                    "status": "blocked",
+                    "guardrail_blocked": True,
+                    "pii_entity_types": list(redacted.entities),
+                }
+        if settings.openai_api_key and settings.injection_classifier_enabled:
+            injection = await classify_injection(
+                redacted.text,
+                api_key=settings.openai_api_key.get_secret_value(),
+                model=settings.injection_classifier_model,
+            )
+            if injection.blocked:
+                return {
+                    "query": redacted.text,
+                    "intent": "other",
+                    "classified_intent": "other",
+                    "executed_handler": "unsupported_node",
+                    "answer": "I can’t help with that request.",
+                    "status": "blocked",
+                    "guardrail_blocked": True,
+                    "pii_entity_types": list(redacted.entities),
+                }
+        return {"query": redacted.text, "pii_entity_types": list(redacted.entities)}
+
     def select_agent_route(state: FinanceAssistantState) -> str:
-        return END if state.get("standalone_greeting") else state["executed_handler"]
+        if state.get("standalone_greeting"):
+            return "output_guardrail_node"
+        return state["executed_handler"]
 
     async def market_analysis_handler(
         state: FinanceAssistantState,
@@ -185,6 +242,19 @@ def build_graph(
     def unavailable_news_node(_: FinanceAssistantState) -> FinanceAssistantState:
         return {"answer": "News synthesizer agent is not configured.", "status": "error"}
 
+    def output_guardrail_node(state: FinanceAssistantState) -> FinanceAssistantState:
+        answer = str(state.get("answer") or "")
+        redacted = redact_pii(answer)
+        if (
+            state.get("status") in {None, "answered", "not_implemented"}
+            and not redacted.text.strip()
+        ):
+            return {
+                "answer": "I could not produce a verified answer from the available information.",
+                "status": "insufficient",
+            }
+        return {"answer": redacted.text}
+
     def cached_handler(agent, cache):
         async def handle(state: FinanceAssistantState, config: RunnableConfig) -> dict[str, Any]:
             async def compute():
@@ -202,8 +272,19 @@ def build_graph(
     workflow: StateGraph[
         FinanceAssistantState, None, FinanceAssistantState, FinanceAssistantState
     ] = StateGraph(FinanceAssistantState)
-    workflow.add_node("intent_router", RunnableLambda(classify_node, name="Classify request"))
-    workflow.add_node(
+    workflow.add_node("input_guardrail_node", RunnableLambda(input_guardrail_node))
+    def add_agent_node(node_name, runnable, agent):
+        def select(state, config: RunnableConfig):
+            if config.get("metadata", {}).get("finpilot_agent_tags"):
+                return runnable.with_config(tags=[f"agent:{agent}"])
+            return runnable
+
+        workflow.add_node(node_name, RunnableLambda(select, name=runnable.get_name()))
+
+    add_agent_node(
+        "intent_router", RunnableLambda(classify_node, name="Classify request"), "router"
+    )
+    add_agent_node(
         "finance_qa_node",
         RunnableLambda(
             cached_handler(finance_agent, finance_answer_cache), name="Finance education"
@@ -212,36 +293,42 @@ def build_graph(
         else finance_agent.graph.with_config(run_name="Finance education")
         if finance_agent is not None
         else RunnableLambda(empty_finance_qa_node),
+        "finance",
     )
-    workflow.add_node(
+    add_agent_node(
         "portfolio_analysis_node",
         portfolio_agent.graph.with_config(run_name="Portfolio analysis")
         if portfolio_agent is not None
         else RunnableLambda(lambda state: {**portfolio_analysis_node(state), "status": "error"}),
+        "portfolio",
     )
-    workflow.add_node(
+    add_agent_node(
         "market_analysis_node",
         build_clarification_graph(market_analysis_handler).with_config(run_name="Market analysis"),
+        "market",
     )
-    workflow.add_node(
+    add_agent_node(
         "goals_node",
         goal_agent.graph.with_config(run_name="Goal planning")
         if goal_agent is not None
         else RunnableLambda(unavailable_goal_node),
+        "goals",
     )
-    workflow.add_node(
+    add_agent_node(
         "news_synthesizer_node",
         news_agent.graph.with_config(run_name="News synthesis")
         if news_agent is not None
         else RunnableLambda(unavailable_news_node),
+        "news",
     )
-    workflow.add_node(
+    add_agent_node(
         "tax_education_node",
         RunnableLambda(cached_handler(tax_agent, tax_answer_cache), name="Tax education")
         if tax_agent is not None and tax_answer_cache is not None
         else tax_agent.graph.with_config(run_name="Tax education")
         if tax_agent is not None
         else RunnableLambda(unavailable_tax_node),
+        "tax",
     )
     workflow.add_node(
         "clarify_node", RunnableLambda(lambda state: {**clarify_node(state), "status": "answered"})
@@ -250,17 +337,25 @@ def build_graph(
         "unsupported_node",
         RunnableLambda(lambda state: {**unsupported_node(state), "status": "answered"}),
     )
-    workflow.add_edge(START, "intent_router")
+    workflow.add_node("output_guardrail_node", RunnableLambda(output_guardrail_node))
+    workflow.add_edge(START, "input_guardrail_node")
+    workflow.add_conditional_edges(
+        "input_guardrail_node",
+        lambda state: (
+            "output_guardrail_node" if state.get("guardrail_blocked") else "intent_router"
+        ),
+    )
     workflow.add_conditional_edges(
         "intent_router",
         RunnableLambda(select_agent_route, name="Choose specialist agent"),
     )
-    workflow.add_edge("finance_qa_node", END)
-    workflow.add_edge("portfolio_analysis_node", END)
-    workflow.add_edge("market_analysis_node", END)
-    workflow.add_edge("goals_node", END)
-    workflow.add_edge("news_synthesizer_node", END)
-    workflow.add_edge("tax_education_node", END)
-    workflow.add_edge("clarify_node", END)
-    workflow.add_edge("unsupported_node", END)
+    workflow.add_edge("finance_qa_node", "output_guardrail_node")
+    workflow.add_edge("portfolio_analysis_node", "output_guardrail_node")
+    workflow.add_edge("market_analysis_node", "output_guardrail_node")
+    workflow.add_edge("goals_node", "output_guardrail_node")
+    workflow.add_edge("news_synthesizer_node", "output_guardrail_node")
+    workflow.add_edge("tax_education_node", "output_guardrail_node")
+    workflow.add_edge("clarify_node", "output_guardrail_node")
+    workflow.add_edge("unsupported_node", "output_guardrail_node")
+    workflow.add_edge("output_guardrail_node", END)
     return workflow.compile(checkpointer=checkpointer)

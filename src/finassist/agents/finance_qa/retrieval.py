@@ -64,7 +64,7 @@ class FinanceHybridRetriever:
         embedding_model: str,
         settings: FinanceAgentSettings,
     ) -> FinanceHybridRetriever:
-        embeddings = OpenAIEmbeddings(model=embedding_model, api_key=api_key)
+        embeddings = OpenAIEmbeddings(model=embedding_model, api_key=api_key, max_retries=2)
         sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
         collection_name = settings.finance_collection
         if not documents:

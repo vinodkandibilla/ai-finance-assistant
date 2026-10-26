@@ -14,7 +14,7 @@ from finassist.agents.portfolio_analysis.authorization import (
 from finassist.data.portfolio_store import PRICE_BASIS, PortfolioStore
 
 RankBy = Literal["concentration", "diversification", "unrealized_loss"]
-Screen = Literal["all", "concentrated", "unrealized_losses"]
+Screen = Literal["all", "concentrated", "single_stock", "unrealized_losses"]
 
 
 @dataclass(frozen=True)
@@ -309,7 +309,7 @@ class PortfolioTools:
         screen: Screen = "concentrated",
         rank_by: RankBy = "concentration",
     ) -> dict[str, Any]:
-        if screen not in {"all", "concentrated", "unrealized_losses"}:
+        if screen not in {"all", "concentrated", "single_stock", "unrealized_losses"}:
             return {"status": "error", "code": "INVALID_SCREEN"}
         result = self.compare_manager_portfolios(manager_id, rank_by=rank_by)
         if result["status"] != "success":
@@ -317,6 +317,15 @@ class PortfolioTools:
         if screen == "concentrated":
             result["portfolios"] = [
                 r for r in result["portfolios"] if r["concentration"]["is_concentrated"]
+            ]
+        elif screen == "single_stock":
+            result["portfolios"] = [
+                r for r in result["portfolios"]
+                if any(
+                    h["asset_type"] == "stock"
+                    and h["symbol"] in r["concentration"]["holdings_over_threshold"]
+                    for h in r["holdings"]
+                )
             ]
         elif screen == "unrealized_losses":
             result["portfolios"] = [
@@ -370,6 +379,8 @@ class PortfolioTools:
         ) -> dict[str, Any]:
             """Screen authorized customers; omitted manager means the current manager.
 
+            single_stock selects individual stocks above the holding threshold;
+            concentrated also includes ETF holdings and sector concentration.
             Set finish_response true only when this screen fully answers a routine
             listing request; false for interpretation, profile alignment or additional tasks.
             Python formats successful completed screens without another model call.

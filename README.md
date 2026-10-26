@@ -1952,3 +1952,27 @@ manager is listed and selection overrides are rejected; this demo selector is no
 production authentication or permission delegation. The API returns only manager
 ID/name, not directory email fields. Existing portfolio access checks remain active.
 Restart the API and refresh Streamlit to load the updated contract and controls.
+
+### Request trace tags
+
+With LangSmith tracing enabled, `/query` and `/query/resume` add `finpilot`,
+`env:<APP_ENV>` and `source:api` tags. The web client sends
+`X-FinPilot-Source: web-chat`, producing `source:web-chat` instead. Unknown source
+values fall back to `api`; this client-reported marker is observability data, not
+identity or authorization. Router and specialist child runs receive their own
+`agent:router`, `agent:finance`, `agent:tax`, `agent:portfolio`, `agent:market`,
+`agent:goals` or `agent:news` tag, inherited by their descendants, not sibling agents.
+LangGraph may also supply its own framework tags.
+
+Configure through environment variables (restart the API after changes):
+
+```dotenv
+TRACE_TAGS_ENABLED=true
+TRACE_APP_TAG=finpilot
+# Optional override; otherwise APP_ENV supplies the environment label.
+TRACE_ENVIRONMENT=local
+```
+
+Disabling these tags does not disable LangSmith tracing. No evaluation tracing,
+evaluation tags or stage tags are added. Direct internal graph calls do not opt into
+these request tags automatically.

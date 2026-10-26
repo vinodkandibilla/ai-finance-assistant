@@ -42,7 +42,10 @@ class FinanceApiClient:
         self._settings = settings
         self._client = httpx.Client(
             base_url=settings.api_base_url + "/",
-            headers={"X-Portfolio-Manager": portfolio_manager_id} if portfolio_manager_id else None,
+            headers={
+                "X-FinPilot-Source": "web-chat",
+                **({"X-Portfolio-Manager": portfolio_manager_id} if portfolio_manager_id else {}),
+            },
             timeout=httpx.Timeout(
                 connect=settings.connect_timeout,
                 read=settings.read_timeout,
