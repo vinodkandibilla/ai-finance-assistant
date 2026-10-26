@@ -21,7 +21,12 @@ from finassist.agents.portfolio_analysis.tools import PortfolioTools
 from finassist.data.portfolio_store import PortfolioStore
 from finassist.prompts import PORTFOLIO_ANALYSIS_AGENT_PROMPT as AGENT_PROMPT
 
-TOOL_GUIDANCE = "Use deterministic tool results; never recalculate metrics."
+TOOL_GUIDANCE = (
+    "For routine portfolio listings, screens or dashboard retrieval, explicitly set "
+    "finish_response=true on screen_manager_portfolios or compare_manager_portfolios "
+    "when that single tool covers the entire request. Use false when interpretation, "
+    "profile alignment or additional tools are needed."
+)
 
 
 class PortfolioState(AgentState, total=False):
@@ -31,6 +36,9 @@ class PortfolioState(AgentState, total=False):
 
 
 class PortfolioAnalysisResult(AgentResult):
+    answer: str = Field(
+        description="Direct user-facing answer, not a review of coverage or sufficiency."
+    )
     profile_alignment_customer_ids: list[str] = Field(
         default_factory=list,
         description="Customer IDs needing profile-alignment interpretation in the latest request.",
@@ -55,12 +63,44 @@ class _IterationLimitReached(Exception):
         self.messages = messages
 
 
+class _CompletedScreen(Exception):
+    def __init__(self, payload: dict[str, Any]) -> None:
+        self.payload = payload
+
+
 def _iteration_count(messages: list[Any]) -> int:
     # Model turns are persisted in the child graph, including across clarification.
     return sum(isinstance(message, AIMessage) for message in messages)
 
 
 def _check_iteration_budget(state: dict[str, Any]) -> dict[str, Any]:
+    messages = state["messages"]
+    calls = [
+        call
+        for message in messages
+        if isinstance(message, AIMessage)
+        for call in message.tool_calls
+    ]
+    if len(calls) == 1 and calls[0]["name"] in {
+        "screen_manager_portfolios",
+        "compare_manager_portfolios",
+    }:
+        last = messages[-1]
+        if (
+            calls[0]["args"].get("finish_response") is True
+            and isinstance(last, ToolMessage)
+            and last.tool_call_id == calls[0]["id"]
+        ):
+            try:
+                payload = json.loads(str(last.content))
+            except (TypeError, ValueError):
+                payload = None
+            if (
+                isinstance(payload, dict)
+                and payload.get("status") == "success"
+                and isinstance(payload.get("portfolios"), list)
+            ):
+                raise _CompletedScreen(payload)
     if _iteration_count(state["messages"]) >= MAX_ITERATIONS:
         raise _IterationLimitReached(state["messages"])
     return {"llm_input_messages": state["messages"]}
@@ -103,7 +143,9 @@ class PortfolioAnalysisAgent:
             name="portfolio_analysis_agent",
             pre_model_hook=_check_iteration_budget,
         )
-        self._formatter = llm.with_structured_output(PortfolioAnalysisResult)
+        self._formatter = llm.with_structured_output(PortfolioAnalysisResult).with_config(
+            run_name="Assess portfolio answer"
+        )
         workflow = StateGraph(PortfolioState)
         workflow.add_node("portfolio_analysis_agent", self._run)
         workflow.add_edge(START, "portfolio_analysis_agent")
@@ -157,6 +199,28 @@ class PortfolioAnalysisAgent:
                                 RunnableConfig, {**config, "recursion_limit": self.recursion_limit}
                             ),
                         )
+                    except _CompletedScreen as completed:
+                        payload = completed.payload
+                        rows = payload["portfolios"]
+                        names = ", ".join(str(row["customer_id"]) for row in rows) or "None"
+                        excluded_count = len(payload.get("excluded_portfolios", []))
+                        result = AgentResult(
+                            status="answered",
+                            answer=(
+                                f"Screen: {payload.get('screen', 'all')}; "
+                                f"ranked by {payload['rank_by']}. "
+                                f"Matching portfolios ({len(rows)}): {names}. "
+                                f"Excluded portfolios: {excluded_count}. "
+                                f"Source: {payload['data_source']}. "
+                                f"Price basis: {payload['price_basis']}."
+                            ),
+                        )
+                        return {
+                            **result.model_dump(),
+                            "calculation": payload,
+                            "final_result": result.model_dump(),
+                            "intent": "portfolio",
+                        }
                     except _IterationLimitReached as limit:
                         # Evaluate the sixth turn's results, without another decision/tool turn.
                         output = {"messages": limit.messages}
@@ -168,6 +232,10 @@ class PortfolioAnalysisAgent:
                                 HumanMessage(
                                     content="Check coverage and alignment with the request "
                                     "and user replies. Do not recalculate tool math. "
+                                    "Put the direct answer in answer; keep assessment in the "
+                                    "assessment fields. For a how-many question, lead with the "
+                                    "customer count and relevant names/losses from the results. "
+                                    "Never narrate that the response is sufficient or aligned. "
                                     "If incomplete, specify the next clarification or tool action."
                                 ),
                             ]

@@ -8,13 +8,21 @@ import logging
 import os
 import re
 from collections import OrderedDict
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from time import monotonic
 from typing import Any
 
+from langsmith import traceable
 from mcp import ClientSession
 from mcp.types import CallToolResult
 
+from finassist.agents.market_analysis.tracing import (
+    cache_status,
+    invoke_mcp_tool,
+    tool_inputs,
+    tool_output,
+)
 from finassist.core.config import get_settings
 
 TTLS = {"get_quote": 30 * 60, "search_symbol": 24 * 60 * 60, "get_time_series": 24 * 60 * 60}
@@ -25,7 +33,7 @@ _request_calls: contextvars.ContextVar[tuple[int, int] | None] = contextvars.Con
 
 
 @asynccontextmanager
-async def market_request_budget(limit: int):
+async def market_request_budget(limit: int) -> AsyncIterator[None]:
     token = _request_calls.set((0, limit))
     try:
         yield
@@ -51,11 +59,18 @@ class MarketCache:
         self.backoff_base = backoff_base
         self.backoff_max = backoff_max
 
+    @traceable(
+        name="Market data cache",
+        run_type="tool",
+        process_inputs=tool_inputs,
+        process_outputs=tool_output,
+    )
     async def call_tool(
         self, session: ClientSession, name: str, arguments: dict[str, Any], *, retry: bool = True
     ) -> CallToolResult:
         if name not in TTLS:
-            return await session.call_tool(name, arguments)
+            cache_status("uncached_tool")
+            return await invoke_mcp_tool(session, name, arguments)
         normalized = dict(arguments)
         if "symbol" in normalized:
             normalized["symbol"] = normalized["symbol"].strip()
@@ -86,6 +101,7 @@ class MarketCache:
             del self.entries[expired]
         if key in self.entries:
             self.entries.move_to_end(key)
+            cache_status("hit")
             logger.info(
                 "[Market Cache] HIT | tool=%s | symbol=%r | interval=%r | "
                 "remaining_ttl_seconds=%.0f | pid=%s | key=%s | selectors=%s",
@@ -118,6 +134,8 @@ class MarketCache:
             json.dumps(selectors, sort_keys=True),
         )
 
+        cache_status("shared_inflight" if key in self.pending else "miss")
+
         async def fetch() -> CallToolResult:
             state = _request_calls.get()
             if state is not None:
@@ -129,7 +147,7 @@ class MarketCache:
             for attempt in range(retries + 1):
                 try:
                     async with self.limiter:
-                        result = await session.call_tool(name, normalized)
+                        result = await invoke_mcp_tool(session, name, normalized)
                 except Exception:
                     if attempt >= retries:
                         raise
@@ -152,6 +170,7 @@ class MarketCache:
                 while len(self.entries) > self.capacity:
                     self.entries.popitem(last=False)
             else:
+                cache_status("bypass_provider_error")
                 logger.info(
                     "[Market Cache] BYPASS | tool=%s | key=%s | reason=provider_error",
                     name,

@@ -1,5 +1,3 @@
-import hashlib
-
 import pytest
 
 from finassist.evaluation.router.evaluation import RouterEvalCase, RouterEvalResult
@@ -29,7 +27,7 @@ def metadata(results, **updates):
         **dict(
             mode="classifier",
             model="offline-stub",
-            system_prompt="Classify",
+            prompt_version="v1",
             router_timeout_seconds=10,
             market_quotes_enabled=True,
         )
@@ -76,13 +74,13 @@ def test_no_critical_cases_have_null_critical_accuracy():
     assert scores.critical_accuracy is None
 
 
-def test_metadata_hashes_and_configuration():
+def test_metadata_version_and_configuration():
     results = [result(1, "passed")]
     original = metadata(results)
-    assert original.prompt_sha256 == hashlib.sha256(b"Classify").hexdigest()
+    assert original.prompt_version == "v1"
     assert original.started_at.utcoffset().total_seconds() == 0
     assert original.dataset_sha256 == metadata(results).dataset_sha256
-    assert original.prompt_sha256 != metadata(results, system_prompt="New").prompt_sha256
+    assert metadata(results, prompt_version="v2").prompt_version == "v2"
     assert original.dataset_sha256 != metadata([result(2, "passed")]).dataset_sha256
     assert original.model == "offline-stub"
     assert "api_key" not in original.model_dump_json()

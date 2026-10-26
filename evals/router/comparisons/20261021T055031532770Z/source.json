@@ -1,0 +1,4 @@
+{
+  "commit": "e2abde17c3c088456c385410fd34278de6cc6fa2",
+  "working_tree": " M README.md\n M pyproject.toml\n M src/finassist/agents/market_analysis/agent.py\n M src/finassist/agents/market_analysis/cache.py\n M src/finassist/agents/market_analysis/chart_data.py\n M src/finassist/api/query.py\n M src/finassist/core/config.py\n M src/finassist/main.py\n M src/finassist/prompts/system_prompts.py\n M src/finassist/web_app/services/market.py\n M src/finassist/web_app/services/showcase.py\n M tests/test_market_analysis_agent.py\n M tests/test_market_resume.py\n M tests/web_app/test_market_data.py\n M tests/web_app/test_showcase.py\n?? evals/router/comparisons/\n?? src/finassist/agents/market_analysis/presentation.py\n?? src/finassist/agents/market_analysis/session.py\n?? src/finassist/agents/market_analysis/tracing.py\n?? tests/test_market_presentation.py\n?? tests/test_market_session.py\n?? tests/test_market_tracing.py\n"
+}

@@ -15,55 +15,76 @@ class LearningTopic:
     questions: tuple[str, ...]
 
 
+# Demo breadth, not a latency guarantee. Keep two narrow definitions first.
+QUESTION_GROUPS = (("Simple", 0, 2), ("Medium", 2, 4), ("Semi-medium", 4, 5), ("Complex", 5, 6))
+
 TOPICS = (
     LearningTopic(
         "Investing Basics",
-        "Start with the vocabulary: stocks, bonds, funds, and investment costs. "
-        "Ask for a simple example before comparing choices.",
+        "Start with one concept, then explore comparisons and multi-part questions.",
         (
-            "What is the difference between a stock, a bond, and an ETF?",
-            "Explain how ETFs work, including fees and risks, for a beginner.",
-            "What questions should a beginner ask before researching an investment?",
+            "What is a stock?",
+            "What is an ETF?",
+            "How does a stock differ from a bond?",
+            "What is a fund expense ratio, and why does it matter?",
+            "Explain how an ETF trades during the day, with one simple example.",
+            "Compare stocks, bonds and ETFs by ownership, income and main risks.",
         ),
     ),
     LearningTopic(
         "Banking & Interest",
-        "Explore how account terms, borrowing costs, and interest calculations fit together. "
-        "Ask the AI to define unfamiliar terms and show its calculations.",
+        "Begin with interest definitions, then try comparisons and a calculator-backed example.",
         (
-            "Explain simple interest versus compound interest with a hypothetical example.",
-            "What is the difference between APR and APY?",
-            "What fees and terms should I understand when comparing savings accounts?",
+            "What is simple interest?",
+            "What is compound interest?",
+            "How does simple interest differ from compound interest?",
+            "Why can APY differ from a savings account's nominal annual rate?",
+            "Explain how compounding frequency affects savings, with one simple example.",
+            "Compare simple and compound interest on $1,000 at 5% per year for 3 years, "
+            "compounded annually for the compound case. Assume no fees or deposits; "
+            "show interest and final balances and explain the difference.",
         ),
     ),
     LearningTopic(
-        "Retirement Accounts",
-        "Learn the language of retirement accounts: contribution, withdrawal, and tax treatment. "
-        "Include your country and tax year when asking about rules or limits.",
+        "Bonds & Funds",
+        "Explore bond and fund concepts without retirement-account or tax rules.",
         (
-            "Explain traditional versus Roth retirement accounts in the US for a beginner.",
-            "What is the difference between an IRA and a 401(k)?",
-            "What should I ask about employer matching and vesting?",
+            "What is a bond coupon?",
+            "What is a mutual fund?",
+            "How do bond prices generally respond to rising interest rates?",
+            "How does active fund management differ from passive index investing?",
+            "Explain ETF market price versus net asset value, with one simple example.",
+            "Compare ETFs and mutual funds by trading, pricing and ongoing fees, "
+            "and explain why a lower fee alone does not establish lower investment risk.",
         ),
     ),
     LearningTopic(
         "Risk & Diversification",
-        "Explore different kinds of investment risk and the meaning of diversification. "
-        "Ask for scenarios rather than a personalized investment recommendation.",
+        "Start with risk vocabulary, then explore the limits of diversification.",
         (
-            "What does diversification mean, and what risks can remain?",
-            "Explain concentration risk with a hypothetical portfolio example.",
-            "How do time horizon and risk tolerance relate to investing?",
+            "What is diversification?",
+            "What is concentration risk?",
+            "How does diversification reduce company-specific risk?",
+            "What is the difference between market risk and company-specific risk?",
+            "Explain why owning several stocks in one sector can still be concentrated.",
+            "Compare a single-stock portfolio with a diversified stock-and-bond portfolio: "
+            "explain company-specific risk, market risk and why losses remain possible, "
+            "without recommending an allocation.",
         ),
     ),
     LearningTopic(
         "Tax Education",
-        "Explore US tax vocabulary, filing concepts, and investment-related tax questions. "
-        "Mention the tax year and jurisdiction; ask for sources and check current rules.",
+        "Explore the bundled US federal tax references, from definitions to multi-topic examples.",
         (
-            "Explain short-term versus long-term capital gains in the US.",
-            "What is the difference between a tax deduction and a tax credit?",
-            "Explain marginal versus effective tax rates with a hypothetical example.",
+            "What is Form W-2 used for in US federal taxes?",
+            "What is a US federal tax deduction?",
+            "How does a US federal tax deduction differ from a tax credit?",
+            "How do short-term and long-term capital gains differ for US federal taxes?",
+            "Explain standard versus itemized deductions for US federal tax year 2026, "
+            "with one simple example and no personal recommendation.",
+            "For US federal tax year 2026, explain how wages, bank interest and a stock "
+            "sale held for 18 months are generally reported. Identify the relevant forms "
+            "and distinguish withholding from final tax liability; do not calculate tax owed.",
         ),
     ),
 )
@@ -79,26 +100,29 @@ def _select_question(page: str, question: str) -> None:
 def learning_hub(page: str) -> None:
     state: ChatState | None = st.session_state.get("conversation")
     blocked = bool(state and (state.thread_id or state.failed_request))
-    names = [topic.name for topic in TOPICS]
+    topics = [topic for topic in TOPICS if (topic.name == "Tax Education") == (page == "tax")]
+    names = [topic.name for topic in topics]
     topic_name = st.selectbox(
         "Choose a learning topic",
         names,
-        index=4 if page == "tax" else 0,
+        index=0,
         key=f"learning_topic_{page}",
     )
-    topic = next(item for item in TOPICS if item.name == topic_name)
+    topic = next(item for item in topics if item.name == topic_name)
     with card(topic.name):
         st.write(topic.introduction)
         st.caption("Choose a suggested question to edit, then send it in the chat panel.")
-        with st.container(horizontal=True, gap="small"):
-            for index, question in enumerate(topic.questions):
-                st.button(
-                    question,
-                    key=f"learn_{page}_{topic_name}_{index}",
-                    on_click=_select_question,
-                    args=(page, question),
-                    disabled=blocked,
-                )
+        for _label, start, end in QUESTION_GROUPS:
+            with st.container(horizontal=True, gap="small"):
+                for index in range(start, end):
+                    question = topic.questions[index]
+                    st.button(
+                        question,
+                        key=f"learn_{page}_{topic_name}_{index}",
+                        on_click=_select_question,
+                        args=(page, question),
+                        disabled=blocked,
+                    )
     if blocked:
         st.caption(
             "Finish the pending reply, resolve the failed request, or choose New Chat "

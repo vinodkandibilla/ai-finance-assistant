@@ -5,11 +5,22 @@ import httpx
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from finassist.web_app.components.portfolio import allocation_chart
+from finassist.web_app.components.portfolio import allocation_chart, comparison_rows
 from finassist.web_app.services.models import QueryResponse
 from finassist.web_app.services.portfolio import sample_snapshot, snapshots
 
 APP = Path(__file__).resolve().parents[2] / "src/finassist/web_app/app.py"
+
+
+def test_comparison_table_preserves_missing_performance() -> None:
+    first = sample_snapshot()
+    second = first.model_copy(update={"customer_id": "OTHER", "performance_complete": True,
+                                       "unrealized_gain_loss": -250.0})
+    rows = comparison_rows([first, second])
+    assert rows[0]["Largest holding"] == "60.0%"
+    assert rows[0]["Holdings"] == "3"
+    assert rows[0]["Unrealized gain/loss (USD)"] == "Unavailable"
+    assert rows[1]["Unrealized gain/loss (USD)"] == "$-250.00"
 
 
 def payload(customer: str = "C1") -> dict:
@@ -97,7 +108,7 @@ def test_empty_and_explicit_sample(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not any(radio.label == "Dashboard data" for radio in app.radio)
 
 
-def test_scope_fields_are_sent_over_query(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_optional_scope_fields_are_removed(monkeypatch: pytest.MonkeyPatch) -> None:
     requests = []
 
     def send(client: httpx.Client, request: httpx.Request, **kwargs: object) -> httpx.Response:
@@ -113,9 +124,7 @@ def test_scope_fields_are_sent_over_query(monkeypatch: pytest.MonkeyPatch) -> No
         .switch_page("views/portfolio.py")
         .run()
     )
-    app.selectbox(key="portfolio_scope_role").select("portfolio_manager")
-    app.text_input(key="portfolio_scope_customer").input("C1")
-    app.text_input(key="portfolio_scope_manager").input("M1")
+    assert not any(e.label == "Optional portfolio request scope" for e in app.expander)
     app.chat_input[0].set_value("Analyze this portfolio").run()
     assert not app.exception
     assert requests == [
@@ -123,9 +132,6 @@ def test_scope_fields_are_sent_over_query(monkeypatch: pytest.MonkeyPatch) -> No
             "/query",
             {
                 "query": "Analyze this portfolio",
-                "user_role": "portfolio_manager",
-                "customer_id": "C1",
-                "manager_id": "M1",
             },
         )
     ]
@@ -290,3 +296,53 @@ def test_performance_label_uses_holdings_not_scenario_text(gains, expected):
     for holding, gain in zip(snapshot.holdings, gains, strict=True):
         holding.unrealized_gain_loss = gain
     assert performance_label(snapshot) == expected
+
+
+def test_manager_selector_reloads_customers_and_scopes_chat(monkeypatch):
+    from finassist.web_app.services.models import PortfolioManagerDirectory
+
+    monkeypatch.setattr(
+        "finassist.web_app.components.portfolio.fetch_portfolio_managers",
+        lambda: PortfolioManagerDirectory.model_validate(
+            {
+                "managers": [
+                    {"manager_id": "PM001", "manager_name": "Manager One"},
+                    {"manager_id": "PM002", "manager_name": "Manager Two"},
+                ],
+                "current_manager_id": "PM001",
+                "can_switch": True,
+            }
+        ),
+    )
+    calls = []
+
+    def fetch(manager_id):
+        calls.append(manager_id)
+        row = payload("C001" if manager_id == "PM001" else "C006")
+        row["manager_id"] = manager_id
+        return QueryResponse(
+            intent="portfolio",
+            answer="Available",
+            calculation={
+                "status": "success",
+                "portfolios": [row],
+            },
+        )
+
+    monkeypatch.setattr("finassist.web_app.components.portfolio.fetch_current_portfolios", fetch)
+    requests = []
+
+    def send(client, request, **kwargs):
+        requests.append(request)
+        return httpx.Response(200, request=request, json={"intent": "portfolio", "answer": "Done"})
+
+    monkeypatch.setattr(httpx.Client, "send", send)
+    app = AppTest.from_file(str(APP)).run().switch_page("views/portfolio.py").run()
+    assert calls == ["PM001"]
+    assert app.session_state["portfolio_selected_customer"] == "C001"
+    app.selectbox(key="portfolio_manager_id").select("PM002").run()
+    assert calls == ["PM001", "PM002"]
+    assert app.session_state["portfolio_selected_customer"] == "C006"
+    app.chat_input[0].set_value("Analyze my customers").run()
+    assert requests[-1].headers["X-Portfolio-Manager"] == "PM002"
+    assert not app.exception

@@ -2,6 +2,7 @@
 
 from collections.abc import Awaitable, Callable
 
+from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import interrupt
@@ -31,12 +32,15 @@ def build_clarification_graph(
     async def run(state: FinanceAssistantState) -> FinanceAssistantState:
         return await handler(state)
 
+    def select_clarification_or_end(state: FinanceAssistantState) -> str:
+        return "clarify" if state.get("status") == "clarify" else END
+
     graph = StateGraph(FinanceAssistantState)
-    graph.add_node("run", run)
-    graph.add_node("clarify", clarify)
+    graph.add_node("run", RunnableLambda(run, name="Execute specialist request"))
+    graph.add_node("clarify", RunnableLambda(clarify, name="Ask for missing details"))
     graph.add_edge(START, "run")
     graph.add_conditional_edges(
-        "run", lambda state: "clarify" if state.get("status") == "clarify" else END
+        "run", RunnableLambda(select_clarification_or_end, name="Clarify or finish")
     )
     graph.add_edge("clarify", "run")
     return graph.compile()

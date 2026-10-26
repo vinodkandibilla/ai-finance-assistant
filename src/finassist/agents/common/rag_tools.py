@@ -1,5 +1,7 @@
 """Deterministic postprocessing inside domain RAG tools."""
 
+from langsmith import trace
+
 from finassist.agents.common.schemas import EvidenceResult
 from finassist.rag.models import RetrievedDocument
 
@@ -21,7 +23,16 @@ def tax_citations(documents: list[RetrievedDocument]) -> list[str]:
 
 async def rerank_evidence(*, query, documents, metadata, errors, reranker, limit, citations):
     """Rank retrieved evidence and produce the common tool result in one invocation."""
-    if documents:
+    if reranker is None:
+        with trace(
+            "Select top RRF evidence",
+            run_type="retriever",
+            inputs={"candidate_count": len(documents), "limit": limit},
+            metadata={"reranker_enabled": False},
+        ) as span:
+            documents = documents[:limit]
+            span.add_outputs({"selected_count": len(documents)})
+    elif documents:
         documents = await reranker.rerank(query, documents, limit=limit)
     return EvidenceResult(
         candidates=documents,

@@ -11,7 +11,10 @@ from finassist.web_app.services.models import QueryResponse
     "interval,window,expected_interval",
     [("Daily", "1 month", "1day"), ("Weekly", "3 months", "1week")],
 )
-def test_market_fetch_uses_only_query(monkeypatch, interval, window, expected_interval) -> None:
+@pytest.mark.parametrize("symbol", ["AAPL", ["AAPL", "MSFT"]])
+def test_market_fetch_uses_only_query(
+    monkeypatch, interval, window, expected_interval, symbol
+) -> None:
     calls = []
 
     def send(client, request, **kwargs):
@@ -21,13 +24,20 @@ def test_market_fetch_uses_only_query(monkeypatch, interval, window, expected_in
         )
 
     monkeypatch.setattr(httpx.Client, "send", send)
-    fetch_market_snapshot("AAPL", interval)
+    fetch_market_snapshot(symbol, interval)
     assert calls[0][0] == "/query"
-    assert set(calls[0][1]) == {"query"}
+    assert set(calls[0][1]) == {"query", "market_scope"}
+    assert calls[0][1]["market_scope"] == "us_nasdaq_usd"
     assert f"{interval.lower()} OHLC" in calls[0][1]["query"]
     assert f"last {window}" in calls[0][1]["query"]
-    assert "under 120 words" in calls[0][1]["query"]
-    assert "Do not reproduce historical rows" in calls[0][1]["query"]
+    target = symbol if isinstance(symbol, str) else "AAPL and MSFT"
+    assert len(calls) == 1
+    if isinstance(symbol, list):
+        assert f"For each of {target}, show latest quote" in calls[0][1]["query"]
+    else:
+        assert f"Show {target}'s latest quote" in calls[0][1]["query"]
+    assert "Scope:" not in calls[0][1]["query"]
+    assert len(calls[0][1]["query"].split()) < 65
     from datetime import date
 
     from finassist.agents.market_analysis.timeframe import resolve_timeframe

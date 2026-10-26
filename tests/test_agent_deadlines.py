@@ -68,23 +68,19 @@ async def test_deadline_cancels_loop_and_returns_safe_error(domain, caplog):
     assert record.elapsed_ms >= 30
 
 
-async def test_one_budget_covers_loop_and_final_formatter():
+async def test_one_budget_covers_loop_and_completion_repair():
     agent = agent_for("tax", 0.1)
     cancelled = asyncio.Event()
 
     async def loop(_):
-        await asyncio.sleep(0.06)
-        return {"messages": [AIMessage(content="Done")]}
-
-    async def formatter(_):
         try:
             await asyncio.sleep(0.06)
-            return TaxAgentResult(status="answered", answer="Done")
+            return {"messages": [AIMessage(content="Missing terminal submission")]}
         finally:
             cancelled.set()
 
     agent.agent = RunnableLambda(loop)
-    agent._formatter = RunnableLambda(formatter)
+    assert not hasattr(agent, "_formatter")
     result = await agent.ainvoke({"query": "Tax question"}, {})
     assert result["errors"] == ["agent_timeout"]
     assert cancelled.is_set()

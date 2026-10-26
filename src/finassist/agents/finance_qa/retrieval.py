@@ -8,6 +8,7 @@ from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_qdrant import FastEmbedSparse, QdrantVectorStore
 from langchain_qdrant.qdrant import RetrievalMode
+from langsmith import trace
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
@@ -63,7 +64,7 @@ class FinanceHybridRetriever:
         embedding_model: str,
         settings: FinanceAgentSettings,
     ) -> FinanceHybridRetriever:
-        embeddings = OpenAIEmbeddings(model=embedding_model, api_key=api_key)
+        embeddings = OpenAIEmbeddings(model=embedding_model, api_key=api_key, max_retries=2)
         sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
         collection_name = settings.finance_collection
         if not documents:
@@ -143,7 +144,9 @@ class FinanceHybridRetriever:
         profile = profile or {}
         query = " ".join(sparse_keywords).strip()
         try:
-            async with self._semaphore:
+            with trace("Wait for retrieval slot", run_type="chain"):
+                await self._semaphore.acquire()
+            try:
                 points = await self._hybrid_search.search(
                     dense_queries,
                     query,
@@ -154,21 +157,26 @@ class FinanceHybridRetriever:
                     timeout_seconds=self._settings.retrieval_timeout_seconds,
                     query_filter=metadata_filter,
                 )
-            documents: list[RetrievedDocument] = []
-            for rank, point in enumerate(points, start=1):
-                payload = point.payload or {}
-                metadata = payload.get("metadata") or {}
-                content = payload.get("page_content") or payload.get("content") or ""
-                documents.append(
-                    FinanceDocument(
-                        doc_id=str(metadata.get("doc_id", point.id)),
-                        content=str(content),
-                        metadata=metadata,
-                        source=str(metadata.get("source", "unknown")),
-                        score=float(point.score),
-                        rank=rank,
+            finally:
+                self._semaphore.release()
+            with trace(
+                "Convert Qdrant results", run_type="chain", inputs={"result_count": len(points)}
+            ):
+                documents: list[RetrievedDocument] = []
+                for rank, point in enumerate(points, start=1):
+                    payload = point.payload or {}
+                    metadata = payload.get("metadata") or {}
+                    content = payload.get("page_content") or payload.get("content") or ""
+                    documents.append(
+                        FinanceDocument(
+                            doc_id=str(metadata.get("doc_id", point.id)),
+                            content=str(content),
+                            metadata=metadata,
+                            source=str(metadata.get("source", "unknown")),
+                            score=float(point.score),
+                            rank=rank,
+                        )
                     )
-                )
             return documents, []
         except Exception as error:
             logger.exception("Finance hybrid retrieval with Qdrant RRF failed.")

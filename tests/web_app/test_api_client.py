@@ -52,6 +52,7 @@ def test_requests_responses_and_timeouts() -> None:
         ("POST", "/prefix/query/resume"),
     ]
     assert json.loads(seen[1].content) == {"query": "Save money"}
+    assert all(request.headers["X-FinPilot-Source"] == "web-chat" for request in seen)
     assert json.loads(seen[2].content) == {
         "query": "Analyze",
         "user_role": "portfolio_manager",
@@ -137,7 +138,7 @@ def test_safe_failures_without_retry(method: str, failure: str | int, code: str)
     [
         (QueryRequest, {}),
         (QueryRequest, {"query": "  "}),
-        (QueryRequest, {"query": "x" * 4001}),
+        (QueryRequest, {"query": "x" * 2001}),
         (QueryRequest, {"query": "x", "user_role": "admin"}),
         (QueryRequest, {"query": "x", "customer_id": ""}),
         (QueryRequest, {"query": "x", "manager_id": "x" * 101}),
@@ -176,7 +177,7 @@ def test_models_match_committed_openapi_contract() -> None:
     contract = json.loads(
         (Path(__file__).resolve().parents[2] / "docs/api/finassist-openapi.json").read_text()
     )
-    assert set(contract["paths"]) == {"/health", "/query", "/query/resume"}
+    assert set(contract["paths"]) == {"/health", "/query", "/query/resume", "/portfolio/managers"}
     for model in (HealthResponse, QueryRequest, ResumeRequest, QueryResponse):
         actual = model.model_json_schema()
         expected = contract["components"]["schemas"][model.__name__]

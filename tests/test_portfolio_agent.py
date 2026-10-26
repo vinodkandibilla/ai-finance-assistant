@@ -218,3 +218,58 @@ async def test_timeout_returns_controlled_error(store):
     result = await agent.ainvoke({"query": "My portfolio?"})
     assert result["status"] == "error"
     assert "calculation" not in result
+
+
+@pytest.mark.parametrize("screen", ["all", "concentrated", "unrealized_losses"])
+@pytest.mark.parametrize("tool_name", ["screen_manager_portfolios", "compare_manager_portfolios"])
+async def test_completed_screen_skips_model_narration_and_assessment(store, screen, tool_name):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    agent, model = make_agent(
+        store,
+        [
+            call(
+                tool_name,
+                {
+                    "manager_id": "PM001",
+                    **({"screen": screen} if tool_name == "screen_manager_portfolios" else {}),
+                    "finish_response": True,
+                },
+                "s",
+            )
+        ],
+    )
+    formatter = AsyncMock(side_effect=AssertionError("No formatter call expected"))
+    agent._formatter = SimpleNamespace(ainvoke=formatter)
+    result = await agent.ainvoke({"query": "List my screened customer portfolios."})
+    assert result["status"] == "answered"
+    assert result["calculation"].get("screen", "all") == (
+        screen if tool_name == "screen_manager_portfolios" else "all"
+    )
+    assert len(model.seen) == 1
+    formatter.assert_not_awaited()
+    for row in result["calculation"]["portfolios"]:
+        assert row["customer_id"] in result["answer"]
+
+
+async def test_finish_screen_does_not_bypass_authorization(store):
+    agent, model = make_agent(
+        store,
+        [
+            call(
+                "screen_manager_portfolios",
+                {
+                    "manager_id": "PM002",
+                    "finish_response": True,
+                },
+                "s",
+            ),
+            AIMessage(content="Access denied"),
+        ],
+    )
+    result = await agent.ainvoke({"query": "Screen another manager's portfolios."})
+    assert result["status"] == "error"
+    assert result["errors"] == ["ACCESS_DENIED"]
+    assert not result.get("calculation")
+    assert len(model.seen) == 2

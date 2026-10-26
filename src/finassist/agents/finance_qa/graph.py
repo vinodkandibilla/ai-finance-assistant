@@ -34,6 +34,8 @@ class FinanceQaAgent(AutonomousEducationAgent):
     ):
         policy = AgentPolicy(
             intent="finance_qa",
+            completion_tool_name="submit_finance_answer",
+            recover_skipped_retrieval=True,
             label="Finance",
             name="finance_education_agent",
             prompt=AGENT_PROMPT,

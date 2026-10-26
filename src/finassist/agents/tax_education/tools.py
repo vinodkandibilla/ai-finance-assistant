@@ -69,7 +69,7 @@ def create_tax_rag_query_tool(retriever, *, reranker, rerank_top_n: int = 5) -> 
         coroutine=tax_rag_query,
         name="tax_rag_query",
         description=(
-            "Search and rerank the US tax education corpus using semantic queries "
+            "Search the US tax education corpus using semantic queries "
             "and lexical keywords. "
             "Always supply the original user question as query; use search_query for retries. "
             "Tax-year, filing-year, filing-status, and other supported metadata constraints "

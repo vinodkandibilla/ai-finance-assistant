@@ -25,6 +25,7 @@ ExecutedHandler = Literal[
 
 
 class FinanceAssistantState(TypedDict, total=False):
+    market_scope: Literal["us_nasdaq_usd"] | None
     portfolio_user_context: dict[str, str] | None
     customer_id: str
     manager_id: str
@@ -57,3 +58,5 @@ class FinanceAssistantState(TypedDict, total=False):
     citations: list[str]
     status: str
     thread_id: str
+    guardrail_blocked: bool
+    pii_entity_types: list[str]

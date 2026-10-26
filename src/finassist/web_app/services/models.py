@@ -15,7 +15,7 @@ Handler = Literal[
     "clarify_node",
     "unsupported_node",
 ]
-Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 Identifier = Annotated[str, Field(min_length=1, max_length=100)]
 
 
@@ -28,8 +28,20 @@ class HealthResponse(WireModel):
     version: str
 
 
+class PortfolioManager(WireModel):
+    manager_id: str
+    manager_name: str
+
+
+class PortfolioManagerDirectory(WireModel):
+    managers: list[PortfolioManager]
+    current_manager_id: str | None = None
+    can_switch: bool = False
+
+
 class QueryRequest(WireModel):
     query: Question
+    market_scope: Literal["us_nasdaq_usd"] | None = None
     user_role: Literal["portfolio_manager", "individual_customer"] | None = None
     customer_id: Identifier | None = None
     manager_id: Identifier | None = None

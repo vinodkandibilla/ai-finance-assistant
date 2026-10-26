@@ -212,7 +212,27 @@ Set an absolute live-accuracy target after reviewing the first baseline and its
 remaining failures; no fixed percentage has been established yet. Document any
 approved exception and the affected case IDs before accepting the change.
 
-Live evaluation is on demand and incurs provider charges. The optional CLI remains
-pending. CI integration is deferred: first check whether existing CI runs the full
+Live evaluation is on demand and incurs provider charges. The optional CLI can run
+locally and publish to LangSmith:
+
+```bash
+.venv/bin/python scripts/evaluate_router_langsmith.py --variant A --mode routes
+.venv/bin/python scripts/evaluate_router_langsmith.py --variant B --mode routes
+# Add --publish to upload the dataset and create a LangSmith Experiment.
+# The runner evaluates the first 5 cases by default. Use --limit N or --all to choose the scope.
+```
+
+Use the same mode and dataset for both variants. CI integration is deferred: first check whether existing CI runs the full
 pytest suite, then add deterministic coverage only if needed. No live calls should
 be added to routine tests or CI as part of this workflow.
+
+
+## Compact router prompt validation
+
+The router prompt was reduced from 545 to 279 words. See the
+[retained candidate comparison](comparisons/20261021T055154121441Z/README.md).
+It matches saved baseline classifier/route accuracy and critical-case results in
+one run per mode. The first candidate's regression is also retained in the sibling
+comparison directory. Exact model input-token savings and latency are not measured
+by word counts. Restart the API to load the prompt; an explicit environment prompt
+override takes precedence over the source default.

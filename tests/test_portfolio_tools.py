@@ -113,6 +113,8 @@ def test_manager_screening_rankings_and_profile():
         )
         assert [r["customer_id"] for r in losses["portfolios"]] == ["C004"]
         concentrated = tools.screen_manager_portfolios("PM001")
+        single_stock = tools.screen_manager_portfolios("PM001", screen="single_stock")
+        assert [r["customer_id"] for r in single_stock["portfolios"]] == ["C002", "C003"]
         assert {r["customer_id"] for r in concentrated["portfolios"]} == {"C002", "C003", "C004"}
         subset = tools.compare_manager_portfolios("PM001", ["C003", "C002", "C002"])
         assert [r["customer_id"] for r in subset["portfolios"]] == ["C002", "C003"]

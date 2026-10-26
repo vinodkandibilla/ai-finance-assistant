@@ -3,6 +3,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.runnables import RunnableLambda
+from langchain_core.utils.function_calling import convert_to_openai_tool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 from pydantic import Field
@@ -18,20 +19,32 @@ class ScriptedModel(BaseChatModel):
     responses: list[AIMessage]
     final: FinanceAgentResult
     seen: list = Field(default_factory=list)
+    completion_enabled: bool = False
+    completion_tool_name: str = "submit_finance_answer"
+    tool_binding_options: dict = Field(default_factory=dict)
 
     @property
     def _llm_type(self):
         return "scripted-tool-model"
 
     def bind_tools(self, tools, **kwargs):
-        return self
+        self.tool_binding_options = kwargs
+        names = {getattr(t, "name", None) for t in tools}
+        completion = names & {"submit_finance_answer", "submit_tax_answer"}
+        self.completion_enabled = bool(completion)
+        if completion:
+            self.completion_tool_name = next(iter(completion))
+        return self.bind(tools=[convert_to_openai_tool(t) for t in tools], **kwargs)
 
     def with_structured_output(self, schema, **kwargs):
         return RunnableLambda(lambda messages: self.final)
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         self.seen.append(messages)
-        return ChatResult(generations=[ChatGeneration(message=self.responses.pop(0))])
+        response = self.responses.pop(0)
+        if self.completion_enabled and not response.tool_calls:
+            response = call(self.completion_tool_name, self.final.model_dump(), "complete")
+        return ChatResult(generations=[ChatGeneration(message=response)])
 
 
 class Retriever:
@@ -114,7 +127,7 @@ async def test_model_selects_searches_and_follow_up_terms():
 
 async def test_answer_without_search_is_rejected():
     agent, retriever, _ = make_agent(
-        [AIMessage(content="Unsupported answer")],
+        [AIMessage(content="Unsupported answer"), AIMessage(content="Still unsupported")],
         FinanceAgentResult(status="answered", answer="Unsupported answer"),
     )
     result = await agent.graph.ainvoke({"query": "What is compound interest?"})
@@ -295,3 +308,105 @@ async def test_failed_search_returns_error_without_fabricated_answer(exception, 
     assert not result["citations"]
     assert "Invented answer" not in result["answer"]
     assert "private provider payload" not in str(result)
+
+
+async def test_terminal_answer_uses_one_generation_after_retrieval():
+    agent, _, model = make_agent(
+        [
+            call("finance_rag_query", {"query": "ETF"}, "search"),
+            call(
+                "submit_finance_answer",
+                {
+                    "status": "answered",
+                    "answer": "An ETF trades on an exchange.",
+                    "citations": ["Financial Education Handbook, page 9"],
+                },
+                "finish",
+            ),
+        ],
+        FinanceAgentResult(status="error", answer="Formatter must not supply the answer"),
+        [FinanceDocument(content="ETF evidence", source="handbook", metadata={"page_number": 9})],
+    )
+    assert not hasattr(agent, "_formatter")
+    assert model.tool_binding_options == {"tool_choice": "required", "parallel_tool_calls": False}
+    result = await agent.graph.ainvoke({"query": "What is an ETF?"})
+    assert result["status"] == "answered"
+    assert result["answer"] == "An ETF trades on an exchange."
+    assert len(model.seen) == 2
+
+
+async def test_plain_answer_gets_one_protocol_repair_without_formatter():
+    agent, _, model = make_agent(
+        [
+            AIMessage(content="Unstructured refusal"),
+            call(
+                "submit_finance_answer", {"status": "out_of_scope", "answer": "Outside scope"}, "s"
+            ),
+        ],
+        FinanceAgentResult(status="error"),
+    )
+    model.completion_enabled = False
+    result = await agent.graph.ainvoke({"query": "Give me the weather"})
+    assert result["status"] == "out_of_scope"
+    assert len(model.seen) == 2
+    assert "Submit" in str(model.seen[-1]) or "submit_finance_answer" in str(model.seen[-1])
+
+
+async def test_missing_terminal_answer_fails_after_bounded_repair():
+    agent, _, model = make_agent(
+        [AIMessage(content="plain"), AIMessage(content="still plain")],
+        FinanceAgentResult(status="answered", answer="Must not be used"),
+    )
+    model.completion_enabled = False
+    result = await agent.graph.ainvoke({"query": "What is an ETF?"})
+    assert result["status"] == "error"
+    assert len(model.seen) == 2
+
+
+async def test_invalid_terminal_schema_can_be_repaired_by_same_agent():
+    agent, _, model = make_agent(
+        [
+            call("submit_finance_answer", {"status": "invalid"}, "bad"),
+            call("submit_finance_answer", {"status": "out_of_scope"}, "fixed"),
+        ],
+        FinanceAgentResult(status="error"),
+    )
+    result = await agent.graph.ainvoke({"query": "Weather?"})
+    assert result["status"] == "out_of_scope"
+    assert len(model.seen) == 2
+
+
+@pytest.mark.parametrize("first_status", ["answered", "insufficient"])
+async def test_skipped_retrieval_terminal_result_requires_acquisition(first_status):
+    agent, retriever, model = make_agent(
+        [
+            call(
+                "submit_finance_answer",
+                {"status": first_status, "answer": "No search yet"},
+                "early",
+            ),
+            call("finance_rag_query", {"query": "What is a stock?"}, "search"),
+            call(
+                "submit_finance_answer",
+                {
+                    "status": "answered",
+                    "answer": "A stock represents ownership in a company.",
+                    "citations": ["Financial Education Handbook, page 30"],
+                },
+                "done",
+            ),
+        ],
+        FinanceAgentResult(status="error"),
+        [
+            FinanceDocument(
+                content="A share represents ownership.",
+                source="handbook",
+                metadata={"page_number": 30},
+            )
+        ],
+    )
+    result = await agent.graph.ainvoke({"query": "What is a stock? Answer briefly."})
+    assert result["status"] == "answered"
+    assert len(retriever.calls) == 1
+    assert result["citations"] == ["Financial Education Handbook, page 30"]
+    assert len(model.seen) == 3

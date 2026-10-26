@@ -31,17 +31,12 @@ class Retriever:
         return documents, []
 
 
-class Reranker:
-    async def rerank(self, query, documents, limit):
-        return documents[:limit]
-
-
-def setup(**settings):
+def setup(reranker=None, **settings):
     retriever = Retriever()
     execute = create_evidence_recovery(
         retriever,
         FinanceMetadataExtractor([{"topic": "ETF"}]),
-        Reranker(),
+        reranker,
         FinanceAgentSettings(**settings),
     )
     return retriever, execute, {"messages": [HumanMessage(content="Explain ETF fees and trading")]}
@@ -69,10 +64,16 @@ async def invoke(execute, state, action, query="ETF", **kwargs):
 async def test_expansion_reuses_plan_and_returns_only_novel_evidence():
     retriever, execute, state = setup()
     baseline = await invoke(execute, state, BASELINE, dense=["ETF fees"], sparse=["fees"])
-    expanded = await invoke(execute, state, EXPAND, query="ignored unrelated query")
-    assert baseline["new_passages"] == 5
-    assert expanded["new_passages"] == 6
-    assert expanded["duplicates_skipped"] == 5
+    expanded = await invoke(
+        execute,
+        state,
+        EXPAND,
+        query="ignored unrelated query",
+        missing_aspect="ETF trading costs beyond the initial fee explanation",
+    )
+    assert baseline["new_passages"] == 3
+    assert expanded["new_passages"] == 5
+    assert expanded["duplicates_skipped"] == 3
     assert retriever.calls[1][:2] == retriever.calls[0][:2]
     assert retriever.calls[1][2]["profile"] == {
         "dense_limit": 20,
@@ -81,7 +82,7 @@ async def test_expansion_reuses_plan_and_returns_only_novel_evidence():
     }
     assert expanded["remaining_searches"] == 2
     assert expanded["metadata_filters"] == {"topic": "ETF"}
-    blocked = await invoke(execute, state, EXPAND)
+    blocked = await invoke(execute, state, EXPAND, missing_aspect="Trading costs")
     assert "limit" in blocked["errors"][0]
     assert len(retriever.calls) == 2
 
@@ -102,7 +103,7 @@ async def test_recovery_requires_baseline_and_total_limit_is_shared():
     blocked = await invoke(execute, state, TARGET, missing_aspect="fees")
     assert "baseline" in blocked["errors"][0]
     await invoke(execute, state, BASELINE)
-    exhausted = await invoke(execute, state, EXPAND)
+    exhausted = await invoke(execute, state, EXPAND, missing_aspect="Trading costs")
     assert "budget exhausted" in exhausted["errors"][0]
     assert len(retriever.calls) == 1
 
@@ -112,7 +113,7 @@ async def test_evidence_size_budget_and_parallel_retrieval_are_enforced():
     result = await invoke(execute, state, BASELINE)
     assert result["new_passages"] == 1
     assert result["remaining_characters"] == 0
-    blocked = await invoke(execute, state, EXPAND)
+    blocked = await invoke(execute, state, EXPAND, missing_aspect="Trading costs")
     assert "budget exhausted" in blocked["errors"][0]
     assert len(retriever.calls) == 1
 
@@ -149,3 +150,12 @@ async def test_provider_failure_is_reported_without_fabricating_evidence():
     assert result["candidates"] == []
     assert result["citations"] == []
     assert result["errors"] == ["Finance search failed: TimeoutError"]
+
+
+async def test_expansion_without_specific_gap_does_not_retrieve():
+    retriever, execute, state = setup()
+    await invoke(execute, state, BASELINE)
+    blocked = await invoke(execute, state, EXPAND, missing_aspect="   ")
+    assert len(retriever.calls) == 1
+    assert blocked["candidates"] == []
+    assert "specific missing aspect" in blocked["errors"][0]

@@ -21,10 +21,20 @@ def test_every_topic_and_suggested_question(page: str, monkeypatch: pytest.Monke
     app = AppTest.from_file(str(APP)).run()
     app.switch_page(f"views/{page}.py").run()
     assert app.selectbox[0].value == ("Tax Education" if page == "tax" else "Investing Basics")
-    for topic in TOPICS:
+    expected_topics = [
+        topic for topic in TOPICS if (topic.name == "Tax Education") == (page == "tax")
+    ]
+    assert app.selectbox[0].options == [topic.name for topic in expected_topics]
+    for topic in expected_topics:
         app.selectbox[0].select(topic.name).run()
         assert not app.exception
         assert any(item.value == topic.introduction for item in app.markdown)
+        assert len(topic.questions) == 6
+        assert [
+            item.value
+            for item in app.caption
+            if item.value in {"Simple", "Medium", "Semi-medium", "Complex"}
+        ] == []
         for question in topic.questions:
             next(b for b in app.button if b.label == question).click().run()
             assert app.chat_input[0].value == question
@@ -75,7 +85,7 @@ def test_inline_answer_sources_and_clarification(
         assert not any(item.label == "Sources" for item in app.expander)
         assert any("No sources were supplied" in item.value for item in app.caption)
     assert all(b.disabled for b in app.button if b.key and b.key.startswith("learn_"))
-    app.selectbox[0].select("Tax Education").run()
+    app.selectbox[0].select(app.selectbox[0].options[0]).run()
     assert len(app.chat_message) == 2
     app.chat_input[0].set_value("2026").run()
     assert calls[-1] == ("/query/resume", {"thread_id": "learning-thread", "reply": "2026"})

@@ -6,9 +6,8 @@ import json
 from typing import Any
 
 
-def chart_observation(result: Any, *, tool: str, symbol: str, interval: str) -> dict | None:
-    if getattr(result, "isError", False):
-        return None
+def provider_payload(result: Any) -> Any:
+    """Decode MCP's optional wrapper once, without serializing duplicate text/data."""
     data = getattr(result, "structuredContent", None)
     if isinstance(data, dict) and "result" in data:
         data = data["result"]
@@ -21,7 +20,14 @@ def chart_observation(result: Any, *, tool: str, symbol: str, interval: str) -> 
         try:
             data = json.loads(text)
         except (ValueError, TypeError):
-            data = list(csv.DictReader(io.StringIO(text), delimiter=";"))
+            data = list(csv.DictReader(io.StringIO(text), delimiter=";")) or text
+    return data
+
+
+def chart_observation(result: Any, *, tool: str, symbol: str, interval: str) -> dict | None:
+    if getattr(result, "isError", False):
+        return None
+    data = provider_payload(result)
     if isinstance(data, dict) and (data.get("status") == "error" or data.get("code")):
         return None
     if isinstance(data, dict):

@@ -88,10 +88,6 @@ async def test_real_market_agent_resumes_exclusion(monkeypatch):
             AIMessage(content="Please choose up to four assets."),
             AIMessage(
                 content="",
-                tool_calls=[{"name": "resolve_market_timeframe", "args": {}, "id": "window"}],
-            ),
-            AIMessage(
-                content="",
                 tool_calls=[
                     {
                         "name": "calculate_price_growth",

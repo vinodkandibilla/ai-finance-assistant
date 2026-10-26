@@ -107,8 +107,11 @@ def _validate_action(
         reason = "Targeted-search action limit reached."
     elif action != EXPAND and not query.strip():
         reason = "Supply a nonempty search query."
-    elif action == TARGET and not missing_aspect.strip():
-        reason = "Identify the missing aspect before targeted search."
+    elif action in {TARGET, EXPAND} and not missing_aspect.strip():
+        reason = (
+            "Identify a specific missing aspect before recovery. "
+            "If the evidence already answers the request, submit the final answer."
+        )
     elif len(dense or []) > settings.max_dense_queries:
         reason = "Semantic query limit exceeded."
     elif (

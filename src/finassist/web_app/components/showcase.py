@@ -380,7 +380,7 @@ def watchlist_quote_card(symbol: str, response: QueryResponse) -> None:
 
 
 def market_comparison() -> None:
-    """Fetch two independent HTTP snapshots; never derive prices from chat prose."""
+    """Fetch both stocks in one request; never derive prices from chat prose."""
     with st.container(border=True, key="market_compare_toolbar"):
         first, second, frequency = st.columns([2, 2, 2], vertical_alignment="center")
         with first:
@@ -433,12 +433,12 @@ def market_comparison() -> None:
         return
     snapshots = []
     with st.spinner("Loading stock comparison…"):
+        try:
+            response = fetch_market_snapshot(symbols, interval)
+        except (ApiError, ValueError):
+            response = None
         for symbol in symbols:
-            try:
-                response = fetch_market_snapshot(symbol, interval)
-                bars, _ = market_chart_data(response, symbol, interval)
-            except (ApiError, ValueError):
-                bars = []
+            bars, _ = market_chart_data(response, symbol, interval) if response else ([], {})
             snapshots.append(bars)
     missing = [symbol for symbol, bars in zip(symbols, snapshots, strict=True) if not bars]
     if missing:
