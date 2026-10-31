@@ -12,7 +12,18 @@ FinPilot is an educational finance workspace that demonstrates a routed, multi-a
 - LangSmith tracing, router A/B evaluation, prompt versioning, and request-level observability.
 - A Streamlit workspace backed by a typed FastAPI API.
 
-See the [architecture overview](docs/architecture.md) and [MVP scope](docs/mvp-scope.md).
+## Start here
+
+For an illustrated introduction, read the **[FinPilot MVP overview (Word)](docs/finpilot-mvp-overview.docx)** or its [Markdown edition](docs/finpilot-mvp-overview.md). The Word edition includes architecture diagrams, UI screenshots and the six-agent walkthrough; operational details and measured evaluation updates live in the guides below.
+
+| What you need | Guide |
+| --- | --- |
+| Run locally, configure providers and understand HTTP responses | [API and operations](docs/api.md) |
+| Understand the system and shared controls | [Architecture](docs/architecture.md) |
+| Explore questions and UI workflows | [Agent guides](docs/agents/README.md) and [UI walkthrough](docs/ui-guide.md) |
+| Assess results, traces and prompt variants | [Evaluation and observability](docs/evaluation.md) |
+| Review implemented and deferred capabilities | [MVP scope](docs/mvp-scope.md) |
+| Present the demo | [PowerPoint](docs/presentations/finpilot-v2-updated.pptx) and [presenter notes](docs/presentations/finpilot-v2-updated-presenter-notes.txt) |
 
 ## Architecture
 
@@ -27,9 +38,11 @@ flowchart LR
     A --> DATA[RAG, tools, Qdrant, providers]
 ```
 
-Input guards redact PII and screen unsafe or blocked requests before model routing. Domain agents retain domain-specific evidence, citation, calculation, and fallback rules. The output node sanitizes and validates the user-visible response. See [guardrails](docs/guardrails.md).
+Input guards redact PII and screen unsafe or blocked requests before model routing. Domain agents retain domain-specific evidence, citation, calculation, and fallback rules. The output node sanitizes and validates the user-visible response. See [guardrails](docs/architecture.md#guardrails).
 
 ## Specialist agents
+
+Follow [a question through the six specialists](docs/agents/README.md), including simple, medium, and hard examples, clarification, refusals, and unknown results. The [UI walkthrough](docs/ui-guide.md) explains every workspace, shared chat, data provenance, and recovery flow.
 
 | Agent | Purpose | Details |
 | --- | --- | --- |
@@ -66,7 +79,7 @@ Open [FinPilot](http://127.0.0.1:8501), [Swagger UI](http://127.0.0.1:8000/docs)
 
 ## Evaluation and observability
 
-Router cases, baseline/candidate prompts, local evaluators, and LangSmith publishing are documented in [evaluation](docs/evaluation.md). LangSmith captures the LangGraph run tree, model/tool spans, latency, tokens, and cost when provider usage metadata is available. See [observability](docs/observability.md).
+Router cases, baseline/candidate prompts, local evaluators, and LangSmith publishing are documented in [evaluation](docs/evaluation.md). LangSmith captures the LangGraph run tree, model/tool spans, latency, tokens, and cost when provider usage metadata is available. See [observability](docs/evaluation.md#observability).
 
 ## Cost baseline
 
@@ -85,4 +98,4 @@ The primary endpoints are `POST /query`, `POST /query/resume`, `GET /health`, an
 
 FinPilot intentionally separates domain correctness from shared safety: agents own evidence and calculation rules; graph guardrail nodes own cross-cutting input/output checks. Synthetic portfolio data and simulated context are clearly labeled. No real authentication, durable chat history, or personalized financial advice is provided.
 
-Current limitations, deferred production work, and stretch goals are listed in [MVP scope](docs/mvp-scope.md). The previous detailed README is retained as a [reference archive](docs/reference/README-detailed.md) while the focused documentation evolves.
+Current limitations, deferred production work, and stretch goals are listed in [MVP scope](docs/mvp-scope.md). Setup and operational guidance is maintained in [API and operations](docs/api.md). Dated validation evidence remains in the evaluation directories; the [October 14 QA record](docs/reference/qa-handoff-2026-10-14.md) is historical.

@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2100" height="1510" viewBox="0 0 2100 1510"><rect width="100%" height="100%" fill="#f4f7fb"/>
+<text x="1050" y="59.16" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="700" fill="#18324b">FinPilot · Portfolio Management architecture</text>
+<text x="1050" y="102.86" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#60788d">Portfolio Analysis agent · Scoped data access · Deterministic financial calculations</text>
+<rect x="70" y="155" width="500" height="145" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="320.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">1  Streamlit portfolio workspace</text>
+<text x="320.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Manager dropdown + portfolio dashboard</text>
+<text x="320.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Shared chat: customer lookup / analysis</text>
+<text x="320.0" y="277.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Application identity is simulated</text>
+<rect x="730" y="155" width="650" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1055.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">2  FastAPI + shared LangGraph</text>
+<text x="1055.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Validate request + application user context</text>
+<text x="1055.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Input guardrails → intent router → portfolio</text>
+<text x="1055.0" y="277.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Identity: user_id + CUSTOMER / PORTFOLIO_MANAGER</text>
+<polyline points="570,228 730,228" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="730,228 720.9955289764732,232.3496553411123 720.9955289764732,223.6503446588877" fill="#688299"/>
+<rect x="730" y="390" width="650" height="145" rx="14" fill="#e5edfc" stroke="#a8bfe3" stroke-width="2"/>
+<text x="1055.0" y="426.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">3  Portfolio Analysis agent</text>
+<text x="1055.0" y="458.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">OpenAI LLM chooses tools from the request</text>
+<text x="1055.0" y="485.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Application identity passed via runtime configuration</text>
+<text x="1055.0" y="512.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Model tool arguments do not establish identity</text>
+<polyline points="1055,300 1055,390" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1055,390 1050.6503446588877,380.9955289764732 1059.3496553411123,380.9955289764732" fill="#688299"/>
+<rect x="70" y="390" width="500" height="145" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="320.0" y="426.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Human in the loop</text>
+<text x="320.0" y="458.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">ask_portfolio_clarification</text>
+<text x="320.0" y="485.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Missing / ambiguous essential customer details</text>
+<text x="320.0" y="512.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">interrupt → checkpoint → user reply → resume</text>
+<polyline points="730,462 570,462" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="570,462 579.0044710235268,457.6503446588877 579.0044710235268,466.3496553411123" fill="#b58a3d"/>
+<polyline points="320,390 320,345 1055,345 1055,390" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1055,390 1050.6503446588877,380.9955289764732 1059.3496553411123,380.9955289764732" fill="#b58a3d"/>
+<rect x="1510" y="155" width="510" height="145" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="1765.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Persistent execution checkpoint</text>
+<text x="1765.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Shared LangGraph SQLite checkpointer</text>
+<text x="1765.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Separate from synthetic portfolio database</text>
+<text x="1765.0" y="277.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">/query/resume continues paused execution</text>
+<polyline points="1765,300 1765,345 1430,345 1430,415 1380,415" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1380,415 1389.0044710235268,410.6503446588877 1389.0044710235268,419.3496553411123" fill="#b58a3d"/>
+<rect x="70" y="650" width="560" height="235" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="350.0" y="686.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">4a  Customer tools</text>
+<text x="350.0" y="718.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">resolve_portfolio_customer</text>
+<text x="350.0" y="745.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">get_customer_portfolio</text>
+<text x="350.0" y="772.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">get_customer_investment_profile</text>
+<text x="350.0" y="799.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Resolve names only within authorized scope</text>
+<rect x="760" y="650" width="560" height="235" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1040.0" y="686.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">4b  Manager tools</text>
+<text x="1040.0" y="718.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">screen_manager_portfolios</text>
+<text x="1040.0" y="745.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">compare_manager_portfolios</text>
+<text x="1040.0" y="772.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">screen=all: list all assigned customers</text>
+<text x="1040.0" y="799.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Other screens / ranking: requested analysis</text>
+<polyline points="1055,535 1055,590 350,590 350,650" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="350,650 345.6503446588877,640.9955289764732 354.3496553411123,640.9955289764732" fill="#688299"/>
+<polyline points="1055,590 1040,590 1040,650" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1040,650 1035.6503446588877,640.9955289764732 1044.3496553411123,640.9955289764732" fill="#688299"/>
+<rect x="1490" y="650" width="550" height="235" rx="14" fill="#eaf2fa" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1765.0" y="686.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Scoped synthetic SQLite store</text>
+<text x="1765.0" y="718.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Customer → own data only</text>
+<text x="1765.0" y="745.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Manager → assigned customers only</text>
+<text x="1765.0" y="772.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Customers · assignments · holdings · profiles</text>
+<text x="1765.0" y="799.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Frozen reference prices</text>
+<text x="1765.0" y="826.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">In-memory SQLite; seeded on initialization</text>
+<polyline points="1320,767 1490,767" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1490,767 1480.9955289764732,771.3496553411123 1480.9955289764732,762.6503446588877" fill="#688299"/>
+<polyline points="350,885 350,925 1765,925 1765,885" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1765,885 1769.3496553411123,894.0044710235268 1760.6503446588877,894.0044710235268" fill="#688299"/>
+<rect x="760" y="990" width="620" height="150" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="1070.0" y="1026.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">5  Deterministic Python metrics</text>
+<text x="1070.0" y="1058.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Portfolio value · cost basis · unrealized gain / loss</text>
+<text x="1070.0" y="1085.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Holding / sector / asset allocation · concentration / HHI</text>
+<text x="1070.0" y="1112.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Screen / compare; retain warnings and excluded records</text>
+<polyline points="1765,925 1765,1065 1380,1065" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1380,1065 1389.0044710235268,1060.6503446588877 1389.0044710235268,1069.3496553411123" fill="#688299"/>
+<rect x="70" y="990" width="560" height="150" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="350.0" y="1026.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Execution bounds</text>
+<text x="350.0" y="1058.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">At most 6 decision turns · 60-second timeout</text>
+<text x="350.0" y="1085.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Coverage assessment may request more tool work</text>
+<text x="350.0" y="1112.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">No RAG, market MCP or semantic answer cache</text>
+<rect x="760" y="1220" width="620" height="150" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="1070.0" y="1256.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">6  Assess + validate + format result</text>
+<text x="1070.0" y="1288.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Check answer coverage and successful scoped tool results</text>
+<text x="1070.0" y="1315.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Profile alignment needs matching portfolio + profile data</text>
+<text x="1070.0" y="1342.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Routine listings / recognized snapshots: Python formatting</text>
+<polyline points="1070,1140 1070,1220" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1070,1220 1065.6503446588877,1210.9955289764732 1074.3496553411123,1210.9955289764732" fill="#688299"/>
+<polyline points="1380,1240 1420,1240 1420,1180 2060,1180 2060,462 1380,462" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1380,462 1389.0044710235268,457.6503446588877 1389.0044710235268,466.3496553411123" fill="#b58a3d"/>
+<text x="1750" y="1165.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#926c2b">Incomplete → bounded tool loop</text>
+<rect x="1490" y="1220" width="550" height="150" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1765.0" y="1256.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">7  Return to UI</text>
+<text x="1765.0" y="1288.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Output PII checks + API response validation</text>
+<text x="1765.0" y="1315.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Answer + structured calculations + status</text>
+<text x="1765.0" y="1342.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Synthetic-data / frozen-price provenance</text>
+<polyline points="1380,1335 1490,1335" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1490,1335 1480.9955289764732,1339.3496553411123 1480.9955289764732,1330.6503446588877" fill="#688299"/>
+<text x="1050" y="1437.22" text-anchor="middle" font-family="Arial,sans-serif" font-size="21" font-weight="400" fill="#60788d">Educational analysis over synthetic portfolios; no brokerage connection, order execution, or real authentication.</text>
+<text x="1050" y="1476.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#60788d">LangSmith traces span agent decisions and tool calls. Clarification checkpoint storage is separate from portfolio data.</text>
+</svg>

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1040" viewBox="0 0 1900 1040"><rect width="100%" height="100%" fill="#f4f7fb"/>
+<text x="950" y="61.16" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="700" fill="#18324b">FinPilot · Graph state and memory</text>
+<text x="950" y="103.86" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#60788d">State belongs to an execution thread; it is updated as nodes finish their work.</text>
+<rect x="40" y="180" width="300" height="135" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="190.0" y="216.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Start request</text>
+<text x="190.0" y="248.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">query · thread_id</text>
+<text x="190.0" y="275.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">application context</text>
+<polyline points="340,247 420,247" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="420,247 410.9955289764732,251.3496553411123 410.9955289764732,242.6503446588877" fill="#688299"/>
+<rect x="420" y="180" width="300" height="135" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="570.0" y="216.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Input guardrails</text>
+<text x="570.0" y="248.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">sanitized query</text>
+<text x="570.0" y="275.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">guardrail outcome</text>
+<polyline points="720,247 800,247" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="800,247 790.9955289764732,251.3496553411123 790.9955289764732,242.6503446588877" fill="#688299"/>
+<rect x="800" y="180" width="300" height="135" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="950.0" y="216.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Intent router</text>
+<text x="950.0" y="248.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">intent</text>
+<text x="950.0" y="275.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">selected handler</text>
+<polyline points="1100,247 1180,247" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1180,247 1170.9955289764732,251.3496553411123 1170.9955289764732,242.6503446588877" fill="#688299"/>
+<rect x="1180" y="180" width="300" height="135" rx="14" fill="#e5edfc" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1330.0" y="216.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Specialist execution</text>
+<text x="1330.0" y="248.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">tool messages / artifacts</text>
+<text x="1330.0" y="275.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">calculations or evidence</text>
+<polyline points="1480,247 1560,247" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1560,247 1550.9955289764732,251.3496553411123 1550.9955289764732,242.6503446588877" fill="#688299"/>
+<rect x="1560" y="180" width="300" height="135" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1710.0" y="216.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Complete response</text>
+<text x="1710.0" y="248.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">answer · status</text>
+<text x="1710.0" y="275.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">citations · errors</text>
+<text x="950" y="372.22" text-anchor="middle" font-family="Arial,sans-serif" font-size="21" font-weight="400" fill="#60788d">Representative fields only · Parent graph state and specialist message state have different schemas</text>
+<rect x="1140" y="435" width="400" height="135" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="1340.0" y="471.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Essential detail missing</text>
+<text x="1340.0" y="503.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Specialist calls clarification tool</text>
+<text x="1340.0" y="530.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">LangGraph interrupt pauses work</text>
+<polyline points="1330,315 1330,435" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1330,435 1325.6503446588877,425.9955289764732 1334.3496553411123,425.9955289764732" fill="#b58a3d"/>
+<rect x="650" y="435" width="400" height="135" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="850.0" y="471.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">SQLite checkpoint</text>
+<text x="850.0" y="503.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Saved execution state + pending work</text>
+<text x="850.0" y="530.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Located by the same thread_id</text>
+<polyline points="1140,502 1050,502" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1050,502 1059.0044710235268,497.6503446588877 1059.0044710235268,506.3496553411123" fill="#b58a3d"/>
+<rect x="160" y="435" width="400" height="135" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="360.0" y="471.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">User reply through UI</text>
+<text x="360.0" y="503.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">/query/resume: thread_id + reply</text>
+<text x="360.0" y="530.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Restore checkpoint; resume tool</text>
+<polyline points="650,502 560,502" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="560,502 569.0044710235268,497.6503446588877 569.0044710235268,506.3496553411123" fill="#b58a3d"/>
+<polyline points="360,570 360,630 1630,630 1630,375 1480,375 1480,315" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1480,315 1484.3496553411123,324.0044710235268 1475.6503446588877,324.0044710235268" fill="#b58a3d"/>
+<text x="970" y="614.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#926c2b">Continue the paused specialist; do not reroute the reply as a new question</text>
+<rect x="60" y="740" width="550" height="155" rx="14" fill="#e5edfc" stroke="#cbd8e5" stroke-width="2"/>
+<text x="335.0" y="776.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Graph state</text>
+<text x="335.0" y="808.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Working data for this request</text>
+<text x="335.0" y="835.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Nodes return updates; fields are not all populated</text>
+<text x="335.0" y="862.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Specialist history retains tool calls and replies</text>
+<rect x="675" y="740" width="550" height="155" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="950.0" y="776.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Checkpoint persistence</text>
+<text x="950.0" y="808.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Thread execution can survive a pause</text>
+<text x="950.0" y="835.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Separate from portfolio SQLite and caches</text>
+<text x="950.0" y="862.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Not a general long-term user memory</text>
+<rect x="1290" y="740" width="550" height="155" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="1565.0" y="776.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">UI chat history</text>
+<text x="1565.0" y="808.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Visible messages remain during the session</text>
+<text x="1565.0" y="835.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">New /query gets a new thread</text>
+<text x="1565.0" y="862.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Earlier chat is not automatically sent</text>
+<text x="950" y="983.04" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#18324b">Example: savings target supplied → ask for deadline → reply “5 years” → calculate using the saved target and new detail</text>
+</svg>

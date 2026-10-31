@@ -419,3 +419,19 @@ async def test_article_cards_expose_only_grounded_reporting_metadata():
         "published_at": None,
         "summary": "Reported development.",
     }
+
+
+def test_news_structured_results_use_function_calling(monkeypatch):
+    methods = []
+    original = NewsModel.with_structured_output
+
+    def structured(model, schema, **kwargs):
+        methods.append((schema, kwargs.get("method")))
+        return original(model, schema, **kwargs)
+
+    monkeypatch.setattr(NewsModel, "with_structured_output", structured)
+    make_agent([])
+    assert methods == [
+        (EvidenceAssessment, "function_calling"),
+        (NewsAgentResult, "function_calling"),
+    ]

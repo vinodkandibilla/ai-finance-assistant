@@ -6,7 +6,7 @@ Multi-agent routing, Finance/Tax RAG, market/news tools, synthetic portfolio ana
 
 ## Deferred
 
-Real authentication and authorization, durable chat history, global output moderation, comprehensive cost aggregation, production deployment controls, and full resume-path guardrail parity.
+Production authentication and identity integration (tools already enforce simulated scope), durable chat history, global output moderation, comprehensive cost aggregation, production deployment controls, and full resume-path guardrail parity.
 
 ## Stretch goals
 

@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1370" viewBox="0 0 1900 1370"><rect width="100%" height="100%" fill="#f4f7fb"/>
+<text x="950" y="59.16" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="700" fill="#18324b">FinPilot · Market Intelligence</text>
+<text x="950" y="100.86" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#60788d">Query → tools → cache / MCP → provider → validated market response</text>
+<rect x="60" y="155" width="440" height="120" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="280.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Streamlit UI</text>
+<text x="280.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Stock lookup · quote · Plotly chart</text>
+<text x="280.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Shared market chat</text>
+<rect x="650" y="155" width="580" height="120" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="940.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">FastAPI → Market agent</text>
+<text x="940.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Shared guards + intent routing</text>
+<text x="940.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">OpenAI LLM selects market tools</text>
+<polyline points="500,215 650,215" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="650,215 640.9955289764732,219.3496553411123 640.9955289764732,210.6503446588877" fill="#688299"/>
+<rect x="1370" y="155" width="470" height="120" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="1605.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Human clarification</text>
+<text x="1605.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Missing symbol / ambiguous timeframe</text>
+<text x="1605.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Checkpoint → /query/resume</text>
+<polyline points="1230,215 1370,215" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1370,215 1360.9955289764732,219.3496553411123 1360.9955289764732,210.6503446588877" fill="#b58a3d"/>
+<rect x="60" y="390" width="500" height="160" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="310.0" y="426.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Provider tools via MCP</text>
+<text x="310.0" y="458.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">search_symbol</text>
+<text x="310.0" y="485.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">get_quote</text>
+<text x="310.0" y="512.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">get_time_series</text>
+<rect x="730" y="390" width="500" height="160" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="980.0" y="426.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Local calculation tools</text>
+<text x="980.0" y="458.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">calculate_price_growth</text>
+<text x="980.0" y="485.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">calculate_price_extrema</text>
+<text x="980.0" y="512.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Deterministic math over provider observations</text>
+<polyline points="940,275 940,330 310,330 310,390" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="310,390 305.6503446588877,380.9955289764732 314.3496553411123,380.9955289764732" fill="#688299"/>
+<polyline points="940,330 980,330 980,390" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="980,390 975.6503446588877,380.9955289764732 984.3496553411123,380.9955289764732" fill="#688299"/>
+<rect x="1370" y="390" width="470" height="160" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="1605.0" y="426.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">In-process response cache</text>
+<text x="1605.0" y="458.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Quote: 30 min · history / symbols: 24 h</text>
+<text x="1605.0" y="485.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">TTL / LRU + shared in-flight requests</text>
+<text x="1605.0" y="512.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Cache hit avoids provider call</text>
+<polyline points="560,470 650,470 650,600 1320,600 1320,470 1370,470" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1370,470 1360.9955289764732,474.3496553411123 1360.9955289764732,465.6503446588877" fill="#688299"/>
+<polyline points="1230,470 1370,470" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1370,470 1360.9955289764732,474.3496553411123 1360.9955289764732,465.6503446588877" fill="#688299"/>
+<rect x="1370" y="665" width="470" height="145" rx="14" fill="#eaf2fa" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1605.0" y="701.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Twelve Data MCP server</text>
+<text x="1605.0" y="733.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Local stdio subprocess</text>
+<text x="1605.0" y="760.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Cached tool discovery</text>
+<text x="1605.0" y="787.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Twelve Data API via HTTPS</text>
+<polyline points="1605,550 1605,665" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1605,665 1600.6503446588877,655.9955289764732 1609.3496553411123,655.9955289764732" fill="#688299"/>
+<text x="1700" y="620.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#926c2b">Cache miss</text>
+<rect x="730" y="665" width="500" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="980.0" y="701.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Validate + normalize results</text>
+<text x="980.0" y="733.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Symbol · exchange · currency · timestamps</text>
+<text x="980.0" y="760.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Quote + OHLC observations</text>
+<text x="980.0" y="787.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Compute growth / extrema when requested</text>
+<polyline points="1370,738 1230,738" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1230,738 1239.0044710235268,733.6503446588877 1239.0044710235268,742.3496553411123" fill="#688299"/>
+<rect x="60" y="665" width="500" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="310.0" y="701.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Execution bounds</text>
+<text x="310.0" y="733.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Agent timeout: 30 seconds by default</text>
+<text x="310.0" y="760.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Historical output: up to 100 observations</text>
+<text x="310.0" y="787.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Extrema window: up to 100 calendar days</text>
+<rect x="730" y="920" width="500" height="145" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="980.0" y="956.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">Return to UI</text>
+<text x="980.0" y="988.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Answer + validated quote / chart payload</text>
+<text x="980.0" y="1015.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Output PII checks + API validation</text>
+<text x="980.0" y="1042.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Provider provenance + cached / delayed caveats</text>
+<polyline points="980,810 980,920" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="980,920 975.6503446588877,910.9955289764732 984.3496553411123,910.9955289764732" fill="#688299"/>
+<polyline points="1370,520 1300,520 1300,785 1230,785" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1230,785 1239.0044710235268,780.6503446588877 1239.0044710235268,789.3496553411123" fill="#b58a3d"/>
+<text x="1500" y="870.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#926c2b">Cache hit → validated result</text>
+<text x="950" y="1317.22" text-anchor="middle" font-family="Arial,sans-serif" font-size="21" font-weight="400" fill="#60788d">Provider: Twelve Data · No RAG / Qdrant · No brokerage execution · LangSmith traces across agent and tool steps</text>
+<text x="950" y="1353.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#60788d">MCP is a separately installed runtime process; cached market data is held in application memory.</text>
+<rect x="60" y="1130" width="1780" height="140" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="950.0" y="1166.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Provider resilience · automatic retries</text>
+<text x="950.0" y="1198.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Transient only: network timeout / interruption, HTTP 408 / 429 / 500 / 502 / 503 / 504, temporary-failure signals</text>
+<text x="950.0" y="1225.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Maximum 3 attempts (1 initial + 2 retries) · Exponential backoff: 0.5 s, 1 s · No jitter</text>
+<text x="950.0" y="1252.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Permanent / unknown errors: no retry · Overall agent deadline: 30 s · Per-MCP-call timeout: post-MVP</text>
+</svg>

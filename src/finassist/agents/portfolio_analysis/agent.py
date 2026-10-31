@@ -17,6 +17,7 @@ from pydantic import Field
 from finassist.agents.common.clarification import clarification_reply
 from finassist.agents.common.schemas import AgentResult, AgentState
 from finassist.agents.portfolio_analysis.authorization import UserContext, denied
+from finassist.agents.portfolio_analysis.presentation import format_snapshot, is_snapshot_request
 from finassist.agents.portfolio_analysis.tools import PortfolioTools
 from finassist.data.portfolio_store import PortfolioStore
 from finassist.prompts import PORTFOLIO_ANALYSIS_AGENT_PROMPT as AGENT_PROMPT
@@ -347,6 +348,11 @@ class PortfolioAnalysisAgent:
                     )
                 if result.status == "out_of_scope":
                     calculations = []
+                if result.status == "answered" and is_snapshot_request(state["query"]):
+                    snapshots = [c for c in calculations
+                                 if c.get("status") == "success" and "holdings" in c]
+                    if len(snapshots) == 1:
+                        result.answer = format_snapshot(snapshots[0])
                 result.citations = []
                 result.clarification_question = None
         except GraphInterrupt:

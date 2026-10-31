@@ -35,8 +35,6 @@ def reformulate_query(
     evaluation: dict,
     keywords: list[str],
     retry_count: int,
-    *,
-    update_search_query: bool = False,
 ) -> dict:
     assessment = ContextEvaluation.model_validate(evaluation)
     queries = assessment.suggested_queries or [
@@ -47,9 +45,6 @@ def reformulate_query(
         "dense_sub_queries": queries[:3],
         "sparse_keywords": list(dict.fromkeys([*keywords, *assessment.missing_concepts])),
     }
-    if update_search_query:
-        terms = assessment.suggested_queries or assessment.missing_concepts
-        update["search_query"] = query + "\nSearch focus: " + " ".join(terms[:3])
     return update
 
 

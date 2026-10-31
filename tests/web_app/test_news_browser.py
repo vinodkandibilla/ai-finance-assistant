@@ -69,3 +69,37 @@ def test_news_search_retry_retains_results_and_ask_prefills(monkeypatch):
     app.button(key="news_article_ask_0").click().run()
     assert "https://example.com/a" in app.chat_input[0].value
     assert not app.chat_message
+
+
+def test_unsupported_news_search_preserves_api_explanation(monkeypatch):
+    monkeypatch.setattr(
+        "finassist.web_app.components.news.fetch_news",
+        lambda *args: QueryResponse(
+            intent="other", executed_handler="unsupported_node",
+            answer="This request is not supported yet.",
+        ),
+    )
+    app = AppTest.from_file(str(APP), default_timeout=10).run()
+    app.switch_page("views/news.py").run()
+    next(item for item in app.text_input if item.label == "Search topic").input(
+        "Are there any soccer games today?"
+    )
+    next(b for b in app.button if b.label == "Search news").click().run()
+    assert not app.exception
+    assert any(w.value == "This request is not supported yet." for w in app.warning)
+    assert not any("narrower topic" in w.value for w in app.warning)
+    assert not any(link.label == "Read article" for link in app.get("link_button"))
+
+
+def test_news_agent_error_preserves_failure_reason(monkeypatch):
+    monkeypatch.setattr(
+        "finassist.web_app.components.news.fetch_news",
+        lambda *args: QueryResponse(
+            intent="news", status="error", answer="News synthesis is currently unavailable."
+        ),
+    )
+    app = AppTest.from_file(str(APP), default_timeout=10).run()
+    app.switch_page("views/news.py").run()
+    next(b for b in app.button if b.label == "Search news").click().run()
+    assert not app.exception
+    assert any(w.value == "News synthesis is currently unavailable." for w in app.warning)

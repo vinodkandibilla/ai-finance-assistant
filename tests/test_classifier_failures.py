@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -10,7 +13,7 @@ from openai import (
     RateLimitError,
 )
 
-from finassist.api.query import get_query_graph
+from finassist.api.query import get_query_graph, get_simulated_user_context
 from finassist.evaluation.router.evaluation import (
     RouterEvalCase,
     evaluate_classifier,
@@ -18,7 +21,12 @@ from finassist.evaluation.router.evaluation import (
 )
 from finassist.main import create_app
 from finassist.workflow.builder import build_graph
-from finassist.workflow.classifier import LLMIntentClassifier
+from finassist.workflow.classifier import (
+    ClassificationOutputError,
+    ClassificationProviderError,
+    ClassificationTimeoutError,
+    LLMIntentClassifier,
+)
 
 
 class Model:
@@ -111,6 +119,42 @@ async def test_valid_structured_intent_still_succeeds():
         )
         == "finance_qa"
     )
+
+
+@pytest.mark.parametrize(
+    "path,payload",
+    [
+        ("/query", {"query": "Explain ETFs"}),
+        ("/query/resume", {"thread_id": "paused-thread", "reply": "Five years"}),
+    ],
+)
+@pytest.mark.parametrize(
+    "error,code,detail",
+    [
+        (ClassificationTimeoutError("Private details"), 504,
+         "Intent classification timed out. Please try again."),
+        (ClassificationProviderError("Private details"), 503,
+         "Intent classification provider unavailable. Please try again."),
+        (ClassificationOutputError("Private details"), 502,
+         "Intent classification returned an invalid response. Please try again."),
+    ],
+)
+def test_classification_http_error_contract_on_query_and_resume(path, payload, error, code, detail):
+    graph = SimpleNamespace(
+        ainvoke=AsyncMock(side_effect=error),
+        aget_state=AsyncMock(return_value=SimpleNamespace(
+            values={"portfolio_user_context": None},
+        )),
+    )
+    app = create_app()
+    app.dependency_overrides[get_query_graph] = lambda: graph
+    app.dependency_overrides[get_simulated_user_context] = lambda: None
+
+    response = TestClient(app).post(path, json=payload)
+
+    assert response.status_code == code
+    assert response.json() == {"detail": detail}
+    assert "Private" not in response.text
 
 
 async def test_classifier_failure_never_invokes_domain_agent():

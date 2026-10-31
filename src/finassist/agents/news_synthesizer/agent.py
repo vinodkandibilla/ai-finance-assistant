@@ -63,10 +63,14 @@ class NewsSynthesizerAgent:
         )
         tools = [self.search_tool, ask_news_clarification]
         self._model = llm.bind_tools(tools, parallel_tool_calls=False)
-        self._assessor = llm.with_structured_output(EvidenceAssessment)
+        self._assessor = llm.with_structured_output(
+            EvidenceAssessment, method="function_calling"
+        )
         self._tool_node = ToolNode(tools, handle_tool_errors=True)
         self.agent = self._build_acquisition_graph()
-        self._formatter = llm.with_structured_output(NewsAgentResult)
+        self._formatter = llm.with_structured_output(
+            NewsAgentResult, method="function_calling"
+        )
         workflow = StateGraph(AgentState)
         workflow.add_node("news_synthesizer_agent", self._run)
         workflow.add_edge(START, "news_synthesizer_agent")

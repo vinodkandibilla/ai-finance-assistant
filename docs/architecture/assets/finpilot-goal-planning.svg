@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1270" viewBox="0 0 1900 1270"><rect width="100%" height="100%" fill="#f4f7fb"/>
+<text x="950" y="59.16" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="700" fill="#18324b">FinPilot · Goal Planning</text>
+<text x="950" y="100.86" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#60788d">User goal → clarification → deterministic calculators → validated projection</text>
+<rect x="60" y="155" width="440" height="120" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="280.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Streamlit UI</text>
+<text x="280.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Goals workspace + shared chat</text>
+<text x="280.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">User supplies goal and assumptions</text>
+<rect x="650" y="155" width="580" height="120" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="940.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">FastAPI → Goals agent</text>
+<text x="940.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Shared guardrails + intent routing</text>
+<text x="940.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">OpenAI LLM selects calculator tools</text>
+<polyline points="500,215 650,215" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="650,215 640.9955289764732,219.3496553411123 640.9955289764732,210.6503446588877" fill="#688299"/>
+<rect x="1370" y="155" width="470" height="145" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="1605.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Human clarification</text>
+<text x="1605.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">ask_goal_clarification</text>
+<text x="1605.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Missing / ambiguous essential inputs</text>
+<text x="1605.0" y="277.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Checkpoint → /query/resume</text>
+<polyline points="1230,215 1370,215" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1370,215 1360.9955289764732,219.3496553411123 1360.9955289764732,210.6503446588877" fill="#b58a3d"/>
+<polyline points="1605,300 1605,335 940,335 940,365" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="940,365 935.6503446588877,355.9955289764732 944.3496553411123,355.9955289764732" fill="#b58a3d"/>
+<rect x="650" y="365" width="580" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="940.0" y="401.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Resolve required inputs</text>
+<text x="940.0" y="433.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Target · monthly contribution · horizon</text>
+<text x="940.0" y="460.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Starting savings + assumed annual return</text>
+<text x="940.0" y="487.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Required fields depend on selected calculation</text>
+<polyline points="940,275 940,365" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="940,365 935.6503446588877,355.9955289764732 944.3496553411123,355.9955289764732" fill="#688299"/>
+<rect x="60" y="610" width="810" height="160" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="465.0" y="646.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Savings calculator tools</text>
+<text x="465.0" y="678.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">calculate_required_contribution → monthly savings needed</text>
+<text x="465.0" y="705.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">calculate_future_value → projected ending savings</text>
+<text x="465.0" y="732.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">calculate_time_to_goal → months needed</text>
+<text x="465.0" y="759.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">check_goal_feasibility → target met, shortfall / surplus</text>
+<rect x="1050" y="610" width="790" height="160" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1445.0" y="646.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Deterministic Python execution</text>
+<text x="1445.0" y="678.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Validate inputs and units; calculate outside the LLM</text>
+<text x="1445.0" y="705.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Default starting savings: 0 · assumed annual return: 0%</text>
+<text x="1445.0" y="732.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">End-of-month contributions; disclose assumptions</text>
+<text x="1445.0" y="759.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Report invalid inputs / unreachable targets</text>
+<polyline points="940,510 940,555 465,555 465,610" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="465,610 460.6503446588877,600.9955289764732 469.3496553411123,600.9955289764732" fill="#688299"/>
+<polyline points="870,690 1050,690" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1050,690 1040.9955289764732,694.3496553411123 1040.9955289764732,685.6503446588877" fill="#688299"/>
+<rect x="650" y="875" width="580" height="145" rx="14" fill="#e5edfc" stroke="#a8bfe3" stroke-width="2"/>
+<text x="940.0" y="911.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Coverage assessment + validation</text>
+<text x="940.0" y="943.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Does the projection answer the requested goal?</text>
+<text x="940.0" y="970.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Require successful calculator results</text>
+<text x="940.0" y="997.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Incomplete → more tool work within remaining budget</text>
+<polyline points="1445,770 1445,835 940,835 940,875" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="940,875 935.6503446588877,865.9955289764732 944.3496553411123,865.9955289764732" fill="#688299"/>
+<polyline points="1230,945 1870,945 1870,335 1230,335 1230,400" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1230,400 1225.6503446588877,390.9955289764732 1234.3496553411123,390.9955289764732" fill="#b58a3d"/>
+<rect x="60" y="875" width="490" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="305.0" y="911.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Execution bounds</text>
+<text x="305.0" y="943.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Maximum 3 main-agent LLM responses</text>
+<text x="305.0" y="970.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Count retained across clarification</text>
+<text x="305.0" y="997.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">60-second active-invocation timeout</text>
+<rect x="650" y="1090" width="580" height="120" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="940.0" y="1126.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">Return to UI</text>
+<text x="940.0" y="1158.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Answer + structured calculation + assumptions</text>
+<text x="940.0" y="1185.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Shared output PII checks + API validation</text>
+<polyline points="940,1020 940,1090" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="940,1090 935.6503446588877,1080.9955289764732 944.3496553411123,1080.9955289764732" fill="#688299"/>
+<rect x="1370" y="1090" width="470" height="120" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="1605.0" y="1126.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Separate UI calculator</text>
+<text x="1605.0" y="1158.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Local scenario projection + chart</text>
+<text x="1605.0" y="1185.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Runs without the agent / FastAPI path</text>
+<text x="950" y="1246.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#60788d">Hypothetical projections · No RAG / provider data / semantic cache · Shared LangSmith tracing and checkpoint infrastructure</text>
+</svg>

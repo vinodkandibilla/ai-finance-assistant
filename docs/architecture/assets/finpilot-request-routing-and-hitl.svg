@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2140" height="1320" viewBox="0 0 2140 1320"><rect width="100%" height="100%" fill="#f4f7fb"/>
+<text x="1070" y="60.8" text-anchor="middle" font-family="Arial,sans-serif" font-size="40" font-weight="700" fill="#18324b">FinPilot | Request routing and human-in-the-loop</text>
+<text x="1070" y="105.03999999999999" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="400" fill="#637c90">Your architecture, refined — one selected agent per request; checkpointed clarification when needed</text>
+<rect x="35" y="590" width="190" height="100" rx="14" fill="#e0f3ef" stroke="#79b8ab" stroke-width="2"/>
+<text x="130.0" y="626.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">FinPilot UI</text>
+<text x="130.0" y="658.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">User workspace</text>
+<rect x="285" y="590" width="200" height="100" rx="14" fill="#e4eefb" stroke="#9db8db" stroke-width="2"/>
+<text x="385.0" y="626.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">FastAPI</text>
+<text x="385.0" y="658.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">API boundary</text>
+<polyline points="225,625 285,625" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="285,625 275.9955289764732,629.3496553411123 275.9955289764732,620.6503446588877" fill="#688299"/>
+<polyline points="285,660 225,660" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="225,660 234.00447102352678,655.6503446588877 234.00447102352678,664.3496553411123" fill="#688299"/>
+<rect x="540" y="285" width="180" height="80" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="630.0" y="321.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">/query</text>
+<text x="630.0" y="353.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">New request</text>
+<rect x="540" y="385" width="180" height="80" rx="14" fill="#fff1d9" stroke="#dbb875" stroke-width="2"/>
+<text x="630.0" y="421.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">/query/resume</text>
+<text x="630.0" y="453.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Reply + thread ID</text>
+<polyline points="485,625 525,625 525,325 540,325" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="540,325 530.9955289764732,329.3496553411123 530.9955289764732,320.6503446588877" fill="#688299"/>
+<polyline points="485,608 510,608 510,425 540,425" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="540,425 530.9955289764732,429.3496553411123 530.9955289764732,420.6503446588877" fill="#688299"/>
+<rect x="810" y="170" width="1170" height="100" rx="14" fill="#f0eaf9" stroke="#c4b3db" stroke-width="2"/>
+<text x="1395.0" y="206.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Input guardrails</text>
+<text x="1395.0" y="238.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">PII redaction • Regex rules • Moderation • Injection screening</text>
+<polyline points="630,285 630,220 810,220" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="810,220 800.9955289764732,224.3496553411123 800.9955289764732,215.6503446588877" fill="#688299"/>
+<rect x="1280" y="345" width="250" height="100" rx="14" fill="#173f67" stroke="#173f67" stroke-width="2"/>
+<text x="1405.0" y="381.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">Intent router</text>
+<text x="1405.0" y="413.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Select one intent</text>
+<polyline points="1405,270 1405,345" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1405,345 1400.6503446588877,335.9955289764732 1409.3496553411123,335.9955289764732" fill="#688299"/>
+<rect x="810" y="345" width="360" height="115" rx="14" fill="#fff1d9" stroke="#dbb875" stroke-width="2"/>
+<text x="990.0" y="381.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">HITL + checkpoint</text>
+<text x="990.0" y="413.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Pause for missing user details</text>
+<text x="990.0" y="440.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">SQLite execution state</text>
+<polyline points="720,425 810,425" fill="none" stroke="#b18435" stroke-width="2"/>
+<polygon points="810,425 800.9955289764732,429.3496553411123 800.9955289764732,420.6503446588877" fill="#b18435"/>
+<text x="935" y="503.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#9b752f">Resume only the paused specialist</text>
+<polyline points="1405,445 1405,540" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="605,540 1935,540" fill="none" stroke="#688299" stroke-width="2"/>
+<text x="1510" y="521.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#637c90">One branch executes</text>
+<polyline points="605,540 605,700" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="605,700 600.6503446588877,690.9955289764732 609.3496553411123,690.9955289764732" fill="#688299"/>
+<rect x="520" y="700" width="170" height="100" rx="14" fill="#e8edf4" stroke="#afc4d9" stroke-width="2"/>
+<text x="605.0" y="736.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Clarify</text>
+<text x="605.0" y="768.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">General guidance</text>
+<polyline points="795,540 795,700" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="795,700 790.6503446588877,690.9955289764732 799.3496553411123,690.9955289764732" fill="#688299"/>
+<rect x="710" y="700" width="170" height="100" rx="14" fill="#e8edf4" stroke="#afc4d9" stroke-width="2"/>
+<text x="795.0" y="736.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Other</text>
+<text x="795.0" y="768.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Unsupported task</text>
+<polyline points="985,540 985,700" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="985,700 980.6503446588877,690.9955289764732 989.3496553411123,690.9955289764732" fill="#688299"/>
+<rect x="900" y="700" width="170" height="100" rx="14" fill="#e1effb" stroke="#afc4d9" stroke-width="2"/>
+<text x="985.0" y="736.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Finance Q&amp;A</text>
+<text x="985.0" y="768.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Education + tools</text>
+<polyline points="1175,540 1175,700" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1175,700 1170.6503446588877,690.9955289764732 1179.3496553411123,690.9955289764732" fill="#688299"/>
+<rect x="1090" y="700" width="170" height="100" rx="14" fill="#e1effb" stroke="#afc4d9" stroke-width="2"/>
+<text x="1175.0" y="736.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Tax</text>
+<text x="1175.0" y="768.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">US tax education</text>
+<polyline points="1365,540 1365,700" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1365,700 1360.6503446588877,690.9955289764732 1369.3496553411123,690.9955289764732" fill="#688299"/>
+<rect x="1280" y="700" width="170" height="100" rx="14" fill="#e1effb" stroke="#afc4d9" stroke-width="2"/>
+<text x="1365.0" y="736.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Portfolio</text>
+<text x="1365.0" y="768.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Scoped holdings</text>
+<polyline points="1555,540 1555,700" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1555,700 1550.6503446588877,690.9955289764732 1559.3496553411123,690.9955289764732" fill="#688299"/>
+<rect x="1470" y="700" width="170" height="100" rx="14" fill="#e1effb" stroke="#afc4d9" stroke-width="2"/>
+<text x="1555.0" y="736.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Market</text>
+<text x="1555.0" y="768.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Provider data</text>
+<polyline points="1745,540 1745,700" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1745,700 1740.6503446588877,690.9955289764732 1749.3496553411123,690.9955289764732" fill="#688299"/>
+<rect x="1660" y="700" width="170" height="100" rx="14" fill="#e1effb" stroke="#afc4d9" stroke-width="2"/>
+<text x="1745.0" y="736.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Goals</text>
+<text x="1745.0" y="768.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Savings plans</text>
+<polyline points="1935,540 1935,700" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1935,700 1930.6503446588877,690.9955289764732 1939.3496553411123,690.9955289764732" fill="#688299"/>
+<rect x="1850" y="700" width="170" height="100" rx="14" fill="#e1effb" stroke="#afc4d9" stroke-width="2"/>
+<text x="1935.0" y="736.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">News</text>
+<text x="1935.0" y="768.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Cited reporting</text>
+<polyline points="990,460 990,585 1935,585" fill="none" stroke="#b18435" stroke-width="2" stroke-dasharray="7 7"/>
+<polyline points="985,700 985,585" fill="none" stroke="#b18435" stroke-width="2" stroke-dasharray="7 7"/>
+<polyline points="1175,700 1175,585" fill="none" stroke="#b18435" stroke-width="2" stroke-dasharray="7 7"/>
+<polyline points="1365,700 1365,585" fill="none" stroke="#b18435" stroke-width="2" stroke-dasharray="7 7"/>
+<polyline points="1555,700 1555,585" fill="none" stroke="#b18435" stroke-width="2" stroke-dasharray="7 7"/>
+<polyline points="1745,700 1745,585" fill="none" stroke="#b18435" stroke-width="2" stroke-dasharray="7 7"/>
+<polyline points="1935,700 1935,585" fill="none" stroke="#b18435" stroke-width="2" stroke-dasharray="7 7"/>
+<polyline points="1160,585 1160,460" fill="none" stroke="#b18435" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1160,460 1164.3496553411123,469.0044710235268 1155.6503446588877,469.0044710235268" fill="#b18435"/>
+<text x="1460" y="640.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#9b752f">Specialists: pause / resume through the saved checkpoint</text>
+<text x="1460" y="668.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#9b752f">Clarification question → FastAPI → UI; user reply → /query/resume</text>
+<text x="700" y="857.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#637c90">Clarify / Other complete normally</text>
+<polyline points="605,800 605,900" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="795,800 795,900" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="985,800 985,900" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="1175,800 1175,900" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="1365,800 1365,900" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="1555,800 1555,900" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="1745,800 1745,900" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="1935,800 1935,900" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="605,900 1935,900" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="1405,900 1405,970" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1405,970 1400.6503446588877,960.9955289764732 1409.3496553411123,960.9955289764732" fill="#688299"/>
+<rect x="810" y="970" width="1170" height="105" rx="14" fill="#e0f3ef" stroke="#79b8ab" stroke-width="2"/>
+<text x="1395.0" y="1006.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Output checks</text>
+<text x="1395.0" y="1038.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">PII redaction • Empty-answer fallback • API response validation</text>
+<polyline points="810,1020 385,1020 385,690" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="385,690 389.3496553411123,699.0044710235268 380.6503446588877,699.0044710235268" fill="#688299"/>
+<text x="592" y="999.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#18324b">Response returns to FastAPI</text>
+<text x="592" y="1054.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#637c90">Answer • Sources • Calculations • Status</text>
+<polyline points="1980,220 2040,220 2040,1020 1980,1020" fill="none" stroke="#b36c68" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1980,1020 1989.0044710235268,1015.6503446588877 1989.0044710235268,1024.3496553411123" fill="#b36c68"/>
+<text x="1890" y="318.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#a36560">Blocked → safe response</text>
+<rect x="95" y="1140" width="1950" height="105" rx="14" fill="#e9edf4" stroke="#cbd5e1" stroke-width="2"/>
+<text x="1070.0" y="1176.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">How to read this diagram</text>
+<text x="1070.0" y="1208.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Blue/gray solid lines: routing and completed responses. Gold dashed links: specialist clarification and resume.</text>
+<text x="1070.0" y="1235.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Router Clarify returns guidance without pausing. HITL resumes an existing specialist; it does not reroute the reply.</text>
+<text x="1070" y="1289.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#637c90">High-level control flow • Guardrail internals intentionally collapsed • No automatic calls between specialist agents</text>
+</svg>

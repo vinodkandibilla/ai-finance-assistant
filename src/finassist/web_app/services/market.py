@@ -1,5 +1,6 @@
 """HTTP-only market dashboard data and strict chart validation."""
 
+import re
 from datetime import date, datetime
 from typing import Any
 
@@ -68,6 +69,23 @@ def fetch_market_snapshot(symbol: str | list[str], interval: str) -> QueryRespon
     query = f"{task} and {interval.lower()} OHLC chart for the last {window}."
     with FinanceApiClient(WebSettings.from_environment()) as client:
         return client.query(QueryRequest(query=query, market_scope="us_nasdaq_usd"))
+
+
+def resolved_market_symbol(response: QueryResponse) -> str | None:
+    """Accept a single NASDAQ/USD symbol from successful structured observations."""
+    if response.intent != "market" or response.status not in {None, "answered"}:
+        return None
+    symbols = {
+        item["symbol"]
+        for item in ([response.calculation] if response.calculation else [])
+        + (response.calculations or [])
+        if item.get("type") == "market_observations"
+        and item.get("currency") == "USD"
+        and item.get("exchange") in {"NASDAQ", "XNAS"}
+        and isinstance(item.get("symbol"), str)
+        and re.fullmatch(r"[A-Z][A-Z0-9.:-]{0,19}", item["symbol"])
+    }
+    return next(iter(symbols)) if len(symbols) == 1 else None
 
 
 def market_chart_data(

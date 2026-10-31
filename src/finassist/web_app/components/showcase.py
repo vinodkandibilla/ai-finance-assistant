@@ -15,6 +15,7 @@ from finassist.web_app.services.market import (
     fetch_market_quote,
     fetch_market_snapshot,
     market_chart_data,
+    resolved_market_symbol,
 )
 from finassist.web_app.services.models import QueryResponse
 from finassist.web_app.services.showcase import project_goal
@@ -39,6 +40,9 @@ def ask_question(question: str) -> None:
 
 
 def market_showcase() -> None:
+    resolved = st.session_state.pop("market_resolved_snapshot", None)
+    if resolved:
+        st.session_state["market_chart_symbol"] = resolved[0]
     st.subheader("Market overview")
     st.caption("U.S. NASDAQ · USD · Provider quotes may be delayed or cached")
     mode = st.radio(
@@ -79,9 +83,18 @@ def market_showcase() -> None:
     if not request_blocked():
         try:
             with st.spinner(f"Loading {symbol} {interval.lower()} market data…"):
-                response = fetch_market_snapshot(symbol, interval)
+                response = (
+                    resolved[2]
+                    if resolved and resolved[:2] == (symbol, interval)
+                    else fetch_market_snapshot(symbol, interval)
+                )
         except (ApiError, ValueError):
             pass
+    if response is not None:
+        canonical = resolved_market_symbol(response)
+        if canonical and canonical != symbol:
+            st.session_state["market_resolved_snapshot"] = (canonical, interval, response)
+            st.rerun()
     window_label = "One month" if interval == "Daily" else "Three months"
     st.subheader(f"{symbol} · {interval} · {window_label}")
     if response is None:

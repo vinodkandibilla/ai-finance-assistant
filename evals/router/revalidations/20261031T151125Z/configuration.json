@@ -1,0 +1,7 @@
+{
+  "prompt_sha256": "9d4ab4b199988e9544fa57386d3fe8951aeaaff076d4917e75e87631298d6ea9",
+  "model": "gpt-4o-mini",
+  "prompt_version": "v2",
+  "scope": "current disk/environment settings, direct production routing; no domain agents or input guardrails; no LangSmith publication",
+  "sampling": "production classifier defaults, no temperature override"
+}

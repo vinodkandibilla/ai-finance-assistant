@@ -17,6 +17,7 @@ from langsmith import traceable
 from mcp import ClientSession
 from mcp.types import CallToolResult
 
+from finassist.agents.market_analysis.retry import transient_exception, transient_message
 from finassist.agents.market_analysis.tracing import (
     cache_status,
     invoke_mcp_tool,
@@ -148,21 +149,19 @@ class MarketCache:
                 try:
                     async with self.limiter:
                         result = await invoke_mcp_tool(session, name, normalized)
-                except Exception:
-                    if attempt >= retries:
+                except Exception as error:
+                    if attempt >= retries or not transient_exception(error):
                         raise
                     await asyncio.sleep(min(self.backoff_max, self.backoff_base * (2**attempt)))
                     continue
                 text = "\n".join(block.text for block in result.content if block.type == "text")
-                retryable = result.isError or bool(
-                    re.search(r"\b429\b|rate[ _-]?limit|too many requests|temporar", text, re.I)
-                )
+                retryable = transient_message(text)
                 if retryable and attempt < retries:
                     await asyncio.sleep(min(self.backoff_max, self.backoff_base * (2**attempt)))
                     continue
                 break
             # MCP providers can report errors as text with isError=False.
-            if not result.isError and not re.search(
+            if not result.isError and not retryable and not re.search(
                 r"\berror\b|\b429\b|rate[ _-]?limit|too many requests|api credits", text, re.I
             ):
                 self.entries[key] = (monotonic() + TTLS[name], result)

@@ -1,5 +1,7 @@
 # FinPilot MVP QA handoff — October 14, 2026
 
+This is a historical test record, not the current test baseline or feature inventory. See [current evaluation](../evaluation.md) and [MVP scope](../mvp-scope.md) for later work.
+
 ## Automated validation
 
 - Full backend/frontend suite: **616 passed**, 102 existing LangChain/LangGraph

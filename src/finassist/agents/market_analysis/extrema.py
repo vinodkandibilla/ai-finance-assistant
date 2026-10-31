@@ -109,7 +109,7 @@ async def calculate_price_extrema(
         currency = observation.get("currency") or "currency not supplied"
         answer = (
             f"{symbol}: the {'highest' if operation == 'max' else 'lowest'} observed "
-            f"{field} was {calculation['value']} ({currency}) on "
+            f"{field} was {Decimal(calculation['value']):.2f} ({currency}) on "
             f"{', '.join(calculation['observation_dates'])}. {note}"
         )
         return {"answer": answer, "status": "answered", "calculation": calculation}

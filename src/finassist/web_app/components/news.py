@@ -17,10 +17,10 @@ def news_browser() -> None:
         category, period = st.columns(2)
         with category:
             selected_topic = st.selectbox(
-                "Topic", ["US Markets", "Technology", "Earnings", "Economy", "Banking"]
+                "Category", ["US Markets", "Technology", "Earnings", "Economy", "Banking"]
             )
         with period:
-            window = st.selectbox("Period", ["Today", "Past week", "Past month"], index=1)
+            window = st.selectbox("Published within", ["Today", "Past week", "Past month"], index=1)
         topic = st.text_input(
             "Search topic", max_chars=200, placeholder="Optional: a company, sector, or event"
         )
@@ -42,6 +42,7 @@ def news_browser() -> None:
             if not articles:
                 st.session_state["news_search_error"] = (
                     response.clarification_question
+                    or response.answer.strip()
                     or "No supported article cards were returned. "
                     "Try a narrower topic or another period."
                 )
@@ -67,7 +68,8 @@ def news_browser() -> None:
         retry_control.empty()
     result = st.session_state.get("news_search_result")
     if not result:
-        st.info("Choose a topic and period, then search to browse sourced stories.")
+        if not error:
+            st.info("Choose a topic and period, then search to browse sourced stories.")
         return
     articles, searched_topic, searched_window, retrieved_at, status = result
     st.caption(f"{searched_topic} · {searched_window} · Retrieved {retrieved_at}")

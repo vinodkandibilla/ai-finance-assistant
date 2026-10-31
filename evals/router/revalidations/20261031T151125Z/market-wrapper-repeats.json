@@ -1,0 +1,140 @@
+[
+  {
+    "repetition": 1,
+    "case": {
+      "id": "wrapped_which_better",
+      "query": "Market scope: United States, NASDAQ-listed equities only, currency USD. No depositary receipts. Keep answer under 120 words; at most three symbol matches. Omit OHLC, volume and 52-week statistics unless requested.\nQuestion: Which is better?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "wrapper",
+        "clarification"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "clarify",
+    "predicted_handler": "clarify_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 769.7209587786347,
+    "error_category": null
+  },
+  {
+    "repetition": 1,
+    "case": {
+      "id": "wrapped_generic_price",
+      "query": "Market scope: United States, NASDAQ-listed equities only, currency USD. No depositary receipts. Keep answer under 120 words; at most three symbol matches. Omit OHLC, volume and 52-week statistics unless requested.\nQuestion: What is the stock price?",
+      "expected_classified_intent": "market",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "wrapper",
+        "clarification"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "market",
+    "predicted_handler": "market_analysis_node",
+    "intent_matches": true,
+    "handler_matches": false,
+    "elapsed_ms": 489.9578751064837,
+    "error_category": null
+  },
+  {
+    "repetition": 2,
+    "case": {
+      "id": "wrapped_which_better",
+      "query": "Market scope: United States, NASDAQ-listed equities only, currency USD. No depositary receipts. Keep answer under 120 words; at most three symbol matches. Omit OHLC, volume and 52-week statistics unless requested.\nQuestion: Which is better?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "wrapper",
+        "clarification"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "clarify",
+    "predicted_handler": "clarify_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 510.01487486064434,
+    "error_category": null
+  },
+  {
+    "repetition": 2,
+    "case": {
+      "id": "wrapped_generic_price",
+      "query": "Market scope: United States, NASDAQ-listed equities only, currency USD. No depositary receipts. Keep answer under 120 words; at most three symbol matches. Omit OHLC, volume and 52-week statistics unless requested.\nQuestion: What is the stock price?",
+      "expected_classified_intent": "market",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "wrapper",
+        "clarification"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "market",
+    "predicted_handler": "market_analysis_node",
+    "intent_matches": true,
+    "handler_matches": false,
+    "elapsed_ms": 919.2838750313967,
+    "error_category": null
+  },
+  {
+    "repetition": 3,
+    "case": {
+      "id": "wrapped_which_better",
+      "query": "Market scope: United States, NASDAQ-listed equities only, currency USD. No depositary receipts. Keep answer under 120 words; at most three symbol matches. Omit OHLC, volume and 52-week statistics unless requested.\nQuestion: Which is better?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "wrapper",
+        "clarification"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "clarify",
+    "predicted_handler": "clarify_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 584.5635409932584,
+    "error_category": null
+  },
+  {
+    "repetition": 3,
+    "case": {
+      "id": "wrapped_generic_price",
+      "query": "Market scope: United States, NASDAQ-listed equities only, currency USD. No depositary receipts. Keep answer under 120 words; at most three symbol matches. Omit OHLC, volume and 52-week statistics unless requested.\nQuestion: What is the stock price?",
+      "expected_classified_intent": "market",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "wrapper",
+        "clarification"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "market",
+    "predicted_handler": "market_analysis_node",
+    "intent_matches": true,
+    "handler_matches": false,
+    "elapsed_ms": 733.7567079812288,
+    "error_category": null
+  }
+]
