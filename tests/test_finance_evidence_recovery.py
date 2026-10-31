@@ -80,7 +80,7 @@ async def test_expansion_reuses_plan_and_returns_only_novel_evidence():
         "sparse_limit": 20,
         "candidate_limit": 40,
     }
-    assert expanded["remaining_searches"] == 2
+    assert expanded["remaining_searches"] == 1
     assert expanded["metadata_filters"] == {"topic": "ETF"}
     blocked = await invoke(execute, state, EXPAND, missing_aspect="Trading costs")
     assert "limit" in blocked["errors"][0]

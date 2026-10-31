@@ -8,6 +8,7 @@ from mcp import ClientSession
 from mcp.types import CallToolResult
 
 from finassist.agents.market_analysis.chart_data import provider_payload
+from finassist.agents.market_analysis.retry import MarketMCPError, transient_exception
 from finassist.core.config import get_settings
 
 PUBLIC_SELECTORS = {
@@ -92,7 +93,8 @@ async def invoke_mcp_tool(
     except TimeoutError:
         raise TimeoutError("Market MCP request timed out") from None
     except Exception as error:
-        if re.search(r"\b429\b|rate[ _-]?limit|too many requests", str(error), re.I):
-            raise RuntimeError("Market MCP rate limit") from None
-        # Decorators also capture exceptions, so never expose raw provider messages.
-        raise RuntimeError(f"Market MCP transport failed: {type(error).__name__}") from None
+        # Preserve retry eligibility without exposing raw provider messages in traces.
+        raise MarketMCPError(
+            f"Market MCP transport failed: {type(error).__name__}",
+            retryable=transient_exception(error),
+        ) from None

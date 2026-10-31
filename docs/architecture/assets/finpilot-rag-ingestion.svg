@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160"><rect width="100%" height="100%" fill="#f4f7fb"/>
+<text x="900" y="63.16" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="700" fill="#18324b">FinPilot · RAG corpus ingestion</text>
+<text x="900" y="104.86" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#60788d">Document preparation → hybrid embeddings → persistent Qdrant collection</text>
+<rect x="60" y="160" width="360" height="145" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="240.0" y="196.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">1  Source documents</text>
+<text x="240.0" y="228.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Finance: handbook PDF</text>
+<text x="240.0" y="255.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Tax: curated JSONL corpus</text>
+<text x="240.0" y="282.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Extract text + source metadata</text>
+<rect x="510" y="160" width="360" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="690.0" y="196.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">2  LangChain Documents</text>
+<text x="690.0" y="228.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">page_content: extracted text</text>
+<text x="690.0" y="255.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">metadata: source, page / title</text>
+<text x="690.0" y="282.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Tax: year, forms, topic, etc.</text>
+<rect x="960" y="160" width="360" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1140.0" y="196.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">3  Recursive text splitter</text>
+<text x="1140.0" y="228.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">RecursiveCharacterTextSplitter</text>
+<text x="1140.0" y="255.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Split text with chunk overlap</text>
+<text x="1140.0" y="282.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Retain source metadata</text>
+<polyline points="420,232 510,232" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="510,232 500.9955289764732,236.3496553411123 500.9955289764732,227.6503446588877" fill="#688299"/>
+<polyline points="870,232 960,232" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="960,232 950.9955289764732,236.3496553411123 950.9955289764732,227.6503446588877" fill="#688299"/>
+<rect x="960" y="380" width="360" height="145" rx="14" fill="#e5edfc" stroke="#a8bfe3" stroke-width="2"/>
+<text x="1140.0" y="416.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">4  Document chunks</text>
+<text x="1140.0" y="448.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">LangChain Document per chunk</text>
+<text x="1140.0" y="475.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Text + inherited metadata</text>
+<text x="1140.0" y="502.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Chunk identifiers for traceability</text>
+<polyline points="1140,305 1140,380" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1140,380 1135.6503446588877,370.9955289764732 1144.3496553411123,370.9955289764732" fill="#688299"/>
+<rect x="300" y="610" width="490" height="140" rx="14" fill="#e5edfc" stroke="#a8bfe3" stroke-width="2"/>
+<text x="545.0" y="646.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">5a  OpenAI embeddings</text>
+<text x="545.0" y="678.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">OpenAIEmbeddings</text>
+<text x="545.0" y="705.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Chunk text → dense semantic vectors</text>
+<text x="545.0" y="732.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">External API call</text>
+<rect x="1010" y="610" width="490" height="140" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="1255.0" y="646.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">5b  Local sparse embeddings</text>
+<text x="1255.0" y="678.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">FastEmbedSparse · Qdrant/bm25</text>
+<text x="1255.0" y="705.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Chunk text → sparse lexical vectors</text>
+<text x="1255.0" y="732.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Local execution</text>
+<polyline points="1140,525 1140,565 545,565 545,610" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="545,610 540.6503446588877,600.9955289764732 549.3496553411123,600.9955289764732" fill="#688299"/>
+<polyline points="1140,565 1255,565 1255,610" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1255,610 1250.6503446588877,600.9955289764732 1259.3496553411123,600.9955289764732" fill="#688299"/>
+<rect x="540" y="845" width="720" height="150" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="900.0" y="881.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">6  Write points into Qdrant</text>
+<text x="900.0" y="913.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">QdrantVectorStore.add_documents(chunks)</text>
+<text x="900.0" y="940.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Each point: dense + sparse vectors + text + metadata</text>
+<text x="900.0" y="967.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Stored in the selected hybrid collection</text>
+<polyline points="545,750 545,800 750,800 750,845" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="750,845 745.6503446588877,835.9955289764732 754.3496553411123,835.9955289764732" fill="#688299"/>
+<polyline points="1255,750 1255,800 1050,800 1050,845" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1050,845 1045.6503446588877,835.9955289764732 1054.3496553411123,835.9955289764732" fill="#688299"/>
+<rect x="60" y="380" width="740" height="145" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="430.0" y="416.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Collection setup · before the write</text>
+<text x="430.0" y="448.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Create missing collection with dense cosine + sparse vector fields</text>
+<text x="430.0" y="475.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">A sample dense embedding determines the vector dimension</text>
+<text x="430.0" y="502.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Existing nonempty collection is reused; ingestion is skipped</text>
+<polyline points="150,525 150,800 150,920 540,920" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="540,920 530.9955289764732,924.3496553411123 530.9955289764732,915.6503446588877" fill="#b58a3d"/>
+<text x="900" y="1048.86" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="700" fill="#18324b">Separate collections: finance_education_hybrid  •  tax_education_hybrid</text>
+<text x="900" y="1088.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#60788d">Corpus preparation path, separate from online retrieval; initialization may trigger ingestion when the index is missing or empty.</text>
+<text x="900" y="1119.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#60788d">Qdrant is the vector database; a collection is its storage container. Embedding and persistence are handled by the vector-store integration.</text>
+</svg>

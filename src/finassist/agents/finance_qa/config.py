@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class FinanceAgentSettings(BaseSettings):
     agent_timeout_seconds: float = Field(default=60.0, gt=0, allow_inf_nan=False)
-    agent_max_searches: int = Field(default=4, ge=1, le=20)
+    agent_max_searches: int = Field(default=3, ge=1, le=20)
     agent_recursion_limit: int = Field(default=30, ge=6, le=100)
     dense_top_k: int = Field(default=10, ge=1, le=100)
     sparse_top_k: int = Field(default=10, ge=1, le=100)

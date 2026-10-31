@@ -1,0 +1,51 @@
+FinPilot — Presenter Notes
+
+Slide 1
+========================================
+00:00–00:40 | 40 seconds
+FinPilot is an agentic AI financial assistant that handles education, market, news, portfolio, planning, and tax questions, by routing each request to a specialized agent, with scoped tool access and guardrails. Each task needs a different approach. Finance and Tax need reliable evidence, Portfolio needs scoped customer records, and Goals needs accurate calculations. This MVP connects six specialists within one application. Let me show you how they work together. Synthetic portfolios and simulated identity are used for the MVP.
+
+Slide 2
+========================================
+00:40–01:35 | 55 seconds
+Streamlit sends user questions to FastAPI. LangGraph applies input guardrails, and the intent router selects a specialist agent. Finance and Tax retrieve evidence from Qdrant. Portfolio accesses scoped customer data in SQLite. Goals uses deterministic Python calculators. Market connects to Twelve Data through an MCP subprocess, while News calls Tavily directly. LangSmith traces the request and its agent and tool calls. When a specialist needs clarification, SQLite checkpoints preserve the task so the user’s reply can resume it on the same thread. The UI retains session chat history, but does not automatically send earlier messages with a new question. Output PII redaction and API validation run before the response returns to the user.
+
+Slide 3
+========================================
+01:35–02:30 | 55 seconds
+The Finance specialist starts with a curated handbook. Offline ingestion creates LangChain Documents, then recursive splitting creates 800-character chunks with 120-character overlap. OpenAI dense embeddings and FastEmbed Qdrant/bm25 sparse vectors go into finance_education_hybrid. Online, eligible definition questions first check a semantic answer cache. Otherwise Qdrant hybrid search combines dense and sparse rankings using Reciprocal Rank Fusion. Evidence coverage can trigger Evidence Expansion or a Targeted Query Rewrite for missing facts. The total limit is three retrieval actions, with a shared cap of 15 passages and 30,000 characters. Baseline exposes up to three passages. Explicit supported metadata can filter retrieval. The optional cross-encoder reranker is disabled by default. Retrieval timeout is 15 seconds. Point to the ETF answer and its source. If using the app, show the preloaded answer rather than waiting for a fresh request.
+
+Slide 4
+========================================
+02:30–03:15 | 45 seconds
+Tax reuses the Finance retrieval pipeline with a separate tax_education_hybrid collection and semantic answer cache. Curated JSONL records are split and indexed. The important difference is constraint preservation: a requested tax year stays attached to retrieval and recovery, alongside supported metadata such as forms and topic. Baseline exposes up to five passages. Expansion exposes up to ten, subject to the shared three-action limit and evidence caps. The specialist cites available evidence and reports missing support. Its calculator covers limited 2026 federal ordinary income tax before credits and payments. It is not a full tax return. Point to the W-2 answer and citation in the screenshot.
+
+Slide 5
+========================================
+03:15–04:10 | 55 seconds
+Here the source is relational data rather than RAG. In-memory SQLite holds synthetic managers, assignments, holdings, profiles and frozen prices. The model chooses an operation. Python tools enforce scope and compute values, unrealized gains and losses, allocation and concentration. A manager can screen and compare assigned customers. A customer is scoped to their own record. Stored goals and risk tolerance are synthetic onboarding attributes. They are not inferred from holdings. Real authentication is deferred. Show PM001 and the customer list, then open Emma if the app is ready. No trades or brokerage actions occur.
+
+Slide 6
+========================================
+04:10–05:10 | 60 seconds
+Market uses observations from Twelve Data, reached through a local MCP subprocess. It can resolve symbols, get quotes and retrieve time series. Local deterministic tools compute growth and observed extrema. The UI supports daily or weekly charts and two-stock comparison. Provider metadata, observation timestamps and coverage caveats accompany results. An in-process TTL/LRU cache reuses responses and shares identical requests already in flight. Only eligible transient failures get retries, with three attempts total. The overall agent timeout is 30 seconds. Per-MCP-attempt timeout and jitter remain deferred. Historical output is capped at 100 observations, with extrema windows capped at 100 calendar days. Show AAPL’s chart and observation time without reading provider prices as independently verified facts.
+
+Slide 7
+========================================
+05:10–05:55 | 45 seconds
+Goals turns a target or contribution into a deterministic calculation. Four tools answer how much to contribute, what savings could become, how long a target takes and whether a deadline is feasible. Essential missing inputs can trigger checkpointed clarification. Defaults for starting savings and assumed return are zero when omitted. Results disclose assumptions and shortfalls. No external provider or RAG is involved. The screenshot is the separate local UI scenario calculator, which does not run through the chat agent. If showing the app, change a contribution and show the recalculated balance.
+
+Slide 8
+========================================
+05:55–06:45 | 50 seconds
+News calls Tavily directly over HTTPS rather than MCP. The selected category, custom topic and requested period establish search scope. Tavily’s generated answer is disabled. It supplies article evidence, while FinPilot checks coverage and writes the summary. A missing aspect can trigger a focused follow-up search within the three-search total. Original URLs are attached, and missing dates are not invented. Out-of-domain questions use unsupported handling. There is no Qdrant news index or persistent response cache. The provider defaults to a rolling week when no dates are supplied. Returned dates are not strictly post-filtered, so do not promise a hard publication cutoff. Show the preloaded result, source and partial-coverage notice.
+
+Slide 9
+========================================
+06:45–07:40 | 55 seconds
+These controls span all agent workflows. Input checks redact PII and examine supported policy rules, injection and moderation. Availability and configuration govern external checks. Output handling redacts PII, supplies an empty-answer fallback and validates API responses. A specialist can pause using a LangGraph interrupt. SQLite checkpoints preserve execution, and the user’s reply resumes the same thread. This is execution memory. The UI keeps session chat history, while long-term user memory is not implemented. Timeouts, iteration limits, semantic caching and provider caching control latency and cost. Most reasoning uses gpt-4o-mini. The diagram’s identity is simulated for this MVP. Do not describe the output as a Guardrails AI toxicity pipeline, because that is not implemented.
+
+Slide 10
+========================================
+07:40–09:10 | 90 seconds. Leave 50 seconds of buffer before 10:00.
+Evaluation and tracing answer different questions. Evaluation checks expected behavior against cases. The repository includes router JSONL cases, prompt variants A and B, and evaluators for intent, handler and route correctness. Experiments can be published to LangSmith. No measured score or completed experiment result is asserted in this deck. Tracing shows what happened in a particular request. This ETF trace links guardrails, routing, the Finance specialist, semantic cache activity and RAG execution under one request. Inside retrieval we can inspect dense embeddings, sparse encoding and Qdrant RRF. Timings, tokens and cost describe that run. The shown trace follows baseline retrieval, so it does not prove expansion or targeted rewrite ran. If the prepared LangSmith tab is ready, spend up to 30 seconds expanding finance_rag_query. Otherwise use this screenshot. Conclude: FinPilot separates financial tasks into six specialists, connects each to the appropriate evidence or calculator, and makes the execution inspectable. Broader answer-quality evaluation and real identity are next steps.

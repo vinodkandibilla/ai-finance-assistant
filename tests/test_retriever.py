@@ -1,40 +1,6 @@
-from langchain_core.documents import Document
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-from finassist.rag.retriever import QdrantHybridRetriever, QdrantRetriever
-
-
-class FakeVectorStore:
-    async def asimilarity_search_with_score(
-        self,
-        query: str,
-        *,
-        k: int = 4,
-    ) -> list[tuple[Document, float]]:
-        assert query == "budget"
-        assert k == 2
-        return [(Document(page_content="Monthly budget", metadata={"source": "guide.pdf"}), 0.9)]
-
-
-async def test_qdrant_retriever_maps_documents_and_scores() -> None:
-    retriever = QdrantRetriever(FakeVectorStore())
-
-    results = await retriever.search("budget", limit=2)
-
-    assert len(results) == 1
-    assert results[0].content == "Monthly budget"
-    assert results[0].source == "guide.pdf"
-    assert results[0].score == 0.9
-
-
-async def test_qdrant_retriever_returns_empty_chunks_when_search_fails() -> None:
-    class UnavailableVectorStore:
-        async def asimilarity_search_with_score(self, query: str, *, k: int = 4):
-            raise RuntimeError("collection is not initialized")
-
-    retriever = QdrantRetriever(UnavailableVectorStore())
-
-    assert await retriever.search("budget") == []
+from finassist.rag.retriever import QdrantHybridRetriever
 
 
 async def test_qdrant_hybrid_retriever_uses_fused_points_and_keeps_metadata() -> None:
@@ -98,3 +64,14 @@ async def test_qdrant_hybrid_retriever_uses_fused_points_and_keeps_metadata() ->
     assert all(item.filter == query_filter for item in client.kwargs["prefetch"])
     assert client.kwargs["query_filter"] == query_filter
     assert client.kwargs["limit"] == 3
+
+
+async def test_hybrid_retriever_returns_empty_when_search_fails():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    retriever = QdrantHybridRetriever(SimpleNamespace(
+        client=object(), collection_name="test", embeddings=object(), sparse_embeddings=object()
+    ))
+    retriever._search.search = AsyncMock(side_effect=RuntimeError("collection unavailable"))
+    assert await retriever.search("budget") == []

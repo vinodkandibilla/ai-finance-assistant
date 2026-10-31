@@ -1,0 +1,143 @@
+[
+  {
+    "repetition": 1,
+    "case": {
+      "id": "portfolio_customer_profile_short",
+      "query": "View C011 profile",
+      "expected_classified_intent": "portfolio",
+      "expected_handler": "portfolio_analysis_node",
+      "tags": [
+        "portfolio",
+        "customer-profile",
+        "short-query"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "portfolio",
+    "predicted_handler": "portfolio_analysis_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 557.2934579104185,
+    "error_category": null
+  },
+  {
+    "repetition": 1,
+    "case": {
+      "id": "portfolio_customer_profile_explicit",
+      "query": "Get customer C011 profile",
+      "expected_classified_intent": "portfolio",
+      "expected_handler": "portfolio_analysis_node",
+      "tags": [
+        "portfolio",
+        "customer-profile"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "portfolio",
+    "predicted_handler": "portfolio_analysis_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 701.6445409972221,
+    "error_category": null
+  },
+  {
+    "repetition": 2,
+    "case": {
+      "id": "portfolio_customer_profile_short",
+      "query": "View C011 profile",
+      "expected_classified_intent": "portfolio",
+      "expected_handler": "portfolio_analysis_node",
+      "tags": [
+        "portfolio",
+        "customer-profile",
+        "short-query"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "portfolio",
+    "predicted_handler": "portfolio_analysis_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 728.9929580874741,
+    "error_category": null
+  },
+  {
+    "repetition": 2,
+    "case": {
+      "id": "portfolio_customer_profile_explicit",
+      "query": "Get customer C011 profile",
+      "expected_classified_intent": "portfolio",
+      "expected_handler": "portfolio_analysis_node",
+      "tags": [
+        "portfolio",
+        "customer-profile"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "portfolio",
+    "predicted_handler": "portfolio_analysis_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 704.6029169578105,
+    "error_category": null
+  },
+  {
+    "repetition": 3,
+    "case": {
+      "id": "portfolio_customer_profile_short",
+      "query": "View C011 profile",
+      "expected_classified_intent": "portfolio",
+      "expected_handler": "portfolio_analysis_node",
+      "tags": [
+        "portfolio",
+        "customer-profile",
+        "short-query"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "portfolio",
+    "predicted_handler": "portfolio_analysis_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 616.6585830505937,
+    "error_category": null
+  },
+  {
+    "repetition": 3,
+    "case": {
+      "id": "portfolio_customer_profile_explicit",
+      "query": "Get customer C011 profile",
+      "expected_classified_intent": "portfolio",
+      "expected_handler": "portfolio_analysis_node",
+      "tags": [
+        "portfolio",
+        "customer-profile"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "portfolio",
+    "predicted_handler": "portfolio_analysis_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 617.5367089454085,
+    "error_category": null
+  }
+]

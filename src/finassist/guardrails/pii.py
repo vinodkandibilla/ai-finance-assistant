@@ -7,6 +7,19 @@ from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
+# Broad NER labels (organizations, dates, locations, and unqualified names)
+# are common in financial education and are not private identifiers by themselves.
+SENSITIVE_ENTITIES = (
+    "EMAIL_ADDRESS",
+    "PHONE_NUMBER",
+    "US_SSN",
+    "CREDIT_CARD",
+    "IBAN_CODE",
+    "US_BANK_NUMBER",
+    "US_PASSPORT",
+    "US_ITIN",
+)
+
 
 @dataclass(frozen=True)
 class RedactionResult:
@@ -15,7 +28,7 @@ class RedactionResult:
 
 
 def redact_pii(text: str) -> RedactionResult:
-    """Redact recognized PII and return the entity types found."""
+    """Redact sensitive identifiers and explicitly labeled personal names."""
     try:
         from presidio_anonymizer.entities import OperatorConfig
     except ModuleNotFoundError:
@@ -29,7 +42,10 @@ def redact_pii(text: str) -> RedactionResult:
             text,
         )
     )
-    results = _analyzer().analyze(text=text, language="en")
+    results = _analyzer().analyze(
+        text=text, language="en", entities=list(SENSITIVE_ENTITIES)
+    )
+    results = [result for result in results if result.entity_type in SENSITIVE_ENTITIES]
     if not results:
         if person_found:
             redacted = re.sub(
@@ -90,7 +106,20 @@ def _analyzer():
                 "models": [{"lang_code": "en", "model_name": "none"}],
             }
         )
-        engine = AnalyzerEngine(nlp_engine=provider.create_engine())
+        from presidio_analyzer.context_aware_enhancers import ContextAwareEnhancer
+
+        class PatternOnlyContextEnhancer(ContextAwareEnhancer):
+            """Keep pattern scores unchanged when no NLP tokens are available."""
+
+            def enhance_using_context(
+                self, text, raw_results, nlp_artifacts, recognizers, context=None
+            ):
+                return raw_results
+
+        engine = AnalyzerEngine(
+            nlp_engine=provider.create_engine(),
+            context_aware_enhancer=PatternOnlyContextEnhancer(0, 0, 0, 0),
+        )
         engine.registry.add_recognizer(
             PatternRecognizer(
                 supported_entity="US_SSN",

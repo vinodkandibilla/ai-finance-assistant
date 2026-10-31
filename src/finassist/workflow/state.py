@@ -36,8 +36,6 @@ class FinanceAssistantState(TypedDict, total=False):
     executed_handler: ExecutedHandler
     standalone_greeting: bool
     answer: str
-    user_query: str
-    search_query: str
     analysis: dict[str, object]
     metadata_filters: dict[str, str]
     dense_sub_queries: list[str]

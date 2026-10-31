@@ -379,6 +379,7 @@ class PortfolioTools:
         ) -> dict[str, Any]:
             """Screen authorized customers; omitted manager means the current manager.
 
+            For a dashboard or all assigned customers, explicitly use screen=all.
             single_stock selects individual stocks above the holding threshold;
             concentrated also includes ETF holdings and sector concentration.
             Set finish_response true only when this screen fully answers a routine

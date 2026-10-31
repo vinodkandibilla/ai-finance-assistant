@@ -30,8 +30,6 @@ class EvidenceResult(BaseModel):
 
 class AgentState(TypedDict, total=False):
     query: str
-    user_query: str
-    search_query: str
     intent: str
     answer: str
     status: str

@@ -79,7 +79,12 @@ class AutonomousEducationAgent:
             dense_queries: list[str] | None = None,
             sparse_keywords: list[str] | None = None,
         ) -> tuple[dict, dict]:
-            """Search domain evidence and rerank passages; returns valid citations and errors."""
+            """Search domain evidence and rerank passages; return citations and errors.
+
+            query describes the full search task. For distinct evidence needs, pass
+            focused subquestions in dense_queries; use one for a simple question.
+            sparse_keywords supplies exact lexical terms. Preserve user constraints.
+            """
             if policy.evidence_recovery:
                 return await policy.evidence_recovery(
                     policy.search_tool_name, query, state, dense_queries, sparse_keywords
@@ -289,7 +294,7 @@ class AutonomousEducationAgent:
         schema = self._result_schema
 
         async def run_agent(state: AgentState, config):
-            query = str(state.get("search_query") or state.get("user_query") or state["query"])
+            query = str(state["query"])
             supplemental = {}
             started = time.monotonic()
             deadline = asyncio.timeout(self._settings.agent_timeout_seconds)
@@ -416,12 +421,20 @@ class AutonomousEducationAgent:
                     answer=f"{policy.label} agent is currently unavailable.",
                     errors=[type(error).__name__],
                 )
+            # Completed education results are not resumable clarification interrupts.
+            # A model may populate this optional field even for insufficient evidence.
+            result.clarification_question = None
+            if result.status == "clarification":
+                result.status = "insufficient"
+            if result.status == "insufficient" and not result.answer.strip():
+                result.answer = (
+                    f"I could not find sufficient evidence to answer all parts of your "
+                    f"{policy.label.lower()} question. Please narrow the question or try again."
+                )
             return {
                 **result.model_dump(),
                 **supplemental,
                 "final_result": result.model_dump(),
-                "user_query": query,
-                "search_query": query,
                 "intent": policy.intent,
             }
 

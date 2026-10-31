@@ -107,3 +107,52 @@ async def test_miss_diagnostics_distinguish_selectors_and_expiration(caplog, mon
         clock[0] = TTLS["get_time_series"]
         await cache.call_tool(session, "get_time_series", {"symbol": "AAPL", "outputsize": 23})
         assert "reason=expired" in caplog.text
+
+
+@pytest.mark.parametrize("text", [
+    '{"code":503,"status":"error"}', 'HTTP 502 Bad Gateway',
+    'HTTP 500 Internal Server Error', 'HTTP 504 Gateway Timeout',
+    '429 Too many requests', 'Service temporarily unavailable',
+])
+async def test_transient_responses_retry_then_cache_success(text):
+    cache, session = MarketCache(max_retries=2, backoff_base=0), AsyncMock()
+    session.call_tool.side_effect = [result(text, error=True), result()]
+    await cache.call_tool(session, "get_quote", {"symbol": "AAPL"})
+    assert session.call_tool.await_count == 2
+    assert len(cache.entries) == 1
+
+
+@pytest.mark.parametrize("text", [
+    'HTTP 400 Bad Request', 'HTTP 401 Unauthorized', 'HTTP 403 Forbidden',
+    'HTTP 404 Not Found', 'HTTP 501 Not Implemented', 'HTTP 505 unsupported version',
+    'Invalid symbol', 'Invalid API key', 'API credits exhausted', 'Unknown error',
+    '{"code":400,"message":"temporarily invalid parameter"}',
+])
+async def test_permanent_and_unknown_errors_do_not_retry(text):
+    cache, session = MarketCache(max_retries=2, backoff_base=0), AsyncMock()
+    session.call_tool.return_value = result(text, error=True)
+    await cache.call_tool(session, "get_quote", {"symbol": "AAPL"})
+    assert session.call_tool.await_count == 1
+    assert not cache.entries
+
+
+@pytest.mark.parametrize("error, attempts", [
+    (TimeoutError("timeout"), 3), (ConnectionResetError("reset"), 3),
+    (RuntimeError("HTTP 503 Service Unavailable"), 3),
+    (ValueError("invalid input"), 1), (RuntimeError("HTTP 401"), 1),
+])
+async def test_exception_retry_classification_survives_trace_sanitization(error, attempts):
+    cache, session = MarketCache(max_retries=2, backoff_base=0), AsyncMock()
+    session.call_tool.side_effect = error
+    with pytest.raises((RuntimeError, TimeoutError)):
+        await cache.call_tool(session, "get_quote", {"symbol": "AAPL"})
+    assert session.call_tool.await_count == attempts
+    assert not cache.entries
+    assert not cache.pending
+
+
+async def test_retry_false_disables_transient_retry():
+    cache, session = MarketCache(max_retries=2, backoff_base=0), AsyncMock()
+    session.call_tool.return_value = result('HTTP 503', error=True)
+    await cache.call_tool(session, "get_quote", {"symbol": "AAPL"}, retry=False)
+    session.call_tool.assert_awaited_once()

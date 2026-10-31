@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2320" height="1480" viewBox="0 0 2320 1480"><rect width="100%" height="100%" fill="#f4f7fb"/>
+<rect x="430" y="160" width="1200" height="1160" rx="14" fill="#edf2f8" stroke="#a5b8cd" stroke-width="2"/>
+<text x="1030.0" y="196.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">FastAPI + LangGraph application runtime</text>
+<text x="1160" y="62.44" text-anchor="middle" font-family="Arial,sans-serif" font-size="42" font-weight="700" fill="#18324b">FinPilot | System architecture</text>
+<text x="1160" y="104.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#60788d">Version 2 — application boundaries, agent tools and dependency flows</text>
+<rect x="40" y="270" width="330" height="200" rx="14" fill="#dff2ef" stroke="#79b9af" stroke-width="2"/>
+<text x="205.0" y="306.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Streamlit UI</text>
+<text x="205.0" y="338.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Seven workspaces</text>
+<text x="205.0" y="365.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Shared Ask FinPilot chat</text>
+<text x="205.0" y="392.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Charts, sources and tables</text>
+<text x="205.0" y="419.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Session-only conversation</text>
+<rect x="480" y="230" width="1100" height="85" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1030.0" y="266.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">FastAPI request boundary</text>
+<text x="1030.0" y="298.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Typed API • Server-supplied portfolio context • Request trace</text>
+<polyline points="370,310 480,272" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="480,272 472.90931274470614,279.0513937804957 470.0688116215774,270.8288905293336" fill="#688299"/>
+<text x="400" y="281.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#18324b">HTTP</text>
+<rect x="480" y="345" width="490" height="85" rx="14" fill="#e4eafa" stroke="#b3bfe0" stroke-width="2"/>
+<text x="725.0" y="381.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Input guardrails</text>
+<text x="725.0" y="413.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">PII • Regex • Moderation • Injection</text>
+<rect x="1060" y="345" width="520" height="85" rx="14" fill="#e4eafa" stroke="#b3bfe0" stroke-width="2"/>
+<text x="1320.0" y="381.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Intent router</text>
+<text x="1320.0" y="413.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">One selected specialist per request</text>
+<polyline points="750,315 750,345" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="750,345 745.6503446588877,335.9955289764732 754.3496553411123,335.9955289764732" fill="#688299"/>
+<polyline points="970,387 1060,387" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1060,387 1050.9955289764732,391.3496553411123 1050.9955289764732,382.6503446588877" fill="#688299"/>
+<polyline points="1320,430 1320,452 510,452 510,1105" fill="none" stroke="#688299" stroke-width="2"/>
+<rect x="550" y="475" width="390" height="84" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="745.0" y="511.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">Finance Education</text>
+<text x="745.0" y="543.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Handbook RAG + interest tools</text>
+<polyline points="510,517 550,517" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="550,517 540.9955289764732,521.3496553411123 540.9955289764732,512.6503446588877" fill="#688299"/>
+<rect x="550" y="595" width="390" height="84" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="745.0" y="631.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">Tax Education</text>
+<text x="745.0" y="663.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Tax RAG + federal tax tools</text>
+<polyline points="510,637 550,637" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="550,637 540.9955289764732,641.3496553411123 540.9955289764732,632.6503446588877" fill="#688299"/>
+<rect x="550" y="715" width="390" height="84" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="745.0" y="751.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">Market Analysis</text>
+<text x="745.0" y="783.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Quotes, history, growth, extrema</text>
+<polyline points="510,757 550,757" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="550,757 540.9955289764732,761.3496553411123 540.9955289764732,752.6503446588877" fill="#688299"/>
+<rect x="550" y="835" width="390" height="84" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="745.0" y="871.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">Portfolio Analysis</text>
+<text x="745.0" y="903.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Scoped holdings + profile analysis</text>
+<polyline points="510,877 550,877" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="550,877 540.9955289764732,881.3496553411123 540.9955289764732,872.6503446588877" fill="#688299"/>
+<rect x="550" y="955" width="390" height="84" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="745.0" y="991.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">Goal Planning</text>
+<text x="745.0" y="1023.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Savings projection calculators</text>
+<polyline points="510,997 550,997" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="550,997 540.9955289764732,1001.3496553411123 540.9955289764732,992.6503446588877" fill="#688299"/>
+<rect x="550" y="1075" width="390" height="84" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="745.0" y="1111.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">News Synthesis</text>
+<text x="745.0" y="1143.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Acquire → assess → synthesize</text>
+<polyline points="510,1117 550,1117" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="550,1117 540.9955289764732,1121.3496553411123 540.9955289764732,1112.6503446588877" fill="#688299"/>
+<rect x="1010" y="475" width="570" height="84" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1295.0" y="511.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Finance retrieval + answer cache</text>
+<text x="1295.0" y="543.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Hybrid search • Evidence recovery • Optional reranker</text>
+<rect x="1010" y="595" width="570" height="84" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1295.0" y="631.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Tax retrieval + answer cache</text>
+<text x="1295.0" y="663.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Constraint filters • Bounded recovery • Calculations</text>
+<rect x="1010" y="715" width="570" height="84" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1295.0" y="751.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Market cache + MCP client</text>
+<text x="1295.0" y="783.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">TTL/LRU data cache • Cached tool discovery</text>
+<rect x="1010" y="835" width="570" height="84" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1295.0" y="871.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Authorized deterministic tools</text>
+<text x="1295.0" y="903.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Value • Allocation • Concentration • Screening</text>
+<rect x="1010" y="955" width="570" height="84" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1295.0" y="991.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Local deterministic execution</text>
+<text x="1295.0" y="1023.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Contribution • Future value • Timeline • Feasibility</text>
+<rect x="1010" y="1075" width="570" height="84" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1295.0" y="1111.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Tavily search + evidence validation</text>
+<text x="1295.0" y="1143.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Reported facts • Source links • Partial-coverage checks</text>
+<polyline points="940,517 1010,517" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1010,517 1000.9955289764732,521.3496553411123 1000.9955289764732,512.6503446588877" fill="#688299"/>
+<polyline points="940,637 1010,637" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1010,637 1000.9955289764732,641.3496553411123 1000.9955289764732,632.6503446588877" fill="#688299"/>
+<polyline points="940,757 1010,757" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1010,757 1000.9955289764732,761.3496553411123 1000.9955289764732,752.6503446588877" fill="#688299"/>
+<polyline points="940,877 1010,877" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1010,877 1000.9955289764732,881.3496553411123 1000.9955289764732,872.6503446588877" fill="#688299"/>
+<polyline points="940,997 1010,997" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1010,997 1000.9955289764732,1001.3496553411123 1000.9955289764732,992.6503446588877" fill="#688299"/>
+<polyline points="940,1117 1010,1117" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1010,1117 1000.9955289764732,1121.3496553411123 1000.9955289764732,1112.6503446588877" fill="#688299"/>
+<text x="1980" y="164.32" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#18324b">Data stores and external services</text>
+<rect x="1740" y="205" width="500" height="135" rx="14" fill="#f0e9fa" stroke="#c7b4e1" stroke-width="2"/>
+<text x="1990.0" y="241.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">OpenAI APIs</text>
+<text x="1990.0" y="273.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Chat models: router + agent reasoning</text>
+<text x="1990.0" y="300.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Dense embeddings: Finance / Tax</text>
+<text x="1990.0" y="327.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Moderation: input safety</text>
+<polyline points="1580,272 1740,272" fill="none" stroke="#688299" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1740,272 1730.9955289764732,276.3496553411123 1730.9955289764732,267.6503446588877" fill="#688299"/>
+<text x="1660" y="251.94" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" font-weight="400" fill="#18324b">Model calls</text>
+<rect x="1740" y="445" width="500" height="105" rx="14" fill="#e5f1fa" stroke="#a5c5df" stroke-width="2"/>
+<text x="1990.0" y="481.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Qdrant</text>
+<text x="1990.0" y="513.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Finance / Tax hybrid knowledge indexes</text>
+<text x="1990.0" y="540.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Separate semantic answer-cache collections</text>
+<polyline points="1580,517 1660,517 1660,480 1740,480" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1740,480 1730.9955289764732,484.3496553411123 1730.9955289764732,475.6503446588877" fill="#688299"/>
+<polyline points="1580,637 1690,637 1690,525 1740,525" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1740,525 1730.9955289764732,529.3496553411123 1730.9955289764732,520.6503446588877" fill="#688299"/>
+<rect x="1740" y="580" width="500" height="80" rx="14" fill="#e5f1fa" stroke="#a5c5df" stroke-width="2"/>
+<text x="1990.0" y="616.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Packaged sources + local models</text>
+<text x="1990.0" y="648.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Finance PDF • Tax JSONL • BM25 / optional reranker</text>
+<polyline points="1990,580 1990,550" fill="none" stroke="#688299" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1990,550 1994.3496553411123,559.0044710235268 1985.6503446588877,559.0044710235268" fill="#688299"/>
+<text x="2120" y="573.12" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="400" fill="#18324b">Ingestion</text>
+<rect x="1740" y="715" width="500" height="135" rx="14" fill="#e5f1fa" stroke="#a5c5df" stroke-width="2"/>
+<text x="1990.0" y="751.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Twelve Data</text>
+<text x="1990.0" y="783.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Local MCP server via stdio</text>
+<text x="1990.0" y="810.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">MCP server → Twelve Data API</text>
+<text x="1990.0" y="837.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Provider observations + metadata</text>
+<polyline points="1580,757 1740,757" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1740,757 1730.9955289764732,761.3496553411123 1730.9955289764732,752.6503446588877" fill="#688299"/>
+<rect x="1740" y="865" width="500" height="90" rx="14" fill="#e5f1fa" stroke="#a5c5df" stroke-width="2"/>
+<text x="1990.0" y="901.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Synthetic portfolio SQLite</text>
+<text x="1990.0" y="933.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">In-memory store • Frozen reference prices</text>
+<polyline points="1580,877 1660,877 1660,910 1740,910" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1740,910 1730.9955289764732,914.3496553411123 1730.9955289764732,905.6503446588877" fill="#688299"/>
+<rect x="1740" y="1075" width="500" height="84" rx="14" fill="#e5f1fa" stroke="#a5c5df" stroke-width="2"/>
+<text x="1990.0" y="1111.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Tavily Search API</text>
+<text x="1990.0" y="1143.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Direct HTTPS • News excerpts and metadata</text>
+<polyline points="1580,1117 1740,1117" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1740,1117 1730.9955289764732,1121.3496553411123 1730.9955289764732,1112.6503446588877" fill="#688299"/>
+<rect x="40" y="690" width="330" height="145" rx="14" fill="#fff1d8" stroke="#dfbd7b" stroke-width="2"/>
+<text x="205.0" y="726.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Human clarification</text>
+<text x="205.0" y="758.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Specialist asks for details</text>
+<text x="205.0" y="785.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">User replies in chat</text>
+<text x="205.0" y="812.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Resume the same task</text>
+<rect x="40" y="900" width="330" height="110" rx="14" fill="#fff1d8" stroke="#dfbd7b" stroke-width="2"/>
+<text x="205.0" y="936.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Checkpoint SQLite</text>
+<text x="205.0" y="968.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Persistent paused execution</text>
+<text x="205.0" y="995.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Separate from portfolio data</text>
+<polyline points="205,470 205,690" fill="none" stroke="#ae843c" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="205,690 200.6503446588877,680.9955289764732 209.3496553411123,680.9955289764732" fill="#ae843c"/>
+<text x="205" y="577.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#977335">Question / reply</text>
+<polyline points="205,835 205,900" fill="none" stroke="#ae843c" stroke-width="2"/>
+<polygon points="205,900 200.6503446588877,890.9955289764732 209.3496553411123,890.9955289764732" fill="#ae843c"/>
+<polyline points="370,762 415,762 415,290 480,290" fill="none" stroke="#ae843c" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="480,290 470.9955289764732,294.3496553411123 470.9955289764732,285.6503446588877" fill="#ae843c"/>
+<text x="225" y="1055.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#977335">/query/resume + thread ID</text>
+<polyline points="965,517 965,1185" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="940,539 965,539" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="940,659 965,659" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="940,779 965,779" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="940,899 965,899" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="940,1019 965,1019" fill="none" stroke="#688299" stroke-width="2"/>
+<polyline points="940,1139 965,1139" fill="none" stroke="#688299" stroke-width="2"/>
+<rect x="550" y="1210" width="1030" height="80" rx="14" fill="#dff2ef" stroke="#79b9af" stroke-width="2"/>
+<text x="1065.0" y="1246.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Output guardrails + API response validation</text>
+<text x="1065.0" y="1278.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Sanitized answer • Sources • Calculation payloads • Status</text>
+<polyline points="965,1185 965,1210" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="965,1210 960.6503446588877,1200.9955289764732 969.3496553411123,1200.9955289764732" fill="#688299"/>
+<polyline points="550,1250 395,1250 395,440 370,440" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="370,440 379.0044710235268,435.6503446588877 379.0044710235268,444.3496553411123" fill="#688299"/>
+<text x="222" y="1235.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#18324b">Response to UI</text>
+<polyline points="480,400 455,400 455,1280 550,1280" fill="none" stroke="#9c6c67" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="550,1280 540.9955289764732,1284.3496553411123 540.9955289764732,1275.6503446588877" fill="#9c6c67"/>
+<text x="165" y="1304.76" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#9c6c67">Blocked input → safe response</text>
+<rect x="1740" y="1210" width="500" height="100" rx="14" fill="#e8ecf3" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1990.0" y="1246.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">LangSmith + application logs</text>
+<text x="1990.0" y="1278.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">One parent request trace with child spans</text>
+<text x="1990.0" y="1305.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Evaluation tooling runs separately</text>
+<polyline points="1580,1250 1740,1250" fill="none" stroke="#688299" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1740,1250 1730.9955289764732,1254.3496553411123 1730.9955289764732,1245.6503446588877" fill="#688299"/>
+<text x="1160" y="1386.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#60788d">Solid arrows: request, tool and result paths. Dashed arrows: clarification, shared services or alternate paths.</text>
+<text x="1160" y="1426.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#60788d">Current MVP: simulated identity / holdings • Goals UI also supports a separate local projection • No trade execution</text>
+</svg>

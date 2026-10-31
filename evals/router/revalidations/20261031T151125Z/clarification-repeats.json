@@ -1,0 +1,347 @@
+[
+  {
+    "repetition": 1,
+    "case": {
+      "id": "clarify_which_better",
+      "query": "Which is better?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "clarify",
+    "predicted_handler": "clarify_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 540.352625073865,
+    "error_category": null
+  },
+  {
+    "repetition": 1,
+    "case": {
+      "id": "clarify_how_much",
+      "query": "How much should I invest?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": false,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "goals",
+    "predicted_handler": "goals_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 672.5664578843862,
+    "error_category": null
+  },
+  {
+    "repetition": 1,
+    "case": {
+      "id": "clarify_finances_observation",
+      "query": "Can you help me with my finances?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "review-label"
+      ],
+      "critical": false,
+      "notes": "Exploratory label from conversation; generic finance may also merit finance_qa. Kept separate from fixed benchmark."
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "other",
+    "predicted_handler": "unsupported_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 757.3961250018328,
+    "error_category": null
+  },
+  {
+    "repetition": 2,
+    "case": {
+      "id": "clarify_which_better",
+      "query": "Which is better?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "clarify",
+    "predicted_handler": "clarify_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 493.38141619227827,
+    "error_category": null
+  },
+  {
+    "repetition": 2,
+    "case": {
+      "id": "clarify_how_much",
+      "query": "How much should I invest?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": false,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "goals",
+    "predicted_handler": "goals_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 703.8544998504221,
+    "error_category": null
+  },
+  {
+    "repetition": 2,
+    "case": {
+      "id": "clarify_finances_observation",
+      "query": "Can you help me with my finances?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "review-label"
+      ],
+      "critical": false,
+      "notes": "Exploratory label from conversation; generic finance may also merit finance_qa. Kept separate from fixed benchmark."
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "other",
+    "predicted_handler": "unsupported_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 505.5094591807574,
+    "error_category": null
+  },
+  {
+    "repetition": 3,
+    "case": {
+      "id": "clarify_which_better",
+      "query": "Which is better?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "clarify",
+    "predicted_handler": "clarify_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 504.0712500922382,
+    "error_category": null
+  },
+  {
+    "repetition": 3,
+    "case": {
+      "id": "clarify_how_much",
+      "query": "How much should I invest?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": false,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "goals",
+    "predicted_handler": "goals_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 530.0235839094967,
+    "error_category": null
+  },
+  {
+    "repetition": 3,
+    "case": {
+      "id": "clarify_finances_observation",
+      "query": "Can you help me with my finances?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "review-label"
+      ],
+      "critical": false,
+      "notes": "Exploratory label from conversation; generic finance may also merit finance_qa. Kept separate from fixed benchmark."
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "other",
+    "predicted_handler": "unsupported_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 659.2790419235826,
+    "error_category": null
+  },
+  {
+    "repetition": 4,
+    "case": {
+      "id": "clarify_which_better",
+      "query": "Which is better?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "clarify",
+    "predicted_handler": "clarify_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 632.6786659192294,
+    "error_category": null
+  },
+  {
+    "repetition": 4,
+    "case": {
+      "id": "clarify_how_much",
+      "query": "How much should I invest?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": false,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "goals",
+    "predicted_handler": "goals_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 612.364707980305,
+    "error_category": null
+  },
+  {
+    "repetition": 4,
+    "case": {
+      "id": "clarify_finances_observation",
+      "query": "Can you help me with my finances?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "review-label"
+      ],
+      "critical": false,
+      "notes": "Exploratory label from conversation; generic finance may also merit finance_qa. Kept separate from fixed benchmark."
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "other",
+    "predicted_handler": "unsupported_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 459.9369161296636,
+    "error_category": null
+  },
+  {
+    "repetition": 5,
+    "case": {
+      "id": "clarify_which_better",
+      "query": "Which is better?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "clarify",
+    "predicted_handler": "clarify_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 593.4513329993933,
+    "error_category": null
+  },
+  {
+    "repetition": 5,
+    "case": {
+      "id": "clarify_how_much",
+      "query": "How much should I invest?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": false,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "goals",
+    "predicted_handler": "goals_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 681.9530420470983,
+    "error_category": null
+  },
+  {
+    "repetition": 5,
+    "case": {
+      "id": "clarify_finances_observation",
+      "query": "Can you help me with my finances?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "review-label"
+      ],
+      "critical": false,
+      "notes": "Exploratory label from conversation; generic finance may also merit finance_qa. Kept separate from fixed benchmark."
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "finance_qa",
+    "predicted_handler": "finance_qa_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 651.3801668770611,
+    "error_category": null
+  }
+]

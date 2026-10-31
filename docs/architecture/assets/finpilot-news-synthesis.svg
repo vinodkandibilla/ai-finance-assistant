@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1270" viewBox="0 0 1900 1270"><rect width="100%" height="100%" fill="#f4f7fb"/>
+<text x="950" y="59.16" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="700" fill="#18324b">FinPilot · News Synthesis</text>
+<text x="950" y="100.86" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#60788d">Search → assess evidence → focused recovery → supported claims and article cards</text>
+<rect x="60" y="155" width="440" height="120" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="280.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Streamlit News UI</text>
+<text x="280.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Category · published within · search topic</text>
+<text x="280.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Article cards + shared chat</text>
+<rect x="650" y="155" width="580" height="120" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="940.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">FastAPI → News agent</text>
+<text x="940.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Shared guards + intent router</text>
+<text x="940.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">LLM understands task and search scope</text>
+<polyline points="500,215 650,215" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="650,215 640.9955289764732,219.3496553411123 640.9955289764732,210.6503446588877" fill="#688299"/>
+<rect x="1370" y="155" width="470" height="145" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="1605.0" y="191.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Human clarification</text>
+<text x="1605.0" y="223.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">ask_news_clarification</text>
+<text x="1605.0" y="250.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Essential missing / ambiguous scope</text>
+<text x="1605.0" y="277.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Checkpoint → /query/resume</text>
+<polyline points="1230,215 1370,215" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1370,215 1360.9955289764732,219.3496553411123 1360.9955289764732,210.6503446588877" fill="#b58a3d"/>
+<rect x="650" y="390" width="580" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="940.0" y="426.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Search tool</text>
+<text x="940.0" y="458.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">search_financial_news</text>
+<text x="940.0" y="485.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Rolling window: default week; or explicit dates</text>
+<text x="940.0" y="512.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">News search · basic depth · up to 3 results</text>
+<polyline points="940,275 940,390" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="940,390 935.6503446588877,380.9955289764732 944.3496553411123,380.9955289764732" fill="#688299"/>
+<rect x="1370" y="390" width="470" height="145" rx="14" fill="#eaf2fa" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1605.0" y="426.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Tavily Search API</text>
+<text x="1605.0" y="458.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Direct HTTPS · not MCP</text>
+<text x="1605.0" y="485.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">POST /search · provider answer disabled</text>
+<text x="1605.0" y="512.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">HTTP timeout: 15 seconds</text>
+<polyline points="1230,462 1370,462" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1370,462 1360.9955289764732,466.3496553411123 1360.9955289764732,457.6503446588877" fill="#688299"/>
+<rect x="1370" y="650" width="470" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1605.0" y="686.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Normalize evidence</text>
+<text x="1605.0" y="718.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Title · URL · excerpt · source · date</text>
+<text x="1605.0" y="745.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Stable evidence IDs; deduplicate by URL</text>
+<text x="1605.0" y="772.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Missing metadata stays unavailable</text>
+<polyline points="1605,535 1605,650" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1605,650 1600.6503446588877,640.9955289764732 1609.3496553411123,640.9955289764732" fill="#688299"/>
+<rect x="650" y="650" width="580" height="145" rx="14" fill="#e5edfc" stroke="#a8bfe3" stroke-width="2"/>
+<text x="940.0" y="686.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Evidence coverage assessment</text>
+<text x="940.0" y="718.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">LLM checks support against the full request</text>
+<text x="940.0" y="745.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Sufficient → stop searching</text>
+<text x="940.0" y="772.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Missing aspect → focused next search query</text>
+<polyline points="1370,722 1230,722" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1230,722 1239.0044710235268,717.6503446588877 1239.0044710235268,726.3496553411123" fill="#688299"/>
+<polyline points="650,722 600,722 600,462 650,462" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="650,462 640.9955289764732,466.3496553411123 640.9955289764732,457.6503446588877" fill="#b58a3d"/>
+<text x="395" y="601.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#926c2b">Focused recovery</text>
+<rect x="60" y="875" width="490" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="305.0" y="911.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Execution bounds</text>
+<text x="305.0" y="943.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Up to 3 searches total; stop early if sufficient</text>
+<text x="305.0" y="970.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Up to 3 results per search</text>
+<text x="305.0" y="997.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Whole-agent timeout: 60 seconds</text>
+<rect x="650" y="875" width="580" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="940.0" y="911.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Synthesize + validate claims</text>
+<text x="940.0" y="943.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Structured answer grounded in evidence IDs</text>
+<text x="940.0" y="970.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Python attaches retrieved source URLs</text>
+<text x="940.0" y="997.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Partial coverage / insufficient when support is missing</text>
+<polyline points="940,795 940,875" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="940,875 935.6503446588877,865.9955289764732 944.3496553411123,865.9955289764732" fill="#688299"/>
+<rect x="650" y="1090" width="580" height="120" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="940.0" y="1126.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">Return to UI</text>
+<text x="940.0" y="1158.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Summary + supported article cards + sources</text>
+<text x="940.0" y="1185.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Shared output PII checks + API validation</text>
+<polyline points="940,1020 940,1090" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="940,1090 935.6503446588877,1080.9955289764732 944.3496553411123,1080.9955289764732" fill="#688299"/>
+<rect x="1370" y="875" width="470" height="145" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="1605.0" y="911.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Publication-window limitation</text>
+<text x="1605.0" y="943.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Window is requested from the provider</text>
+<text x="1605.0" y="970.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Returned dates are not strictly post-filtered</text>
+<text x="1605.0" y="997.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Do not treat missing dates as verified</text>
+<text x="950" y="1246.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#60788d">No Qdrant / RAG corpus / news response cache · LangSmith traces · Provider excerpts are evidence, not instructions</text>
+</svg>

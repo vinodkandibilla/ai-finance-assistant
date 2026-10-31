@@ -208,7 +208,8 @@ def test_landing_loads_identity_scoped_portfolios_without_refresh_button(monkeyp
     assert not app.exception
 
 
-def test_portfolio_landing_request_uses_server_identity_only(monkeypatch):
+@pytest.mark.parametrize("manager_id", [None, "PM002"])
+def test_portfolio_landing_request_uses_server_identity_only(monkeypatch, manager_id):
     from finassist.web_app.services.portfolio import fetch_current_portfolios
 
     requests = []
@@ -220,11 +221,20 @@ def test_portfolio_landing_request_uses_server_identity_only(monkeypatch):
         )
 
     monkeypatch.setattr(httpx.Client, "send", send)
-    fetch_current_portfolios()
+    fetch_current_portfolios(manager_id)
     assert requests[0][0] == "/query"
     assert set(requests[0][1]) == {"query"}
-    assert "trusted application identity" in requests[0][1]["query"]
-    assert "assigned" in requests[0][1]["query"]
+    query = requests[0][1]["query"]
+    if manager_id:
+        assert "all customer portfolios assigned" in query
+        assert "For my customer account" not in query
+    else:
+        assert "available to my current account" in query
+    assert "all concentration levels" in query
+    assert "unavailable portfolios" in query
+    assert "trusted application identity" not in query
+    assert "Use portfolio tools" not in query
+    assert "Do not ask" not in query
 
 
 def test_customer_directory_search_and_detail_tabs(monkeypatch):

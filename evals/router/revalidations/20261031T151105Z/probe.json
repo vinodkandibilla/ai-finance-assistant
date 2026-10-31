@@ -1,0 +1,24 @@
+[
+  {
+    "case": {
+      "id": "clarify_which_better",
+      "query": "Which is better?",
+      "expected_classified_intent": "clarify",
+      "expected_handler": "clarify_node",
+      "tags": [
+        "clarify",
+        "domain-unclear"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "error",
+    "predicted_intent": null,
+    "predicted_handler": null,
+    "intent_matches": null,
+    "handler_matches": null,
+    "elapsed_ms": 459.4014170579612,
+    "error_category": "provider_unavailable"
+  }
+]

@@ -118,3 +118,41 @@ async def test_real_market_agent_resumes_exclusion(monkeypatch):
     assert result["status"] == "answered"
     assert [item["symbol"] for item in result["calculations"]] == ["AAPL", "MSFT", "META", "NVDA"]
     assert classifier.calls == 1
+
+
+def test_date_clarification_is_displayed_and_resumes(monkeypatch):
+    from finassist.core.config import Settings
+    from finassist.workflow import builder
+
+    monkeypatch.setattr(builder, "get_settings", lambda: Settings(_env_file=None))
+
+    class DateAgent:
+        async def ainvoke(self, state):
+            if "Additional details:" not in state["query"]:
+                return {
+                    "status": "clarify",
+                    "clarification_question": (
+                        "Please provide explicit from/to dates in YYYY-MM-DD."
+                    ),
+                }
+            return {"status": "answered", "answer": "Lowest daily low: $100 (test data)."}
+
+    classifier = Classifier()
+    graph = build_graph(classifier, market_agent=DateAgent(), checkpointer=MemorySaver())
+    app = create_app()
+    app.dependency_overrides[get_query_graph] = lambda: graph
+    with TestClient(app) as client:
+        paused = client.post("/query", json={
+            "query": "Lowest NVDA price between today and 01-08-2026?"
+        }).json()
+        assert paused["status"] == "clarification"
+        assert paused["thread_id"]
+        assert paused["answer"] == paused["clarification_question"]
+        result = client.post("/query/resume", json={
+            "thread_id": paused["thread_id"],
+            "reply": "From 2026-08-01 to 2026-10-27",
+        }).json()
+    assert result["answer"] == "Lowest daily low: $100 (test data)."
+    assert not result.get("clarification_question")
+    assert not result.get("thread_id")
+    assert classifier.calls == 1

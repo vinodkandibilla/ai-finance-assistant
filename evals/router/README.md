@@ -118,7 +118,7 @@ or unsupported tasks must reach classification, including within a UI wrapper.
 `tests/test_greetings.py` also guards against greeting-prefix false positives and
 checks the full graph's greeting response and classifier bypass.
 
-The dataset now contains 63 cases. Offline routing tests supply the labeled
+The current dataset contains 71 cases. Offline routing tests supply the labeled
 intents; live classifier evaluation is needed to measure boundary classification
 accuracy.
 
@@ -136,7 +136,7 @@ metadata = create_run_metadata(
     cases,
     mode="classifier",
     model=settings.openai_model,
-    system_prompt=settings.intent_router_system_prompt,
+    prompt_version=settings.intent_router_prompt_version,
     router_timeout_seconds=settings.router_timeout_seconds,
     market_quotes_enabled=settings.market_quotes_enabled,
 )
@@ -160,8 +160,9 @@ evaluated denominators plus passed/failed/error/skipped counts. Route passes
 require both intent and handler matches. The issues list contains failed/error
 case IDs, critical flags, expected/actual labels, and safe error categories.
 
-Metadata records the UTC start timestamp, model, prompt SHA-256, evaluated-case
-SHA-256, classifier timeout and market feature setting. The case hash covers a
+Metadata records the UTC start timestamp, model, prompt version, evaluated-case
+SHA-256, classifier timeout and market feature setting. The current metadata model
+does not store a prompt hash; retain the actual prompt snapshot and hash separately. The case hash covers a
 canonical JSON representation of the selected cases in order, including labels;
 it is independent of JSONL whitespace. Different subsets yield different hashes.
 Reports reject mixed evaluation modes, duplicate case IDs and a dataset selection
@@ -183,11 +184,12 @@ a confusion matrix.
 
 2. Before editing the prompt, run the live helpers above and save separate baseline
    reports for classifier and route modes. Capture metadata before each run. Keep
-   the baseline prompt text/version alongside the report; its hash cannot restore
-   the prompt. Record the source commit as well.
+   the baseline prompt text/version and a separately computed SHA-256 alongside the
+   report; a hash cannot restore the prompt. Record the source commit as well.
 3. Change only the prompt. Use `create_intent_classifier(settings,
-   system_prompt=candidate_prompt)` and pass that same text to
-   `create_run_metadata(system_prompt=candidate_prompt, ...)`. Save candidate
+   system_prompt=candidate_prompt)`, and pass its explicit version to
+   `create_run_metadata(prompt_version=..., ...)`. Save the candidate prompt text
+   and its hash separately. Save candidate
    reports separately from baselines.
 4. Compare runs within the same mode. Model, dataset hash/selection/order, timeout,
    and market feature setting must match; the prompt hash is the intended change.
@@ -236,3 +238,20 @@ one run per mode. The first candidate's regression is also retained in the sibli
 comparison directory. Exact model input-token savings and latency are not measured
 by word counts. Restart the API to load the prompt; an explicit environment prompt
 override takes precedence over the source default.
+
+
+## Latest revalidation
+
+See the [31 October 2026 review](revalidations/20261031T151125Z/README.md):
+66/67 live route matches, repeated clarification checks, a Market-wrapper coverage
+gap, and the separate API-error contract test failures. This review retains all
+observed mismatches and does not change expected labels to improve the score.
+
+
+## Customer-profile routing revision
+
+The production source default is now `v3`, including customer investment-profile
+retrieval by ID/name. The dataset has 71 cases. See the [v3 validation](revalidations/20261031T223728Z-profile-v3/README.md)
+for 70/71 route matches, repeated C011 checks and scope boundaries. Historical A/B
+snapshots remain unchanged; candidate B is still v2. Use the production classifier
+with the evaluation helpers above when evaluating current settings.

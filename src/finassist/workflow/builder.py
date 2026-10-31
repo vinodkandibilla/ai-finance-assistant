@@ -62,6 +62,9 @@ def _is_generic_query(intent: str | None, query: str | None) -> bool:
     if not query:
         return False
 
+    # Match the user's question, not the Market UI's scope/format instructions.
+    if query.startswith("Market scope:") and "\nQuestion: " in query:
+        query = query.split("\nQuestion: ", 1)[1]
     normalized = query.strip().lower()
     if not normalized:
         return False
@@ -265,7 +268,7 @@ def build_graph(
                 compute,
                 bypass=bool(config.get("configurable", {}).get("bypass_answer_cache")),
             )
-            return {**result, "user_query": state["query"], "search_query": state["query"]}
+            return {**result, "query": state["query"]}
 
         return handle
 
@@ -341,8 +344,11 @@ def build_graph(
     workflow.add_edge(START, "input_guardrail_node")
     workflow.add_conditional_edges(
         "input_guardrail_node",
-        lambda state: (
-            "output_guardrail_node" if state.get("guardrail_blocked") else "intent_router"
+        RunnableLambda(
+            lambda state: (
+                "output_guardrail_node" if state.get("guardrail_blocked") else "intent_router"
+            ),
+            name="Route after input guardrail",
         ),
     )
     workflow.add_conditional_edges(

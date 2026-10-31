@@ -140,13 +140,13 @@ def fetch_current_portfolios(manager_id: str | None = None) -> QueryResponse:
     from finassist.web_app.services.models import QueryRequest
 
     query = (
-        "Load my portfolio landing dashboard using the trusted application identity. "
-        "If I am an individual customer, retrieve my own complete portfolio snapshot. "
-        "If I am a portfolio manager, retrieve and compare all customer portfolios assigned "
-        "to me, with customer names and holdings. Do not screen or omit customers based on "
-        "concentration. Include any excluded portfolios and reasons when data is unavailable. "
-        "Do not ask me for my ID when application identity supplies it. "
-        "Use portfolio tools and return their structured calculations; do not invent data."
+        "Show all customer portfolios assigned to my current portfolio manager account. "
+        if manager_id is not None
+        else "Show the complete portfolio dashboard available to my current account. "
+    ) + (
+        "Include all available portfolios, customer names, holdings, values, allocations, and "
+        "concentration metrics across all concentration levels. Include available "
+        "portfolio calculations and identify any unavailable portfolios with their reasons."
     )
     with FinanceApiClient(
         WebSettings.from_environment(), portfolio_manager_id=manager_id

@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langsmith import trace
+from langsmith import trace, traceable
 from pydantic import BaseModel, Field, field_validator
 
 from finassist.agents.common.answer_cache import SemanticAnswerCache, cache_namespace
@@ -32,7 +32,13 @@ from finassist.prompts import FINANCE_QA_AGENT_PROMPT, TAX_EDUCATION_AGENT_PROMP
 from finassist.rag.qdrant import get_qdrant_client
 from finassist.rag.tax_education import get_tax_retriever, load_tax_documents
 from finassist.workflow.builder import FinanceAssistantGraph, build_graph
-from finassist.workflow.classifier import IntentClassifier, create_intent_classifier
+from finassist.workflow.classifier import (
+    ClassificationOutputError,
+    ClassificationProviderError,
+    ClassificationTimeoutError,
+    IntentClassifier,
+    create_intent_classifier,
+)
 from finassist.workflow.state import ExecutedHandler, FinanceIntent
 
 router = APIRouter(tags=["assistant"])
@@ -344,6 +350,27 @@ def _redact_output(text: str) -> str:
 
 def _finalize_response(response: QueryResponse, raw_status: str | None) -> QueryResponse:
     """Apply the small set of shared MVP response checks."""
+    if (
+        response.status == "clarification"
+        and response.thread_id
+        and response.clarification_question
+    ):
+        # Nested graph interrupts can precede any parent answer/status update.
+        # A valid paused question must not become an empty-answer fallback.
+        if not response.answer.strip():
+            response = response.model_copy(update={
+                "answer": _redact_output(response.clarification_question)
+            })
+        return QueryResponse.model_validate(response.model_dump(exclude_none=True))
+    if response.clarification_question and not response.thread_id:
+        response = response.model_copy(update={"clarification_question": None})
+        if response.status == "clarification":
+            response = response.model_copy(update={"status": "insufficient"})
+    if response.status == "insufficient" and not response.answer.strip():
+        response = response.model_copy(update={
+            "answer": "I could not find sufficient evidence to answer all parts of your question. "
+            "Please narrow the question or try again."
+        })
     if raw_status in {None, "answered", "not_implemented"} and not response.answer.strip():
         _trace_guardrail("output_guard", decision="fallback", metadata={"reason": "empty_answer"})
         return QueryResponse(
@@ -362,6 +389,21 @@ def _safe_error_response(error: Exception) -> QueryResponse:
     """Log details internally and expose only a safe MVP error message."""
     logger.exception("assistant_execution_failed", exc_info=error)
     _trace_guardrail("output_guard", decision="fallback", metadata={"reason": "execution_error"})
+    if isinstance(error, ClassificationTimeoutError):
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Intent classification timed out. Please try again.",
+        ) from None
+    if isinstance(error, ClassificationProviderError):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Intent classification provider unavailable. Please try again.",
+        ) from None
+    if isinstance(error, ClassificationOutputError):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Intent classification returned an invalid response. Please try again.",
+        ) from None
     error_name = type(error).__name__.lower()
     detail = (
         "The service is temporarily unavailable. Please try again shortly."
@@ -396,7 +438,34 @@ def _trace_usage_summary(result: dict) -> None:
         span.add_outputs(totals)
 
 
+def _trace_request_inputs(inputs: dict) -> dict:
+    """Expose only redacted user text, never dependencies or credentials."""
+    request = inputs.get("request")
+    if isinstance(request, QueryRequest):
+        return {"query": redact_pii(request.query).text}
+    if isinstance(request, ResumeRequest):
+        return {"reply": redact_pii(request.reply).text}
+    return {}
+
+
+def _trace_response_outputs(output: object) -> dict:
+    """Preview the public answer without capturing structured account payloads."""
+    if not isinstance(output, QueryResponse):
+        return {}
+    return {
+        "answer": redact_pii(output.answer).text,
+        "intent": output.intent,
+        "status": output.status,
+    }
+
+
 @router.post("/query", response_model=QueryResponse, response_model_exclude_none=True)
+@traceable(
+    name="FinPilot request",
+    run_type="chain",
+    process_inputs=_trace_request_inputs,
+    process_outputs=_trace_response_outputs,
+)
 async def query_assistant(
     request: QueryRequest,
     graph: Annotated[FinanceAssistantGraph, Depends(get_query_graph)],
@@ -469,6 +538,12 @@ class ResumeRequest(BaseModel):
 
 
 @router.post("/query/resume", response_model=QueryResponse, response_model_exclude_none=True)
+@traceable(
+    name="FinPilot resume",
+    run_type="chain",
+    process_inputs=_trace_request_inputs,
+    process_outputs=_trace_response_outputs,
+)
 async def resume_query(
     request: ResumeRequest,
     graph: Annotated[FinanceAssistantGraph, Depends(get_query_graph)],

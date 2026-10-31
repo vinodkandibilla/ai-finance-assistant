@@ -57,7 +57,8 @@ async def test_tax_semantic_hit_skips_agent_and_returns_tax_intent():
     hit = await graph.ainvoke({"query": "Define W2"})
     assert hit["intent"] == "tax"
     assert compute.await_count == 1
-    assert hit["user_query"] == "Define W2"
+    assert hit["query"] == "Define W2"
+    assert "user_query" not in hit and "search_query" not in hit
     assert client.collection_exists("tax_answer_cache")
     client.close()
 

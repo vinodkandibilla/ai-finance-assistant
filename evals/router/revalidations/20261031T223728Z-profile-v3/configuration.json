@@ -1,0 +1,7 @@
+{
+  "prompt_sha256": "8a33e99fc61f4051d4ce223aab900f1597b3576040b771b7dc9c95ca99240a4f",
+  "prompt_version": "v3",
+  "model": "gpt-4o-mini",
+  "active_settings_match_source": true,
+  "scope": "direct classification and route selection only; no agent execution or LangSmith publication"
+}

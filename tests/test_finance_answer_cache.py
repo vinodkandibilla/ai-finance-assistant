@@ -173,7 +173,8 @@ async def test_graph_hit_still_routes_and_preserves_current_query():
     assert classifier.classify.await_count == 2
     assert compute.await_count == 1
     assert hit["answer"] == answer()["answer"]
-    assert hit["user_query"] == "Define stocks"
+    assert hit["query"] == "Define stocks"
+    assert "user_query" not in hit and "search_query" not in hit
 
 
 async def test_resume_bypasses_a_cache_entry_created_while_interrupted():

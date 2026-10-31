@@ -17,3 +17,12 @@ def label_citations(text: str) -> str:
         return f"[{hostname}]{match.group(1)}{match.group(2)}"
 
     return _CITATION.sub(replace, text)
+
+
+def escape_currency(text: str) -> str:
+    """Keep numeric dollar amounts literal in Streamlit Markdown."""
+    return re.sub(
+        r"(`[^`]*`|https?://[^\s<>]+)|(?<!\\)\$(?=\d)",
+        lambda match: match.group(1) or r"\$",
+        text,
+    )

@@ -12,7 +12,7 @@ from finassist.web_app.components.focus import focus_chat_composer
 from finassist.web_app.components.portfolio import comparison_rows
 from finassist.web_app.config import WebSettings
 from finassist.web_app.services.api_client import ApiError, FinanceApiClient
-from finassist.web_app.services.citations import label_citations
+from finassist.web_app.services.citations import escape_currency, label_citations
 from finassist.web_app.services.models import QueryRequest, QueryResponse, ResumeRequest
 from finassist.web_app.services.portfolio import snapshots
 from finassist.web_app.services.showcase import safe_source, scope_market_question
@@ -118,7 +118,7 @@ def _render_message(message: Message) -> None:
         # Assistant answers contain Markdown citations; raw HTML remains disabled.
         if message.text:
             if response:
-                st.markdown(label_citations(message.text), unsafe_allow_html=False)
+                st.markdown(escape_currency(label_citations(message.text)), unsafe_allow_html=False)
                 copy_message(message.text)
             else:
                 copy_message(message.text, display_text=True)

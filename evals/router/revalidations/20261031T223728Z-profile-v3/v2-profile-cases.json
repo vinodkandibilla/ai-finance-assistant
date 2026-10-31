@@ -1,0 +1,91 @@
+[
+  {
+    "case": {
+      "id": "portfolio_customer_profile_short",
+      "query": "View C011 profile",
+      "expected_classified_intent": "portfolio",
+      "expected_handler": "portfolio_analysis_node",
+      "tags": [
+        "portfolio",
+        "customer-profile",
+        "short-query"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "other",
+    "predicted_handler": "unsupported_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 931.7590419668704,
+    "error_category": null
+  },
+  {
+    "case": {
+      "id": "portfolio_customer_profile_explicit",
+      "query": "Get customer C011 profile",
+      "expected_classified_intent": "portfolio",
+      "expected_handler": "portfolio_analysis_node",
+      "tags": [
+        "portfolio",
+        "customer-profile"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "failed",
+    "predicted_intent": "other",
+    "predicted_handler": "unsupported_node",
+    "intent_matches": false,
+    "handler_matches": false,
+    "elapsed_ms": 586.8842089548707,
+    "error_category": null
+  },
+  {
+    "case": {
+      "id": "finance_risk_profile_concept",
+      "query": "What is an investment risk profile?",
+      "expected_classified_intent": "finance_qa",
+      "expected_handler": "finance_qa_node",
+      "tags": [
+        "portfolio-boundary",
+        "definition"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "finance_qa",
+    "predicted_handler": "finance_qa_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 538.7026250828058,
+    "error_category": null
+  },
+  {
+    "case": {
+      "id": "unsupported_social_profile",
+      "query": "Show the Instagram profile for Taylor Swift.",
+      "expected_classified_intent": "other",
+      "expected_handler": "unsupported_node",
+      "tags": [
+        "portfolio-boundary",
+        "unsupported"
+      ],
+      "critical": true,
+      "notes": null
+    },
+    "mode": "routes",
+    "status": "passed",
+    "predicted_intent": "other",
+    "predicted_handler": "unsupported_node",
+    "intent_matches": true,
+    "handler_matches": true,
+    "elapsed_ms": 550.4102911800146,
+    "error_category": null
+  }
+]

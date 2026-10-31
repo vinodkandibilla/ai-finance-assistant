@@ -7,6 +7,7 @@ import pytest
 
 from finassist.core.config import Settings
 from finassist.evaluation.router.evaluation import load_router_cases
+from finassist.web_app.services.showcase import scope_market_question
 from finassist.workflow import builder
 from finassist.workflow.greetings import WELCOME
 
@@ -53,10 +54,13 @@ async def test_labeled_router_decision(case):
     ],
 )
 @pytest.mark.parametrize("enabled", [True, False], ids=["quotes-enabled", "quotes-disabled"])
-def test_generic_market_decision_depends_on_feature_flag(monkeypatch, query, enabled):
+@pytest.mark.parametrize("wrapped", [False, True], ids=["plain", "market-ui"])
+def test_generic_market_decision_depends_on_feature_flag(monkeypatch, query, enabled, wrapped):
     settings = Settings(_env_file=None, market_quotes_enabled=enabled)
     monkeypatch.setattr(builder, "get_settings", lambda: settings)
     expected = "clarify_node" if enabled else "market_analysis_node"
+    if wrapped:
+        query = scope_market_question(query)
     assert builder._route_intent({"intent": "market", "query": query}) == expected
 
 
@@ -69,7 +73,33 @@ def test_generic_market_decision_depends_on_feature_flag(monkeypatch, query, ena
         "What is the price? AAPL",
     ],
 )
-def test_specific_market_query_is_not_redirected_by_generic_substring(query):
+@pytest.mark.parametrize("wrapped", [False, True], ids=["plain", "market-ui"])
+def test_specific_market_query_is_not_redirected_by_generic_substring(query, wrapped):
+    if wrapped:
+        query = scope_market_question(query)
+    assert builder._route_intent({"intent": "market", "query": query}) == "market_analysis_node"
+
+
+async def test_wrapped_generic_market_query_preserves_classifier_input():
+    query = scope_market_question("What is the stock price?")
+    classifier = AsyncMock()
+    classifier.classify.return_value = "market"
+
+    result = await builder._classify_intent({"query": query}, classifier=classifier)
+
+    classifier.classify.assert_awaited_once_with(query)
+    assert result["classified_intent"] == "market"
+    assert result["executed_handler"] == "clarify_node"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "For AAPL, answer this.\nQuestion: What is the stock price?",
+        scope_market_question("What is the stock price?\nQuestion: AAPL"),
+    ],
+)
+def test_question_marker_does_not_discard_specific_market_context(query):
     assert builder._route_intent({"intent": "market", "query": query}) == "market_analysis_node"
 
 

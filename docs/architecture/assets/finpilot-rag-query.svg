@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2100" height="1650" viewBox="0 0 2100 1650"><rect width="100%" height="100%" fill="#f4f7fb"/>
+<text x="1050" y="59.16" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="700" fill="#18324b">FinPilot · Online RAG query architecture</text>
+<text x="1050" y="100.86" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#60788d">Finance and Tax education · Active agent-driven retrieval path · Code defaults</text>
+<rect x="70" y="145" width="470" height="120" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="305.0" y="181.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">1  Routed education request</text>
+<text x="305.0" y="213.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">After shared input guardrails + router</text>
+<text x="305.0" y="240.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Effective question and user replies</text>
+<rect x="670" y="145" width="650" height="120" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="995.0" y="181.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">2  Answer-cache eligibility + lookup</text>
+<text x="995.0" y="213.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Eligible definitions: exact first, then semantic match</text>
+<text x="995.0" y="240.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Hit: return cached answer; miss / bypass: run agent</text>
+<polyline points="540,205 670,205" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="670,205 660.9955289764732,209.3496553411123 660.9955289764732,200.6503446588877" fill="#688299"/>
+<rect x="1480" y="145" width="530" height="120" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="1745.0" y="181.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Separate Qdrant answer caches</text>
+<text x="1745.0" y="213.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Finance ≥ 0.92 · Tax ≥ 0.90 · TTL 1 hour</text>
+<text x="1745.0" y="240.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Namespace / concept / expiry checks</text>
+<polyline points="1320,205 1480,205" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1480,205 1470.9955289764732,209.3496553411123 1470.9955289764732,200.6503446588877" fill="#b58a3d"/>
+<rect x="670" y="345" width="650" height="145" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="995.0" y="381.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">3  Agent chooses search plan</text>
+<text x="995.0" y="413.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Baseline task → semantic query or focused subquestions</text>
+<text x="995.0" y="440.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Lexical keywords + metadata constraints</text>
+<text x="995.0" y="467.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Tax: year / forms / topic; Finance: corpus-supported fields</text>
+<polyline points="995,265 995,345" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="995,345 990.6503446588877,335.9955289764732 999.3496553411123,335.9955289764732" fill="#688299"/>
+<rect x="1450" y="300" width="570" height="245" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="1735.0" y="336.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Agent retrieval tools</text>
+<text x="1735" y="367.22" text-anchor="middle" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#18324b">Baseline search</text>
+<text x="1735" y="396.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">finance_rag_query · tax_rag_query</text>
+<text x="1735" y="437.22" text-anchor="middle" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#18324b">Evidence Expansion</text>
+<text x="1735" y="465.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#18324b">finance_expand_evidence · tax_expand_evidence</text>
+<text x="1735" y="505.22" text-anchor="middle" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#18324b">Targeted Query Rewrite</text>
+<text x="1735" y="534.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">finance_targeted_search · tax_targeted_search</text>
+<rect x="230" y="570" width="650" height="125" rx="14" fill="#e5edfc" stroke="#a8bfe3" stroke-width="2"/>
+<text x="555.0" y="606.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">4a  Dense query embeddings</text>
+<text x="555.0" y="638.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">OpenAIEmbeddings → semantic vectors</text>
+<text x="555.0" y="665.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Qdrant dense vector search · cosine</text>
+<rect x="1110" y="570" width="650" height="125" rx="14" fill="#e1f2f0" stroke="#91c4bc" stroke-width="2"/>
+<text x="1435.0" y="606.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">4b  Sparse query encoding</text>
+<text x="1435.0" y="638.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Local FastEmbedSparse · Qdrant/bm25</text>
+<text x="1435.0" y="665.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Qdrant sparse lexical search</text>
+<polyline points="995,490 995,530 555,530 555,570" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="555,570 550.6503446588877,560.9955289764732 559.3496553411123,560.9955289764732" fill="#688299"/>
+<polyline points="995,530 1435,530 1435,570" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1435,570 1430.6503446588877,560.9955289764732 1439.3496553411123,560.9955289764732" fill="#688299"/>
+<rect x="670" y="775" width="650" height="125" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="995.0" y="811.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">5  Qdrant hybrid retrieval + RRF</text>
+<text x="995.0" y="843.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Metadata filters applied to candidate searches</text>
+<text x="995.0" y="870.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Reciprocal Rank Fusion merges dense + sparse rankings</text>
+<text x="995.0" y="897.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Return candidate text + metadata + fusion scores</text>
+<polyline points="555,695 555,735 830,735 830,775" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="830,775 825.6503446588877,765.9955289764732 834.3496553411123,765.9955289764732" fill="#688299"/>
+<polyline points="1435,695 1435,735 1160,735 1160,775" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="1160,775 1155.6503446588877,765.9955289764732 1164.3496553411123,765.9955289764732" fill="#688299"/>
+<rect x="670" y="970" width="650" height="125" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="995.0" y="1006.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">6  Deduplicate + optional cross-encoder</text>
+<text x="995.0" y="1038.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Reranker disabled by default; preserve retrieval ordering</text>
+<text x="995.0" y="1065.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">When enabled: cross-encoder/ms-marco-MiniLM-L-6-v2</text>
+<text x="995.0" y="1092.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Apply passage + character budgets before agent exposure</text>
+<polyline points="995,900 995,970" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="995,970 990.6503446588877,960.9955289764732 999.3496553411123,960.9955289764732" fill="#688299"/>
+<rect x="670" y="1170" width="650" height="140" rx="14" fill="#e5edfc" stroke="#a8bfe3" stroke-width="2"/>
+<text x="995.0" y="1206.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">7  Agent assesses evidence coverage</text>
+<text x="995.0" y="1238.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Enough relevant support? → synthesize cited answer</text>
+<text x="995.0" y="1265.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Specific missing fact? → select a recovery action</text>
+<text x="995.0" y="1292.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Not a mandatory separate evaluator-model stage</text>
+<polyline points="995,1095 995,1170" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="995,1170 990.6503446588877,1160.9955289764732 999.3496553411123,1160.9955289764732" fill="#688299"/>
+<rect x="1450" y="970" width="570" height="160" rx="14" fill="#fff3db" stroke="#e6c98e" stroke-width="2"/>
+<text x="1735.0" y="1006.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Bounded evidence recovery</text>
+<text x="1735.0" y="1038.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Evidence Expansion: same terms, deeper retrieval</text>
+<text x="1735.0" y="1065.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Targeted Query Rewrite: search for a missing fact</text>
+<text x="1735.0" y="1092.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Preserve original constraints + metadata filters</text>
+<text x="1735.0" y="1119.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Return through embeddings → retrieval → ranking</text>
+<polyline points="1320,1240 1735,1240 1735,1130" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1735,1130 1739.3496553411123,1139.0044710235268 1730.6503446588877,1139.0044710235268" fill="#b58a3d"/>
+<polyline points="1735,970 2060,970 2060,285 1370,285 1370,415 1320,415" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="1320,415 1329.0044710235268,410.6503446588877 1329.0044710235268,419.3496553411123" fill="#b58a3d"/>
+<rect x="70" y="810" width="470" height="285" rx="14" fill="#ffffff" stroke="#cbd8e5" stroke-width="2"/>
+<text x="305.0" y="846.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#18324b">Runtime bounds</text>
+<text x="305.0" y="878.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Up to 3 retrieval actions total</text>
+<text x="305.0" y="905.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">1 baseline + up to 2 recovery actions</text>
+<text x="305.0" y="932.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Evidence: ≤15 passages / 30,000 chars</text>
+<text x="305.0" y="959.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Finance: baseline ≤3; expansion ≤5 passages</text>
+<text x="305.0" y="986.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Tax: baseline ≤5; expansion ≤10 passages</text>
+<text x="305.0" y="1013.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">15 sec: embeddings + hybrid search</text>
+<text x="305.0" y="1040.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#18324b">Whole agent timeout: 60 sec</text>
+<rect x="670" y="1390" width="650" height="125" rx="14" fill="#153e65" stroke="#153e65" stroke-width="2"/>
+<text x="995.0" y="1426.68" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#ffffff">8  Final response</text>
+<text x="995.0" y="1458.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Supported answer + citations, or insufficient evidence</text>
+<text x="995.0" y="1485.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Essential missing user detail → clarification interrupt</text>
+<text x="995.0" y="1512.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#ffffff">Eligible successful answers may populate answer cache</text>
+<polyline points="995,1310 995,1390" fill="none" stroke="#688299" stroke-width="2"/>
+<polygon points="995,1390 990.6503446588877,1380.9955289764732 999.3496553411123,1380.9955289764732" fill="#688299"/>
+<polyline points="995,145 995,120 30,120 30,1452 670,1452" fill="none" stroke="#b58a3d" stroke-width="2" stroke-dasharray="7 7"/>
+<polygon points="670,1452 660.9955289764732,1456.3496553411123 660.9955289764732,1447.6503446588877" fill="#b58a3d"/>
+<text x="135" y="1435.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#926c2b">Cache hit</text>
+<text x="1050" y="1576.4" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#60788d">Dense search: HNSW may be used by Qdrant server; local mode and small / filtered searches need not use ANN.</text>
+<text x="1050" y="1610.58" text-anchor="middle" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#60788d">Shared output guardrails + API validation follow this flow. Settings shown are defaults, not a reading of the active .env.</text>
+</svg>

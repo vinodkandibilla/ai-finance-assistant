@@ -121,3 +121,16 @@ def test_comparison_aligns_shared_dates_and_rebases_prices():
     second = [bar("2026-01-02", 100), bar("2026-01-03", 90), bar("2026-01-04", 110)]
     assert comparison_series(first, second) == (["2026-01-02", "2026-01-03"], [100, 150], [100, 90])
     assert comparison_series(first[:1], second) == ([], [], [])
+
+
+@pytest.mark.parametrize("symbols,expected", [(["INTC"], "INTC"), (["INTC", "AAPL"], None)])
+def test_resolved_symbol_requires_one_structured_listing(symbols, expected):
+    from finassist.web_app.services.market import resolved_market_symbol
+
+    response = QueryResponse(intent="market", answer="INTEL resolved to INTC", calculations=[
+        {"type": "market_observations", "symbol": symbol, "currency": "USD",
+         "exchange": "NASDAQ", "values": []}
+        for symbol in symbols
+    ])
+    assert resolved_market_symbol(response) == expected
+    assert resolved_market_symbol(QueryResponse(intent="market", answer="INTC")) is None
