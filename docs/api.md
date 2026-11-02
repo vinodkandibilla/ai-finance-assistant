@@ -1,5 +1,7 @@
 # API and local operations
 
+For first-time AWS installation, rsync updates, systemd services and MCP setup without Docker, follow the [EC2 deployment guide](ec2-deployment.md).
+
 Run the application from the repository root with Python 3.12. The [main README](../README.md#quick-start) covers installation; this guide covers provider setup, the HTTP contract, storage and troubleshooting. Configuration defaults are defined in [application settings](../src/finassist/core/config.py), [Finance settings](../src/finassist/agents/finance_qa/config.py) and [Tax settings](../src/finassist/agents/tax_education/config.py).
 
 ## Provider setup and startup

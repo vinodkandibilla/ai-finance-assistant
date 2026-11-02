@@ -19,11 +19,20 @@ For an illustrated introduction, read the **[FinPilot MVP overview (Word)](docs/
 | What you need | Guide |
 | --- | --- |
 | Run locally, configure providers and understand HTTP responses | [API and operations](docs/api.md) |
+| Deploy to EC2 without Docker and upload later changes | [EC2 deployment](docs/ec2-deployment.md) |
 | Understand the system and shared controls | [Architecture](docs/architecture.md) |
 | Explore questions and UI workflows | [Agent guides](docs/agents/README.md) and [UI walkthrough](docs/ui-guide.md) |
 | Assess results, traces and prompt variants | [Evaluation and observability](docs/evaluation.md) |
 | Review implemented and deferred capabilities | [MVP scope](docs/mvp-scope.md) |
 | Present the demo | [PowerPoint](docs/presentations/finpilot-v2-updated.pptx) and [presenter notes](docs/presentations/finpilot-v2-updated-presenter-notes.txt) |
+
+### ▶ FinPilot overview video
+
+**Watch the FinPilot Overview presentation** for a guided introduction to the application and its architecture.
+
+[![Watch the FinPilot Overview presentation video on YouTube](https://img.youtube.com/vi/Hfl9ABHy83Q/1.jpg)](https://www.youtube.com/watch?v=Hfl9ABHy83Q)
+
+**[▶ Watch on YouTube](https://www.youtube.com/watch?v=Hfl9ABHy83Q)** · [Presentation slides](docs/presentations/finpilot-v2-updated.pptx) · [Presenter notes](docs/presentations/finpilot-v2-updated-presenter-notes.txt)
 
 ## Architecture
 
