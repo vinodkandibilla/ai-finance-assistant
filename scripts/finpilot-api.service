@@ -1,0 +1,15 @@
+[Unit]
+Description=FinPilot FastAPI backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/finpilot
+ExecStart=/home/ubuntu/finpilot/.venv/bin/python -m uvicorn finassist.main:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

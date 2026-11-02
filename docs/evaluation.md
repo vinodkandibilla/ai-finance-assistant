@@ -54,6 +54,23 @@ Root previews use redacted text. Environment, source and router prompt version c
 
 Published router experiments replay saved predictions. Their dashboard target latency and tokens are not measurements of the original inference call; local results retain `elapsed_ms`. A selected request trace can show actual model/tool latency for that run. Neither a single trace nor an aggregate correctness score proves every final answer is correct.
 
+### Request latency percentiles
+
+Run this read-only report using the API key in the repository `.env` or your process environment:
+
+```bash
+.venv/bin/python scripts/langsmith_latency.py
+.venv/bin/python scripts/langsmith_latency.py --app finpilot-ai-aws --days 30
+```
+
+The `--app` option selects the LangSmith project (`--project` remains an alias).
+The default project is `finpilot-ai-dev` and the window is seven days. The report
+retrieves completed root traces and prints P50, P80, P85, P90, P95 and P99 in
+seconds, including completed error traces. It excludes incomplete traces and child
+spans, reports the sample size and uses linear interpolation. This measures server
+trace duration rather than browser latency. It does not create traces or experiments.
+Use the appropriate regional `LANGSMITH_ENDPOINT` and workspace configuration if required.
+
 ## Prompt versioning
 
 The source default and `INTENT_ROUTER_PROMPT_VERSION` live in [system prompts](../src/finassist/prompts/system_prompts.py). An explicit environment prompt override takes precedence; restart the backend when changing cached settings. A version label alone does not verify the prompt loaded in an existing process.
