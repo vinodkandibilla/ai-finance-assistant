@@ -8,7 +8,7 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/finpilot
 Environment=FINPILOT_API_BASE_URL=http://127.0.0.1:8000
-ExecStart=/home/ubuntu/finpilot/.venv/bin/python -m streamlit run src/finassist/web_app/app.py --server.address=0.0.0.0 --server.port=8501 --server.headless=true
+ExecStart=/home/ubuntu/finpilot/.venv/bin/python -m streamlit run src/finassist/web_app/app.py --server.address=127.0.0.1 --server.port=8501 --server.headless=true
 Restart=on-failure
 RestartSec=5
 
