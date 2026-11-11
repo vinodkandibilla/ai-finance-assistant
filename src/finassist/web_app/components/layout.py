@@ -73,8 +73,10 @@ def compact_spacing() -> None:
     """Consistent page hierarchy, with denser spacing limited to chat content."""
     st.html("""
     <style>
-    header.stAppHeader,
-    header[data-testid="stHeader"] { display: none; }
+    @media (min-width: 901px) {
+        header.stAppHeader,
+        header[data-testid="stHeader"] { display: none; }
+    }
     .stMainBlockContainer { padding: 0 1rem 1rem; }
     /* Empty style/script blocks must not create a gap above the app header. */
     .stMainBlockContainer > [data-testid="stVerticalBlock"] { gap: 0; }
